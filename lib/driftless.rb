@@ -11,5 +11,16 @@ require 'driftless/models/data_file'
 require 'driftless/models/lookup_call'
 require 'driftless/models/node'
 
+require 'driftless/detectors'
+require 'driftless/detectors/base'
+
+require 'driftless/detectors/hierarchy_orphaned_paths'
+require 'driftless/detectors/data_missing_nodes'
+require 'driftless/detectors/data_codebase_missing_class'
+require 'driftless/detectors/data_codebase_missing_class_param'
+require 'driftless/detectors/code_lookup_missing_hiera_keys'
+
+require 'driftless/scan'
+
 module Driftless
 end

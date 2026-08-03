@@ -45,5 +45,14 @@ RSpec.describe Driftless::Node do
     it 'returns nil when a bare name is in neither facts nor trusted' do
       expect(node.fact('nowhere')).to be_nil
     end
+
+    it 'traverses quoted segments (SubLookup#split_key contract)' do
+      node_with_spaces = described_class.new(
+        certname: 'x',
+        facts:    { 'os' => { 'quirky key' => 'weird-value' } },
+        trusted:  {},
+      )
+      expect(node_with_spaces.fact('facts.os."quirky key"')).to eq('weird-value')
+    end
   end
 end

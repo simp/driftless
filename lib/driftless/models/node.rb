@@ -1,4 +1,4 @@
-require 'puppet'
+module Puppet; end unless defined?(Puppet)
 require 'puppet/pops/lookup/sub_lookup'
 
 module Driftless

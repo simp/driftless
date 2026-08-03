@@ -1,0 +1,3 @@
+<h1>Hello, <%= lookup('welcome::msg') %></h1>
+<p>Server: <%= lookup('server::name', 'localhost') %></p>
+<p>Legacy: <%= hiera('legacy::conf') %></p>

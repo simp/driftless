@@ -2,6 +2,7 @@ require 'spec_helper'
 
 require 'driftless/lookup_calls'
 require 'driftless/inputs/manifest_parser'
+require 'driftless/inputs/epp_parser'
 
 RSpec.describe Driftless::LookupCallExtractor do
   def fixture(name)
@@ -50,6 +51,26 @@ RSpec.describe Driftless::LookupCallExtractor do
 
       it 'returns an empty array' do
         expect(described_class.extract(program: program, file: fixture('no_lookups.pp'))).to eq([])
+      end
+    end
+
+    context 'against an EPP template (calls in <%= %> expression blocks)' do
+      def epp_fixture(name)
+        File.expand_path("fixtures/templates/#{name}", __dir__)
+      end
+
+      let(:program) { Driftless::Inputs::EppParser.parse(epp_fixture('simple.epp'))[0] }
+      let(:calls)   { described_class.extract(program: program, file: epp_fixture('simple.epp')) }
+
+      it 'extracts calls from EPP expression blocks with the same code path as .pp' do
+        expect(calls.map(&:key)).to contain_exactly('welcome::msg', 'server::name', 'legacy::conf')
+      end
+
+      it 'has_default? works consistently across .pp and .epp sources' do
+        by_key = calls.each_with_object({}) { |c, h| h[c.key] = c }
+        expect(by_key['welcome::msg'].has_default?).to be false
+        expect(by_key['server::name'].has_default?).to be true
+        expect(by_key['legacy::conf'].has_default?).to be false
       end
     end
   end

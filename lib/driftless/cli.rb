@@ -63,7 +63,7 @@ module Driftless
         o.on('--output-file=PATH',    'Write output to this file instead of stdout') { |v| opts[:output_file]  = v }
         o.separator ''
         o.separator 'Other:'
-        o.on('--basemodulepath=PATH', 'Override $basemodulepath (colon-separated)') { |v| opts[:basemodulepath] = v }
+        o.on('--basemodulepath=PATH', 'Override $basemodulepath (colon-separated)') { |v| opts[:basemodulepath] = v.split(':') }
         o.on('--fail-on=WHEN', %w[any never], 'Exit non-zero on findings: any (default) or never') { |v| opts[:fail_on] = v }
         o.on('-h', '--help',          'Show this help')                             { puts o; return 0 }
       end
@@ -88,10 +88,11 @@ module Driftless
       end
 
       findings = Scan.new(
-        repo_dir:     opts[:repo_dir],
-        incoming_dir: opts[:incoming_dir],
-        only:         opts[:only],
-        skip:         opts[:skip],
+        repo_dir:       opts[:repo_dir],
+        incoming_dir:   opts[:incoming_dir],
+        only:           opts[:only],
+        skip:           opts[:skip],
+        basemodulepath: opts[:basemodulepath],
       ).run
 
       emit(findings, opts)

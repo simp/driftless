@@ -54,6 +54,49 @@ RSpec.describe Driftless::LookupCallExtractor do
       end
     end
 
+    context 'against YAML source (regex scan for %{lookup/alias/hiera(...)} interpolations)' do
+      let(:yaml_source) do
+        <<~YAML
+          ---
+          plain_key: 'plain value'
+          templated:  "%{lookup('namespace::simple::key')}"
+          via_alias:  "%{alias('config::alias::key')}"
+          via_hiera:  "%{hiera('legacy::interp::key')}"
+          two_on_one_line: "%{lookup('a::b')}/%{alias('c::d')}"
+          not_a_lookup: "%{facts.hostname}"
+        YAML
+      end
+
+      let(:calls) { described_class.extract_from_yaml_source(yaml_source, 'data.yaml') }
+
+      it 'captures each lookup/alias/hiera interpolation as a LookupCall' do
+        expect(calls.map(&:key)).to contain_exactly(
+          'namespace::simple::key',
+          'config::alias::key',
+          'legacy::interp::key',
+          'a::b',
+          'c::d',
+        )
+      end
+
+      it 'records the source line for each interpolation' do
+        by_key = calls.each_with_object({}) { |c, h| h[c.key] = c }
+        expect(by_key['namespace::simple::key'].line).to eq(3)
+        expect(by_key['config::alias::key'].line).to eq(4)
+        expect(by_key['legacy::interp::key'].line).to eq(5)
+        expect(by_key['a::b'].line).to eq(6)
+        expect(by_key['c::d'].line).to eq(6)
+      end
+
+      it 'sets has_default? = false for YAML-scanned calls (no default in interp syntax)' do
+        expect(calls).to all(have_attributes(has_default: false))
+      end
+
+      it 'ignores %{facts.X} and other non-lookup interpolations' do
+        expect(calls.map(&:key)).not_to include(a_string_matching(/facts/))
+      end
+    end
+
     context 'against an EPP template (calls in <%= %> expression blocks)' do
       def epp_fixture(name)
         File.expand_path("fixtures/templates/#{name}", __dir__)

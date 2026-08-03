@@ -1,0 +1,4 @@
+---
+profile::base::ensure: present
+profile::firewall::enable: true
+namespace::only::key: 'value'

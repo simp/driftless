@@ -103,7 +103,7 @@ module Driftless
     def run_list_detectors(_argv, _global_opts)
       max_key_length = Detectors.registry.map{ |k| k.key.size }.max
       Detectors.registry.each do |klass|
-        puts "#{klass.key.ljust(max_key_length)} : #{klass.about}"
+        puts "#{klass.key.ljust(max_key_length)}   #{klass.about}"
       end
       0
     end

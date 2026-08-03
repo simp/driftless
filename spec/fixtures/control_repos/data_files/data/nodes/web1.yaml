@@ -1,0 +1,6 @@
+---
+profile::web::vhost: 'web1.example.com'
+profile::web::ssl: true
+role::web::extra_packages:
+  - htop
+  - vim

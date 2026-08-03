@@ -1,6 +1,6 @@
 module Driftless
   DataFile = Struct.new(
-    :path, :tier, :top_level_keys, :key_lines,
+    :path, :tier, :top_level_keys,
     keyword_init: true,
   )
 end

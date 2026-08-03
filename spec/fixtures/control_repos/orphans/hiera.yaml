@@ -1,0 +1,12 @@
+---
+version: 5
+defaults:
+  datadir: data
+  data_hash: yaml_data
+hierarchy:
+  - name: Per-host
+    path: "hosts/%{trusted.certname}.yaml"
+  - name: OS family
+    path: "os/family/%{facts.os.family}.yaml"
+  - name: Default
+    path: default.yaml

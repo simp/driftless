@@ -49,6 +49,10 @@ module Driftless
         )
       end
 
+      def meta_finding(key:, message:, path: nil, line: nil, meta: {})
+        Finding.new(key: key, path: path, line: line, message: message, meta: meta)
+      end
+
       def skip_meta_finding(reason:)
         Finding.new(
           key: "skipped:#{self.class.key}",

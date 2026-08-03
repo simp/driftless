@@ -1,6 +1,7 @@
 require 'driftless/corpus'
 require 'driftless/reported'
 require 'driftless/detectors'
+require 'driftless/inputs/hierarchy_loader'
 
 module Driftless
   class Scan
@@ -15,23 +16,25 @@ module Driftless
     end
 
     def run
-      corpus = build_corpus
-      selected_detectors.flat_map { |klass| klass.new(corpus).call }
+      meta_findings = []
+
+      hiera_tiers, hl_findings = Inputs::HierarchyLoader.load(repo_dir)
+      meta_findings.concat(hl_findings)
+
+      corpus = Corpus.new(
+        repo:           nil,
+        hiera_tiers:    hiera_tiers,
+        puppet_classes: {},
+        data_files:     [],
+        reported:       Reported.new(data: {}),
+        lookup_calls:   [],
+        log:            log,
+      )
+
+      meta_findings + selected_detectors.flat_map { |klass| klass.new(corpus).call }
     end
 
     private
-
-    def build_corpus
-      Corpus.new(
-        repo: nil,
-        hiera_tiers: [],
-        puppet_classes: {},
-        data_files: [],
-        reported: Reported.new(data: {}),
-        lookup_calls: [],
-        log: log,
-      )
-    end
 
     def selected_detectors
       d = Detectors.registry

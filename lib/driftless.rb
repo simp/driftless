@@ -11,6 +11,8 @@ require 'driftless/models/data_file'
 require 'driftless/models/lookup_call'
 require 'driftless/models/node'
 
+require 'driftless/inputs/hierarchy_loader'
+
 require 'driftless/detectors'
 require 'driftless/detectors/base'
 

@@ -1,0 +1,14 @@
+[
+  {
+    "certname": "web1.example.com",
+    "report_timestamp": "2026-08-03T14:59:55Z",
+    "facts": { "hostname": "web1" },
+    "trusted": { "certname": "web1.example.com" }
+  },
+  {
+    "certname": "db1.example.com",
+    "report_timestamp": "2026-08-03T14:59:50Z",
+    "facts": { "hostname": "db1" },
+    "trusted": { "certname": "db1.example.com" }
+  }
+]

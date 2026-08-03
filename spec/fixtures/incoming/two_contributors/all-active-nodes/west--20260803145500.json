@@ -1,0 +1,14 @@
+[
+  {
+    "certname": "alpha.example.com",
+    "report_timestamp": "2026-08-03T14:55:00Z",
+    "facts": { "hostname": "alpha-west" },
+    "trusted": {}
+  },
+  {
+    "certname": "gamma.example.com",
+    "report_timestamp": "2026-08-03T14:55:00Z",
+    "facts": { "hostname": "gamma" },
+    "trusted": {}
+  }
+]

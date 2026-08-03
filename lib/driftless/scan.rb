@@ -4,6 +4,7 @@ require 'driftless/detectors'
 require 'driftless/inputs/hierarchy_loader'
 require 'driftless/inputs/modulepath_loader'
 require 'driftless/inputs/datadir_loader'
+require 'driftless/inputs/report_loader'
 
 module Driftless
   class Scan
@@ -55,6 +56,9 @@ module Driftless
       data_files, dl_findings = Inputs::DatadirLoader.load(hiera_tiers)
       meta_findings.concat(dl_findings)
 
+      reported, rl_findings = Inputs::ReportLoader.load(incoming_dir)
+      meta_findings.concat(rl_findings)
+
       data_files.each do |df|
         next unless File.file?(df.path)
         lookup_calls.concat(LookupCallExtractor.extract_from_yaml_source(File.read(df.path), df.path))
@@ -65,7 +69,7 @@ module Driftless
         hiera_tiers:    hiera_tiers,
         puppet_classes: puppet_classes,
         data_files:     data_files,
-        reported:       Reported.new(data: {}),
+        reported:       reported,
         lookup_calls:   lookup_calls,
         log:            log,
       )

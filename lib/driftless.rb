@@ -27,5 +27,8 @@ require 'driftless/detectors/code_lookup_missing_hiera_keys'
 
 require 'driftless/scan'
 
+require 'driftless/outputs/json_writer'
+require 'driftless/outputs/text_writer'
+
 module Driftless
 end

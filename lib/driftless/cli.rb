@@ -114,14 +114,8 @@ module Driftless
       out    = opts[:output_file] ? File.open(opts[:output_file], 'w') : $stdout
 
       case format
-      when 'json'
-        out.puts JSON.pretty_generate(findings.map(&:to_h))
-      else
-        if findings.empty?
-          out.puts 'no findings'
-        else
-          findings.each { |f| out.puts "#{f.key}\t#{f.path || '-'}:#{f.line || '-'}\t#{f.message}" }
-        end
+      when 'json' then Outputs::JsonWriter.write(findings, out)
+      else            Outputs::TextWriter.write(findings, out)
       end
     ensure
       out.close if out && out != $stdout

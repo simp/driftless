@@ -74,13 +74,13 @@ RSpec.describe Driftless::Detectors::HierarchyOrphanedPaths do
     context 'against the unresolvable_tier fixture with a node lacking that fact' do
       let(:findings) { described_class.new(corpus_for('unresolvable_tier', nodes: [web1])).call }
 
-      it 'emits a hierarchy:tier-unresolved for the compliance tier' do
-        unresolved = findings.select { |f| f.key == 'hierarchy:tier-unresolved' }
-        expect(unresolved.length).to eq(1)
-        expect(unresolved.first.message).to match(/Compliance profile/)
+      it 'does NOT emit a meta finding for the unresolvable tier (disabled; low-priority informational)' do
+        keys = findings.map(&:key)
+        expect(keys).not_to include('hierarchy:tier-unresolved')
+        expect(keys).not_to include('hierarchy:tiers-unmatched-to-reported-facts')
       end
 
-      it 'does NOT flood-report the unresolvable tier\'s files as orphans' do
+      it 'does NOT flood-report the unresolvable tier\'s files as orphans (suppression still active)' do
         stig_path = File.join(fixture('unresolvable_tier'), 'data/compliance/stig.yaml')
         orphan_paths = findings.select { |f| f.key == 'hierarchy:orphaned-paths' }.map(&:path)
         expect(orphan_paths).not_to include(stig_path)

@@ -19,6 +19,7 @@ require 'driftless/detectors'
 require 'driftless/detectors/base'
 
 require 'driftless/detectors/hierarchy_orphaned_paths'
+require 'driftless/detectors/hierarchy_unreachable_data_files'
 require 'driftless/detectors/data_missing_nodes'
 require 'driftless/detectors/data_codebase_missing_class'
 require 'driftless/detectors/data_codebase_missing_class_param'

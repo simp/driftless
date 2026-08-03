@@ -33,11 +33,12 @@ module Driftless
           tier_reachable = reachable_paths_for(tier, nodes)
 
           if tier.interpolation_vars.any? && tier_reachable.empty?
-            findings << meta_finding(
-              key:     'hierarchy:tier-unresolved',
-              message: "tier #{tier.name.inspect} does not resolve against " \
-                       "any of the #{nodes.length} active node(s)' facts",
-            )
+            # A tier whose interpolation vars are satisfied by NO active node's facts.
+            # Meta finding disabled until a severity/priority scheme exists — this
+            # is informational, not a bug. See `hierarchy:tiers-unmatched-to-reported-facts`
+            # in the issue catalog. The exclusion below is not for reporting; it
+            # prevents the unresolvable tier's datadir subset from being flood-reported
+            # as orphans by the main pass.
             excluded_by_tiers.merge(would_match_files(tier))
           else
             reachable.merge(tier_reachable)

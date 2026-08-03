@@ -12,10 +12,19 @@ module Driftless
       global_opts = {}
 
       global_parser = OptionParser.new do |o|
-        o.banner = 'Usage: driftless [-v|-q] <subcommand> [options]'
-        o.on('-v', '--verbose', 'Verbose output') { global_opts[:verbose] = true }
-        o.on('-q', '--quiet',   'Suppress non-error output') { global_opts[:quiet] = true }
-        o.on('-h', '--help', 'Show this help') { puts o; return 0 }
+        o.banner = 'Usage: driftless [global-options] <subcommand> [subcommand-options]'
+        o.separator ''
+        o.separator 'Subcommands:'
+        o.separator '    scan              Cross-reference control repo against PuppetDB reports'
+        o.separator '    list-detectors    Print all detector keys and their descriptions'
+        o.separator '    version           Print the driftless version'
+        o.separator ''
+        o.separator 'Global options:'
+        o.on('-v', '--verbose', 'Verbose output')         { global_opts[:verbose] = true }
+        o.on('-q', '--quiet',   'Suppress non-error output') { global_opts[:quiet]   = true }
+        o.on('-h', '--help',    'Show this help')         { puts o; return 0 }
+        o.separator ''
+        o.separator 'Run `driftless <subcommand> --help` for subcommand-specific options.'
       end
 
       begin
@@ -40,15 +49,23 @@ module Driftless
 
       parser = OptionParser.new do |o|
         o.banner = 'Usage: driftless scan --repo-dir=DIR --incoming-dir=DIR [options]'
-        o.on('--repo-dir=DIR')                     { |v| opts[:repo_dir]     = v }
-        o.on('--incoming-dir=DIR')                 { |v| opts[:incoming_dir] = v }
-        o.on('--only=KEYS', Array)                 { |v| opts[:only]         = v }
-        o.on('--skip=KEYS', Array)                 { |v| opts[:skip]         = v }
-        o.on('--output=FMT', %w[json text])        { |v| opts[:output]       = v }
-        o.on('--output-file=PATH')                 { |v| opts[:output_file]  = v }
-        o.on('--basemodulepath=PATH')              { |v| opts[:basemodulepath] = v }
-        o.on('--fail-on=WHEN', %w[any never])      { |v| opts[:fail_on]      = v }
-        o.on('-h', '--help') { puts o; return 0 }
+        o.separator ''
+        o.separator 'Required:'
+        o.on('--repo-dir=DIR',        'Path to the control repo environment')       { |v| opts[:repo_dir]     = v }
+        o.on('--incoming-dir=DIR',    'Path to the PuppetDB report intake dir')     { |v| opts[:incoming_dir] = v }
+        o.separator ''
+        o.separator 'Filtering:'
+        o.on('--only=KEYS', Array,    'Run only these detector keys (comma-sep)')   { |v| opts[:only]         = v }
+        o.on('--skip=KEYS', Array,    'Skip these detector keys (comma-sep)')       { |v| opts[:skip]         = v }
+        o.separator ''
+        o.separator 'Output:'
+        o.on('--output=FMT', %w[json text], 'Output format: json or text (default: text on TTY, json otherwise)') { |v| opts[:output]      = v }
+        o.on('--output-file=PATH',    'Write output to this file instead of stdout') { |v| opts[:output_file]  = v }
+        o.separator ''
+        o.separator 'Other:'
+        o.on('--basemodulepath=PATH', 'Override $basemodulepath (colon-separated)') { |v| opts[:basemodulepath] = v }
+        o.on('--fail-on=WHEN', %w[any never], 'Exit non-zero on findings: any (default) or never') { |v| opts[:fail_on] = v }
+        o.on('-h', '--help',          'Show this help')                             { puts o; return 0 }
       end
 
       begin
@@ -84,8 +101,9 @@ module Driftless
     end
 
     def run_list_detectors(_argv, _global_opts)
+      max_key_length = Detectors.registry.map{ |k| k.key.size }.max
       Detectors.registry.each do |klass|
-        puts "#{klass.key} — #{klass.about}"
+        puts "#{klass.key.ljust(max_key_length)} : #{klass.about}"
       end
       0
     end

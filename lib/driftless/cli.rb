@@ -50,9 +50,11 @@ module Driftless
       parser = OptionParser.new do |o|
         o.banner = 'Usage: driftless scan --repo-dir=DIR --incoming-dir=DIR [options]'
         o.separator ''
-        o.separator 'Required:'
+        o.separator 'Required (auto-detected when omitted, see below):'
         o.on('--repo-dir=DIR',        'Path to the control repo environment')       { |v| opts[:repo_dir]     = v }
         o.on('--incoming-dir=DIR',    'Path to the PuppetDB report intake dir')     { |v| opts[:incoming_dir] = v }
+        o.separator '    Defaults: --repo-dir=cwd if it has hiera.yaml + environment.conf;'
+        o.separator '              --incoming-dir=<repo-dir>/incoming if that directory exists.'
         o.separator ''
         o.separator 'Filtering:'
         o.on('--only=KEYS', Array,    'Run only these detector keys (comma-sep)')   { |v| opts[:only]         = v }
@@ -76,8 +78,15 @@ module Driftless
         return 2
       end
 
+      opts[:repo_dir]     ||= default_repo_dir(Dir.pwd)
+      opts[:incoming_dir] ||= default_incoming_dir(opts[:repo_dir])
+
       unless opts[:repo_dir] && opts[:incoming_dir]
-        warn 'scan requires both --repo-dir and --incoming-dir'
+        missing = []
+        missing << '--repo-dir'     unless opts[:repo_dir]
+        missing << '--incoming-dir' unless opts[:incoming_dir]
+        pronoun = missing.length > 1 ? 'them' : 'it'
+        warn "scan requires #{missing.join(' and ')} (auto-detection did not supply #{pronoun})"
         warn parser.help
         return 2
       end
@@ -107,6 +116,18 @@ module Driftless
         puts "#{klass.key.ljust(max_key_length)}   #{klass.about}"
       end
       0
+    end
+
+    def default_repo_dir(cwd)
+      return cwd if File.exist?(File.join(cwd, 'hiera.yaml')) &&
+                    File.exist?(File.join(cwd, 'environment.conf'))
+      nil
+    end
+
+    def default_incoming_dir(repo_dir)
+      return nil unless repo_dir
+      candidate = File.join(repo_dir, 'incoming')
+      File.directory?(candidate) ? candidate : nil
     end
 
     def emit(findings, opts)

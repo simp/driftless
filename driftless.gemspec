@@ -23,7 +23,4 @@ Gem::Specification.new do |spec|
 
   spec.add_runtime_dependency 'openvox',    '~> 8.28'
   spec.add_runtime_dependency 'deep_merge', '~> 1.2'
-
-  spec.add_development_dependency 'rspec',     '~> 3.12'
-  spec.add_development_dependency 'rspec-its', '~> 1.3'
 end

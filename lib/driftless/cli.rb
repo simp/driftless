@@ -7,7 +7,7 @@ module Driftless
   module CLI
     module_function
 
-    def parse(argv)
+    def run(argv)
       argv = argv.dup
       global_opts = {}
 
@@ -22,7 +22,7 @@ module Driftless
         o.separator 'Global options:'
         o.on('-v', '--verbose', 'Verbose output')         { global_opts[:verbose] = true }
         o.on('-q', '--quiet',   'Suppress non-error output') { global_opts[:quiet]   = true }
-        o.on('-h', '--help',    'Show this help')         { puts o; return 0 }
+        o.on('-h', '--help',    'Show this help')         { puts o; exit 0 }
         o.separator ''
         o.separator 'Run `driftless <subcommand> --help` for subcommand-specific options.'
       end
@@ -32,15 +32,15 @@ module Driftless
       rescue OptionParser::ParseError => e
         warn e.message
         warn global_parser.help
-        return 2
+        exit 2
       end
 
       case (sub = argv.shift)
       when 'scan'                 then run_scan(argv, global_opts)
       when 'list-detectors'       then run_list_detectors(argv, global_opts)
-      when 'version', '--version' then puts Driftless::VERSION; 0
-      when nil                    then warn global_parser.help; 2
-      else                             warn "unknown subcommand: #{sub}"; warn global_parser.help; 2
+      when 'version', '--version' then puts Driftless::VERSION; exit 0
+      when nil                    then warn global_parser.help; exit 2
+      else                             warn "unknown subcommand: #{sub}"; warn global_parser.help; exit 2
       end
     end
 
@@ -67,7 +67,7 @@ module Driftless
         o.separator 'Other:'
         o.on('--basemodulepath=PATH', 'Override $basemodulepath (colon-separated)') { |v| opts[:basemodulepath] = v.split(':') }
         o.on('--fail-on=WHEN', %w[any never], 'Exit non-zero on findings: any (default) or never') { |v| opts[:fail_on] = v }
-        o.on('-h', '--help',          'Show this help')                             { puts o; return 0 }
+        o.on('-h', '--help',          'Show this help')                             { puts o; exit 0 }
       end
 
       begin
@@ -75,7 +75,7 @@ module Driftless
       rescue OptionParser::ParseError => e
         warn e.message
         warn parser.help
-        return 2
+        exit 2
       end
 
       opts[:repo_dir]     ||= default_repo_dir(Dir.pwd)
@@ -88,12 +88,12 @@ module Driftless
         pronoun = missing.length > 1 ? 'them' : 'it'
         warn "scan requires #{missing.join(' and ')} (auto-detection did not supply #{pronoun})"
         warn parser.help
-        return 2
+        exit 2
       end
 
       unless File.directory?(opts[:repo_dir])
         warn "repo-dir not readable: #{opts[:repo_dir]}"
-        return 3
+        exit 3
       end
 
       findings = Scan.new(
@@ -106,8 +106,8 @@ module Driftless
 
       emit(findings, opts)
 
-      return 0 if opts[:fail_on] == 'never'
-      findings.empty? ? 0 : 1
+      exit 0 if opts[:fail_on] == 'never'
+      exit(findings.empty? ? 0 : 1)
     end
 
     def run_list_detectors(_argv, _global_opts)
@@ -115,7 +115,7 @@ module Driftless
       Detectors.registry.each do |klass|
         puts "#{klass.key.ljust(max_key_length)}   #{klass.about}"
       end
-      0
+      exit 0
     end
 
     def default_repo_dir(cwd)

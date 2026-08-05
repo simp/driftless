@@ -320,6 +320,26 @@ RSpec.describe Driftless::CLI::Base do
       expect(Driftless.logger.level).to eq(Logger::ERROR)
     end
 
+    it 'sets DEBUG when --verbose is repeated (-vv)' do
+      leaf.new.run(['-vv'])
+      expect(Driftless.logger.level).to eq(Logger::DEBUG)
+    end
+
+    it 'sets DEBUG for two separate -v flags (equivalent to -vv)' do
+      leaf.new.run(['-v', '-v'])
+      expect(Driftless.logger.level).to eq(Logger::DEBUG)
+    end
+
+    it 'sets DEBUG for two --verbose flags' do
+      leaf.new.run(['--verbose', '--verbose'])
+      expect(Driftless.logger.level).to eq(Logger::DEBUG)
+    end
+
+    it 'quiet still wins over debug' do
+      leaf.new.run(['-vv', '-q'])
+      expect(Driftless.logger.level).to eq(Logger::ERROR)
+    end
+
     it 'applies inherited parent_options[:verbose] too' do
       leaf.new(parent_options: { verbose: true }).run([])
       expect(Driftless.logger.level).to eq(Logger::INFO)

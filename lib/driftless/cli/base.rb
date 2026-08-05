@@ -137,8 +137,14 @@ module Driftless
           o.separator ''
           o.separator 'Options:'
           configure_parser(o)
-          o.on('-v', '--verbose', 'Verbose output')            { @options[:verbose] = true }
-          o.on('-q', '--quiet',   'Suppress non-error output') { @options[:quiet]   = true }
+          o.on('-v', '--verbose', 'Verbose output (repeat for debug: -vv)') do
+            if @options[:verbose]
+              @options[:debug] = true
+            else
+              @options[:verbose] = true
+            end
+          end
+          o.on('-q', '--quiet',   'Suppress non-error output')             { @options[:quiet]   = true }
           o.on('-h', '--help',    'Show this help')            { puts o; exit 0 }
         end
       end
@@ -146,6 +152,7 @@ module Driftless
       def apply_log_level
         ::Driftless.logger.level =
           if    @options[:quiet]   then Logger::ERROR
+          elsif @options[:debug]   then Logger::DEBUG
           elsif @options[:verbose] then Logger::INFO
           else                          Logger::WARN
           end

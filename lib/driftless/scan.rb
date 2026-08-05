@@ -1,4 +1,5 @@
 require 'driftless/corpus'
+require 'driftless/logger'
 require 'driftless/reported'
 require 'driftless/detectors'
 require 'driftless/inputs/hierarchy_loader'
@@ -25,43 +26,59 @@ module Driftless
       require 'driftless/class_extractor'
       require 'driftless/lookup_calls'
 
+      Driftless.logger.info("Scanning control repo: #{repo_dir}")
       meta_findings = []
 
-      hiera_tiers, hl_findings = Inputs::HierarchyLoader.load(repo_dir)
+      hiera_tiers, hl_findings = phase('hierarchy load') { Inputs::HierarchyLoader.load(repo_dir) }
       meta_findings.concat(hl_findings)
+      Driftless.logger.info("Loaded #{hiera_tiers.size} hierarchy tiers")
 
-      manifest_files, mpl_findings = load_manifest_files
+      manifest_files, mpl_findings = phase('manifest discovery') { load_manifest_files }
       meta_findings.concat(mpl_findings)
+      Driftless.logger.info("Discovered #{manifest_files.size} Puppet manifest files")
 
       puppet_classes = {}
       lookup_calls   = []
 
-      manifest_files.each do |path|
-        program, errs = Inputs::ManifestParser.parse(path)
-        meta_findings.concat(errs)
-        next unless program
-        ClassExtractor.extract(program: program, file: path).each do |cls|
-          puppet_classes[cls.fqname] = cls
+      phase('manifest parsing') do
+        manifest_files.each do |path|
+          program, errs = Inputs::ManifestParser.parse(path)
+          meta_findings.concat(errs)
+          next unless program
+          ClassExtractor.extract(program: program, file: path).each do |cls|
+            puppet_classes[cls.fqname] = cls
+          end
+          lookup_calls.concat(LookupCallExtractor.extract(program: program, file: path))
         end
-        lookup_calls.concat(LookupCallExtractor.extract(program: program, file: path))
       end
+      Driftless.logger.info(
+        "Extracted #{puppet_classes.size} classes and #{lookup_calls.size} lookup calls from manifests"
+      )
 
-      discover_epp_templates.each do |path|
-        program, errs = Inputs::EppParser.parse(path)
-        meta_findings.concat(errs)
-        next unless program
-        lookup_calls.concat(LookupCallExtractor.extract(program: program, file: path))
+      epp_paths = discover_epp_templates
+      phase('EPP template scan') do
+        epp_paths.each do |path|
+          program, errs = Inputs::EppParser.parse(path)
+          meta_findings.concat(errs)
+          next unless program
+          lookup_calls.concat(LookupCallExtractor.extract(program: program, file: path))
+        end
       end
+      Driftless.logger.info("Scanned #{epp_paths.size} EPP templates")
 
-      data_files, dl_findings = Inputs::DatadirLoader.load(hiera_tiers)
+      data_files, dl_findings = phase('data file load') { Inputs::DatadirLoader.load(hiera_tiers) }
       meta_findings.concat(dl_findings)
+      Driftless.logger.info("Loaded #{data_files.size} Hiera data files")
 
-      reported, rl_findings = Inputs::ReportLoader.load(incoming_dir)
+      reported, rl_findings = phase('report load') { Inputs::ReportLoader.load(incoming_dir) }
       meta_findings.concat(rl_findings)
+      Driftless.logger.info("Loaded PuppetDB reports from #{incoming_dir}")
 
-      data_files.each do |df|
-        next unless File.file?(df.path)
-        lookup_calls.concat(LookupCallExtractor.extract_from_yaml_source(df.source, df.path))
+      phase('lookup extraction from Hiera data') do
+        data_files.each do |df|
+          next unless File.file?(df.path)
+          lookup_calls.concat(LookupCallExtractor.extract_from_yaml_source(df.source, df.path))
+        end
       end
 
       corpus = Corpus.new(
@@ -74,7 +91,17 @@ module Driftless
         log:            log,
       )
 
-      meta_findings + selected_detectors.flat_map { |klass| klass.new(corpus).call }
+      detectors = selected_detectors
+      Driftless.logger.info("Running #{detectors.size} detectors")
+      detector_findings = detectors.flat_map do |klass|
+        result = phase(klass.key) { klass.new(corpus).call }
+        Driftless.logger.info("  #{klass.key} → #{result.size} findings")
+        result
+      end
+
+      all_findings = meta_findings + detector_findings
+      Driftless.logger.info("Scan complete: #{all_findings.size} findings")
+      all_findings
     end
 
     private
@@ -100,6 +127,16 @@ module Driftless
       d = d.select { |k| only.include?(k.key) } if only && !only.empty?
       d = d.reject { |k| skip.include?(k.key) } if skip && !skip.empty?
       d
+    end
+
+    # Times a block and emits a DEBUG line with elapsed ms. Level filtering
+    # means the debug output only shows up when a caller has run `driftless -vv`.
+    def phase(name)
+      t = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+      result = yield
+      elapsed_ms = ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - t) * 1000).round(1)
+      Driftless.logger.debug("  [#{elapsed_ms}ms] #{name}")
+      result
     end
   end
 end

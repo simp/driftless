@@ -1,3 +1,4 @@
 #!/usr/bin/env ruby
-require 'driftless/cli'
-Driftless::CLI.run(ARGV)
+require 'driftless'
+require 'driftless/cli/root'
+Driftless::CLI::Root.run(ARGV)

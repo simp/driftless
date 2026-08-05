@@ -2,9 +2,9 @@ require 'spec_helper'
 require 'tmpdir'
 require 'fileutils'
 
-require 'driftless/cli'
+require 'driftless/cli/scan'
 
-RSpec.describe Driftless::CLI do
+RSpec.describe Driftless::CLI::Scan do
   describe '.default_repo_dir' do
     it 'returns the dir when both hiera.yaml and environment.conf are present' do
       Dir.mktmpdir do |dir|

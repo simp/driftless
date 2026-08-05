@@ -4,7 +4,7 @@ require 'driftless/cli/root'
 module Driftless
   module CLI
     class List < Base
-      register_command name: 'list', subcommand_of: Root
+      register_command name: ['list', 'ls'], subcommand_of: Root
       desc 'List things (see subcommands)'
     end
   end

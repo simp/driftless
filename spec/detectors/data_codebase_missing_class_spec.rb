@@ -3,7 +3,7 @@ require 'spec_helper'
 require 'driftless/detectors/data_codebase_missing_class'
 require 'driftless/corpus'
 require 'driftless/reported'
-require 'driftless/models/data_file'
+require 'driftless/models/hiera_data_file_info'
 require 'driftless/models/puppet_class'
 require 'driftless/models/class_parameter'
 require 'driftless/models/lookup_call'
@@ -28,8 +28,8 @@ RSpec.describe Driftless::Detectors::DataCodebaseMissingClass do
   describe '#call' do
     context 'with a mix of keys that reference existing and non-existing classes' do
       let(:df) do
-        Driftless::DataFile.new(
-          path: '/tmp/default.yaml', tier: nil,
+        Driftless::HieraDataFileInfo.new(
+          path: '/tmp/default.yaml',
           top_level_keys: {
             'profile::base::ensure'      => 2,
             'profile::nonexistent::foo'  => 3,
@@ -58,8 +58,8 @@ RSpec.describe Driftless::Detectors::DataCodebaseMissingClass do
 
     context 'with a namespace-only key that is referenced by an explicit lookup() call' do
       let(:df) do
-        Driftless::DataFile.new(
-          path: '/tmp/default.yaml', tier: nil,
+        Driftless::HieraDataFileInfo.new(
+          path: '/tmp/default.yaml',
           top_level_keys: { 'namespace::only::key' => 5 },
         )
       end
@@ -75,8 +75,8 @@ RSpec.describe Driftless::Detectors::DataCodebaseMissingClass do
 
     context 'with data keys that do not use :: (single segment)' do
       let(:df) do
-        Driftless::DataFile.new(
-          path: '/tmp/default.yaml', tier: nil,
+        Driftless::HieraDataFileInfo.new(
+          path: '/tmp/default.yaml',
           top_level_keys: { 'simple_key' => 2, 'another' => 3 },
         )
       end

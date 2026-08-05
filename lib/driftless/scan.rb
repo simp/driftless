@@ -61,7 +61,7 @@ module Driftless
 
       data_files.each do |df|
         next unless File.file?(df.path)
-        lookup_calls.concat(LookupCallExtractor.extract_from_yaml_source(File.read(df.path), df.path))
+        lookup_calls.concat(LookupCallExtractor.extract_from_yaml_source(df.source, df.path))
       end
 
       corpus = Corpus.new(

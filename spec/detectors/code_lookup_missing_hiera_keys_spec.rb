@@ -3,7 +3,7 @@ require 'spec_helper'
 require 'driftless/detectors/code_lookup_missing_hiera_keys'
 require 'driftless/corpus'
 require 'driftless/reported'
-require 'driftless/models/data_file'
+require 'driftless/models/hiera_data_file_info'
 require 'driftless/models/lookup_call'
 
 RSpec.describe Driftless::Detectors::CodeLookupMissingHieraKeys do
@@ -16,8 +16,8 @@ RSpec.describe Driftless::Detectors::CodeLookupMissingHieraKeys do
   end
 
   let(:default_yaml) do
-    Driftless::DataFile.new(
-      path: '/tmp/default.yaml', tier: nil,
+    Driftless::HieraDataFileInfo.new(
+      path: '/tmp/default.yaml',
       top_level_keys: {
         'profile::web::vhost'  => 2,
         'namespace::defined'   => 3,

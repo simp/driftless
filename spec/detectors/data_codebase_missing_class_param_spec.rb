@@ -3,7 +3,7 @@ require 'spec_helper'
 require 'driftless/detectors/data_codebase_missing_class_param'
 require 'driftless/corpus'
 require 'driftless/reported'
-require 'driftless/models/data_file'
+require 'driftless/models/hiera_data_file_info'
 require 'driftless/models/puppet_class'
 require 'driftless/models/class_parameter'
 require 'driftless/models/lookup_call'
@@ -31,8 +31,8 @@ RSpec.describe Driftless::Detectors::DataCodebaseMissingClassParam do
   describe '#call' do
     context 'with a mix of valid and invalid parameter references on an existing class' do
       let(:df) do
-        Driftless::DataFile.new(
-          path: '/tmp/default.yaml', tier: nil,
+        Driftless::HieraDataFileInfo.new(
+          path: '/tmp/default.yaml',
           top_level_keys: {
             'profile::web::vhost'     => 2,   # ✓ valid param
             'profile::web::ssl'       => 3,   # ✓ valid param
@@ -56,8 +56,8 @@ RSpec.describe Driftless::Detectors::DataCodebaseMissingClassParam do
       end
 
       it 'does NOT double-fire when the class itself is missing (that is the other detector)' do
-        df_missing = Driftless::DataFile.new(
-          path: '/tmp/default.yaml', tier: nil,
+        df_missing = Driftless::HieraDataFileInfo.new(
+          path: '/tmp/default.yaml',
           top_level_keys: { 'nonexistent::class::param' => 2 },
         )
         c = hand_corpus(data_files: [df_missing])
@@ -67,8 +67,8 @@ RSpec.describe Driftless::Detectors::DataCodebaseMissingClassParam do
 
     context 'exemption via explicit lookup() call' do
       let(:df) do
-        Driftless::DataFile.new(
-          path: '/tmp/default.yaml', tier: nil,
+        Driftless::HieraDataFileInfo.new(
+          path: '/tmp/default.yaml',
           top_level_keys: { 'profile::web::not_a_param_but_ns' => 5 },
         )
       end
@@ -89,8 +89,8 @@ RSpec.describe Driftless::Detectors::DataCodebaseMissingClassParam do
 
     context 'with data keys that do not use :: (single segment)' do
       let(:df) do
-        Driftless::DataFile.new(
-          path: '/tmp/default.yaml', tier: nil,
+        Driftless::HieraDataFileInfo.new(
+          path: '/tmp/default.yaml',
           top_level_keys: { 'plain' => 2 },
         )
       end

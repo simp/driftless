@@ -2,7 +2,7 @@ require 'psych'
 require 'set'
 
 require 'driftless/finding'
-require 'driftless/models/data_file'
+require 'driftless/models/hiera_data_file_info'
 
 module Driftless
   module Inputs
@@ -42,7 +42,10 @@ module Driftless
       def load_file(path)
         source = File.read(path)
         stream = Psych.parse_stream(source, filename: path)
-        [DataFile.new(path: path, tier: nil, top_level_keys: extract_top_level_keys(stream)), []]
+        # Prime the source cache — we've already read the file to extract keys,
+        # so subsequent detectors that need df.source pay zero I/O cost.
+        info = HieraDataFileInfo.new(path: path, top_level_keys: extract_top_level_keys(stream), source: source)
+        [info, []]
       rescue Psych::SyntaxError, StandardError => e
         [nil, [yaml_error_finding(path, e)]]
       end

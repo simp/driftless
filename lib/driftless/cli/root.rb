@@ -10,9 +10,7 @@ module Driftless
       protected
 
       def configure_parser(o)
-        o.on('-v', '--verbose', 'Verbose output')            {}
-        o.on('-q', '--quiet',   'Suppress non-error output') {}
-        o.on('--version',       'Print the driftless version') do
+        o.on('--version', 'Print the driftless version') do
           puts Driftless::VERSION
           exit 0
         end

@@ -1,4 +1,5 @@
 require 'driftless/version'
+require 'driftless/logger'
 
 require 'driftless/finding'
 require 'driftless/corpus'

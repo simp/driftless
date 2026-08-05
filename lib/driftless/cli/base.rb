@@ -1,4 +1,7 @@
+require 'logger'
 require 'optparse'
+
+require 'driftless/logger'
 
 module Driftless
   module CLI
@@ -94,9 +97,16 @@ module Driftless
 
       # ---- Instance API --------------------------------------------------
 
+      # parent_options is a snapshot at construction time — the child dups it,
+      # then its own parse writes to @options. Child mutations don't bubble up.
+      def initialize(parent_options: {})
+        @options = parent_options.dup
+      end
+
       def run(argv)
         argv = argv.dup
         parse_own_options!(argv)
+        apply_log_level
         if self.class.subcommands.empty?
           execute(argv)
         else
@@ -127,8 +137,18 @@ module Driftless
           o.separator ''
           o.separator 'Options:'
           configure_parser(o)
-          o.on('-h', '--help', 'Show this help') { puts o; exit 0 }
+          o.on('-v', '--verbose', 'Verbose output')            { @options[:verbose] = true }
+          o.on('-q', '--quiet',   'Suppress non-error output') { @options[:quiet]   = true }
+          o.on('-h', '--help',    'Show this help')            { puts o; exit 0 }
         end
+      end
+
+      def apply_log_level
+        ::Driftless.logger.level =
+          if    @options[:quiet]   then Logger::ERROR
+          elsif @options[:verbose] then Logger::INFO
+          else                          Logger::WARN
+          end
       end
 
       def usage_line
@@ -182,7 +202,7 @@ module Driftless
           exit 2
         end
 
-        child.new.run(argv)
+        child.new(parent_options: @options).run(argv)
       end
     end
   end

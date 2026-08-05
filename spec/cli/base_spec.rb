@@ -2,6 +2,15 @@ require 'spec_helper'
 require 'driftless/cli/base'
 
 RSpec.describe Driftless::CLI::Base do
+  # Save/restore process-global logger level around every example.
+  around do |example|
+    original_level = Driftless.logger.level
+    example.run
+  ensure
+    Driftless.logger.level = original_level
+  end
+
+
   # Fresh anonymous parent per test — keeps @subcommands state isolated.
   let(:parent_class) do
     Class.new(described_class) do
@@ -237,6 +246,101 @@ RSpec.describe Driftless::CLI::Base do
       expect { leaf.new.run(['--help']) }
         .to raise_error(SystemExit) { |e| expect(e.status).to eq(0) }
         .and output(/Usage:/).to_stdout
+    end
+  end
+
+  describe '#run — parent_options threading' do
+    let(:branch) { parent_class }
+    let!(:child) do
+      b = branch
+      Class.new(described_class) do
+        register_command name: 'child', subcommand_of: b
+        desc 'child leaf'
+        class << self
+          attr_accessor :seen_options
+        end
+        define_method(:execute) do |_argv|
+          self.class.seen_options = @options.dup
+        end
+      end
+    end
+
+    it 'child inherits parent @options at construction' do
+      p = branch.new(parent_options: { foo: :bar })
+      p.run(['child'])
+      expect(child.seen_options[:foo]).to eq(:bar)
+    end
+
+    it 'child inherits parent @options set via CLI flags (verbose flows down)' do
+      branch.new.run(['--verbose', 'child'])
+      expect(child.seen_options[:verbose]).to be(true)
+    end
+
+    it 'child mutations do not leak back to parent (snapshot semantics)' do
+      parent = branch.new(parent_options: { shared: [1, 2] })
+      b = branch
+      Class.new(described_class) do
+        register_command name: 'mut', subcommand_of: b
+        define_method(:execute) do |_argv|
+          @options[:new_key] = :leaked?
+        end
+      end
+      parent.run(['mut'])
+      expect(parent.instance_variable_get(:@options)).not_to have_key(:new_key)
+      expect(parent.instance_variable_get(:@options)[:shared]).to eq([1, 2])
+    end
+  end
+
+  describe '#apply_log_level (derivation from @options)' do
+    let(:leaf) do
+      Class.new(described_class) do
+        register_command name: 'leaf'
+        desc 'a leaf'
+        define_method(:execute) { |_argv| }
+      end
+    end
+
+    it 'defaults to WARN when neither flag is set' do
+      leaf.new.run([])
+      expect(Driftless.logger.level).to eq(Logger::WARN)
+    end
+
+    it 'sets INFO when --verbose is parsed' do
+      leaf.new.run(['--verbose'])
+      expect(Driftless.logger.level).to eq(Logger::INFO)
+    end
+
+    it 'sets ERROR when --quiet is parsed' do
+      leaf.new.run(['--quiet'])
+      expect(Driftless.logger.level).to eq(Logger::ERROR)
+    end
+
+    it 'quiet wins over verbose when both are set' do
+      leaf.new.run(['--verbose', '--quiet'])
+      expect(Driftless.logger.level).to eq(Logger::ERROR)
+    end
+
+    it 'applies inherited parent_options[:verbose] too' do
+      leaf.new(parent_options: { verbose: true }).run([])
+      expect(Driftless.logger.level).to eq(Logger::INFO)
+    end
+  end
+
+  describe 'universal -v/-q availability' do
+    it '-v is accepted on a command that did not declare it' do
+      leaf = Class.new(described_class) do
+        register_command name: 'leaf'
+        define_method(:execute) { |_argv| }
+      end
+      expect { leaf.new.run(['-v']) }.not_to raise_error
+    end
+
+    it '-q is accepted on a command that did not declare it' do
+      leaf = Class.new(described_class) do
+        register_command name: 'leaf'
+        define_method(:execute) { |_argv| }
+      end
+      expect { leaf.new.run(['-q']) }.not_to raise_error
     end
   end
 end

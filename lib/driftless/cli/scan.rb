@@ -24,8 +24,9 @@ module Driftless
         end
       end
 
-      def initialize
-        @options = { fail_on: 'any' }
+      def initialize(parent_options: {})
+        super
+        @options = { fail_on: 'any' }.merge(@options)
       end
 
       def execute(_argv)

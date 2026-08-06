@@ -9,7 +9,7 @@ module Driftless
       key 'hierarchy:paths-missing-reported-facts'
       about 'Hiera data files on disk that no hierarchy tier resolves to ' \
             'given any active node\'s reported facts'
-      requires_reports 'all-active-nodes'
+      requires_reports 'factsets-for-all-nodes'
 
       BACKEND_EXT = {
         yaml_data:  '.yaml',
@@ -20,11 +20,11 @@ module Driftless
       TEMPLATE_VAR_RE = /%\{[^{}]+\}/.freeze
 
       def call
-        if corpus.reported.missing?('all-active-nodes')
-          return [skip_meta_finding(reason: 'no report:all-active-nodes data')]
+        if corpus.reported.missing?('factsets-for-all-nodes')
+          return [skip_meta_finding(reason: 'no report:factsets-for-all-nodes data')]
         end
 
-        nodes = Array(corpus.reported.report('all-active-nodes'))
+        nodes = Array(corpus.reported.report('factsets-for-all-nodes'))
 
         findings          = []
         reachable         = Set.new

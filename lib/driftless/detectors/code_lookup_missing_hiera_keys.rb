@@ -19,12 +19,12 @@ module Driftless
       # derivation via Puppet's autoloading convention.
       CLASS_PATH_RE = %r{/(?:site-)?modules/([^/]+)/manifests/(.*)\.pp\z}.freeze
 
-      # Defaults for role/profile class detection. Sites with non-standard
-      # naming (e.g. baseline::role::*, baseline::profile::*) will override
-      # these via config in Phase 3. Convention adopted from onceover's
-      # role_regex / profile_regex config keys.
-      ROLE_REGEX_DEFAULT    = /\Arole::/.freeze
-      PROFILE_REGEX_DEFAULT = /\Aprofile::/.freeze
+      config_option :role_regex, type: :regexp, default: /\Arole::/,
+        about: 'Regex matching role class names; module-local skip does NOT apply to matching classes'
+      config_option :profile_regex, type: :regexp, default: /\Aprofile::/,
+        about: 'Regex matching profile class names; module-local skip does NOT apply to matching classes'
+      config_option :ignore_lookups_with_defaults, type: :boolean, default: false,
+        about: 'Skip flagging lookup() calls that provide an explicit default value'
 
       def call
         defined_keys = collect_defined_keys
@@ -32,6 +32,7 @@ module Driftless
 
         corpus.code_lookup_calls.each do |lc|
           next if defined_keys.include?(lc.key)
+          next if lc.has_default && option(:ignore_lookups_with_defaults)
           next if skip_as_module_local?(lc)
 
           findings << build_finding(
@@ -66,7 +67,7 @@ module Driftless
         module_name = m[1]
 
         class_name = derive_class_name(lc.file)
-        return false if class_name && (role_regex.match?(class_name) || profile_regex.match?(class_name))
+        return false if class_name && (option(:role_regex).match?(class_name) || option(:profile_regex).match?(class_name))
 
         key_ns = lc.key.split('::', 2).first
         module_name == key_ns
@@ -84,9 +85,6 @@ module Driftless
         return module_name if subpath == 'init'
         ([module_name] + subpath.split('/')).join('::')
       end
-
-      def role_regex;    ROLE_REGEX_DEFAULT;    end
-      def profile_regex; PROFILE_REGEX_DEFAULT; end
     end
   end
 end

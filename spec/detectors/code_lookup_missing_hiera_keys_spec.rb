@@ -94,5 +94,64 @@ RSpec.describe Driftless::Detectors::CodeLookupMissingHieraKeys do
         expect(described_class.new(hand_corpus(data_files: [default_yaml])).call).to be_empty
       end
     end
+
+    context 'with lookups inside module manifests (module-local skip)' do
+      # Empty data_files → no defined keys → every lookup would ordinarily be
+      # flagged. Isolates the module-local skip logic from the defined-keys check.
+
+      it 'skips lookups inside a module for that module\'s own namespace' do
+        calls = [Driftless::LookupCall.new(
+          key: 'mymodule::foo', file: '/repo/modules/mymodule/manifests/init.pp',
+          line: 1, has_default: false,
+        )]
+        expect(described_class.new(hand_corpus(code_lookup_calls: calls)).call).to be_empty
+      end
+
+      it 'flags lookups inside a module that reference a DIFFERENT namespace' do
+        calls = [Driftless::LookupCall.new(
+          key: 'other_module::foo', file: '/repo/modules/mymodule/manifests/init.pp',
+          line: 1, has_default: false,
+        )]
+        findings = described_class.new(hand_corpus(code_lookup_calls: calls)).call
+        expect(findings.map { |f| f.meta[:lookup_key] }).to eq(['other_module::foo'])
+      end
+
+      it 'flags lookups from profile classes (profile is exempt from module-local skip)' do
+        calls = [Driftless::LookupCall.new(
+          key: 'profile::apache::port',
+          file: '/repo/site-modules/profile/manifests/apache.pp',
+          line: 1, has_default: false,
+        )]
+        findings = described_class.new(hand_corpus(code_lookup_calls: calls)).call
+        expect(findings.map { |f| f.meta[:lookup_key] }).to eq(['profile::apache::port'])
+      end
+
+      it 'flags lookups from role classes (role is exempt from module-local skip)' do
+        calls = [Driftless::LookupCall.new(
+          key: 'role::web::settings',
+          file: '/repo/site-modules/role/manifests/web.pp',
+          line: 1, has_default: false,
+        )]
+        findings = described_class.new(hand_corpus(code_lookup_calls: calls)).call
+        expect(findings.map { |f| f.meta[:lookup_key] }).to eq(['role::web::settings'])
+      end
+
+      it 'flags lookups from control-repo top-level manifests (no module context)' do
+        calls = [Driftless::LookupCall.new(
+          key: 'anything::foo', file: '/repo/manifests/site.pp',
+          line: 1, has_default: false,
+        )]
+        findings = described_class.new(hand_corpus(code_lookup_calls: calls)).call
+        expect(findings.map { |f| f.meta[:lookup_key] }).to eq(['anything::foo'])
+      end
+
+      it 'skips EPP template lookups for the containing module\'s own namespace' do
+        calls = [Driftless::LookupCall.new(
+          key: 'mymodule::param', file: '/repo/modules/mymodule/templates/foo.epp',
+          line: 1, has_default: false,
+        )]
+        expect(described_class.new(hand_corpus(code_lookup_calls: calls)).call).to be_empty
+      end
+    end
   end
 end

@@ -79,6 +79,28 @@ RSpec.describe Driftless::CLI::Root do
     end
   end
 
+  describe '#after_own_parse — populates cross-cutting @options from config' do
+    it 'sets @options[:log_level] from config.logging.level' do
+      Dir.mktmpdir do |dir|
+        override = File.join(dir, 'ci.yaml')
+        File.write(override, "logging:\n  level: info\n")
+        root = root_with_options(config_path: override)
+        root.after_own_parse
+        expect(root.instance_variable_get(:@options)[:log_level]).to eq('info')
+      end
+    end
+
+    it 'does not clobber an existing @options[:log_level] (CLI/parent wins)' do
+      Dir.mktmpdir do |dir|
+        override = File.join(dir, 'ci.yaml')
+        File.write(override, "logging:\n  level: info\n")
+        root = root_with_options(config_path: override, log_level: 'debug')
+        root.after_own_parse
+        expect(root.instance_variable_get(:@options)[:log_level]).to eq('debug')
+      end
+    end
+  end
+
   describe 'CLI flag parsing (integration through OptionParser)' do
     it 'parses --config=PATH and stores in @options[:config_path]' do
       root = described_class.new

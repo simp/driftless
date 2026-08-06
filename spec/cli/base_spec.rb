@@ -344,6 +344,21 @@ RSpec.describe Driftless::CLI::Base do
       leaf.new(parent_options: { verbose: true }).run([])
       expect(Driftless.logger.level).to eq(Logger::INFO)
     end
+
+    it 'respects @options[:log_level] (from config) when no CLI verbosity flag is set' do
+      leaf.new(parent_options: { log_level: 'info' }).run([])
+      expect(Driftless.logger.level).to eq(Logger::INFO)
+    end
+
+    it 'CLI --verbose overrides config-derived log_level' do
+      leaf.new(parent_options: { log_level: 'error' }).run(['-v'])
+      expect(Driftless.logger.level).to eq(Logger::INFO)
+    end
+
+    it 'unknown log_level names fall through to default WARN' do
+      leaf.new(parent_options: { log_level: 'BOGUS' }).run([])
+      expect(Driftless.logger.level).to eq(Logger::WARN)
+    end
   end
 
   describe 'universal -v/-q availability' do

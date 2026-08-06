@@ -26,7 +26,13 @@ module Driftless
 
       def initialize(parent_options: {})
         super
-        @options = { fail_on: 'any' }.merge(@options)
+        # Precedence (highest → lowest, in @options):
+        #   1. CLI flags (parsed later, overwrite everything)
+        #   2. parent_options (inherited from Root's own CLI flags — verbose, etc.)
+        #   3. config-derived values (from driftless.yaml, mapped via config_defaults)
+        #   4. hardcoded defaults (fail_on: 'any')
+        # Ruby's Hash#merge is right-wins: put lower-priority sources on the LEFT.
+        @options = { fail_on: 'any' }.merge(config_defaults).merge(@options)
       end
 
       def execute(_argv)
@@ -97,6 +103,35 @@ module Driftless
       end
 
       private
+
+      # Extracts config-derived defaults for this Scan invocation. Each key is
+      # mapped from a specific config subsystem section per the CLI-flag ↔
+      # config table (see project_driftless_config_design memory §10).
+      # Nil values are dropped so they don't shadow hardcoded defaults below.
+      def config_defaults
+        cfg = ::Driftless.config
+        {
+          fail_on:        cfg.dig('scan',      'fail_on'),
+          format:         cfg.dig('output',    'format'),
+          output_file:    cfg.dig('output',    'default_file'),
+          basemodulepath: normalize_modulepath(cfg.dig('puppet', 'basemodulepath')),
+          only:           cfg.dig('detectors', 'only'),
+          skip:           cfg.dig('detectors', 'skip'),
+          incoming_dir:   cfg.dig('scan',      'incoming_dir'),
+        }.compact
+      end
+
+      # Accepts either a colon-separated string ("/a:/b") or an array of
+      # strings (["/a", "/b"]). CLI flag parses string→array via v.split(':');
+      # config lets users write either form for convenience.
+      def normalize_modulepath(v)
+        case v
+        when nil     then nil
+        when Array   then v
+        when String  then v.split(':')
+        else              v  # let downstream error meaningfully
+        end
+      end
 
       def emit(findings)
         format = @options[:format] || ($stdout.tty? ? 'text' : 'json')

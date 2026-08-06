@@ -155,12 +155,24 @@ module Driftless
         end
       end
 
+      # Precedence: CLI flags (verbose/debug/quiet) win, then config-derived
+      # @options[:log_level] (populated by Root from logging.level), then default WARN.
+      LOG_LEVEL_NAMES = {
+        'debug' => Logger::DEBUG,
+        'info'  => Logger::INFO,
+        'warn'  => Logger::WARN,
+        'error' => Logger::ERROR,
+        'fatal' => Logger::FATAL,
+      }.freeze
+
       def apply_log_level
         ::Driftless.logger.level =
           if    @options[:quiet]   then Logger::ERROR
           elsif @options[:debug]   then Logger::DEBUG
           elsif @options[:verbose] then Logger::INFO
-          else                          Logger::WARN
+          elsif @options[:log_level]
+            LOG_LEVEL_NAMES.fetch(@options[:log_level].to_s.downcase, Logger::WARN)
+          else Logger::WARN
           end
       end
 

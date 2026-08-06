@@ -24,6 +24,11 @@ module Driftless
         # are declared). lib/driftless.rb requires each detector at load time.
         require 'driftless'
         ::Driftless::ConfigValidator.new(::Driftless.config).validate!
+
+        # Populate cross-cutting @options keys from config. CLI flags parsed
+        # BEFORE this hook already set :verbose/:debug/:quiet if present, so
+        # they win over :log_level via apply_log_level's precedence chain.
+        @options[:log_level] ||= ::Driftless.config.dig('logging', 'level')
       rescue ::Driftless::ConfigLoadError, ::Driftless::ConfigValidationError => e
         warn "config error: #{e.message}"
         exit 2

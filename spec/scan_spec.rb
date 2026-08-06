@@ -90,16 +90,16 @@ RSpec.describe Driftless::Scan do
     it 'skips detectors whose option(:enabled) is false' do
       Dir.mktmpdir do |dir|
         minimal_repo(dir)
-        set_config('detectors' => { 'hierarchy:orphaned-paths' => { 'enabled' => false } })
+        set_config('detectors' => { 'hierarchy:paths-missing-reported-facts' => { 'enabled' => false } })
 
         findings = described_class.new(repo_dir: dir, incoming_dir: File.join(dir, 'incoming')).run
 
-        # No hierarchy:orphaned-paths findings — the detector was skipped.
-        expect(findings.map(&:key)).not_to include('hierarchy:orphaned-paths')
-        expect(findings.map(&:key)).not_to include('skipped:hierarchy:orphaned-paths')
+        # No hierarchy:paths-missing-reported-facts findings — the detector was skipped.
+        expect(findings.map(&:key)).not_to include('hierarchy:paths-missing-reported-facts')
+        expect(findings.map(&:key)).not_to include('skipped:hierarchy:paths-missing-reported-facts')
 
         # And the log narrates the skip.
-        expect(@captured.string).to match(/hierarchy:orphaned-paths → disabled by config/)
+        expect(@captured.string).to match(/hierarchy:paths-missing-reported-facts → disabled by config/)
       end
     end
   end

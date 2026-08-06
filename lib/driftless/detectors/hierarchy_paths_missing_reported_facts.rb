@@ -5,9 +5,10 @@ require 'driftless/hierarchy_interpolator'
 
 module Driftless
   module Detectors
-    class HierarchyOrphanedPaths < Base
-      key 'hierarchy:orphaned-paths'
-      about 'Hiera data files on disk that no hierarchy tier resolves to'
+    class HierarchyPathsMissingReportedFacts < Base
+      key 'hierarchy:paths-missing-reported-facts'
+      about 'Hiera data files on disk that no hierarchy tier resolves to ' \
+            'given any active node\'s reported facts'
       requires_reports 'all-active-nodes'
 
       BACKEND_EXT = {
@@ -38,7 +39,7 @@ module Driftless
             # is informational, not a bug. See `hierarchy:tiers-unmatched-to-reported-facts`
             # in the issue catalog. The exclusion below is not for reporting; it
             # prevents the unresolvable tier's datadir subset from being flood-reported
-            # as orphans by the main pass.
+            # by the main pass.
             excluded_by_tiers.merge(would_match_files(tier))
           else
             reachable.merge(tier_reachable)

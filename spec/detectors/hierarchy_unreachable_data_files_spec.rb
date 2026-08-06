@@ -39,7 +39,7 @@ RSpec.describe Driftless::Detectors::HierarchyUnreachableDataFiles do
       # orphans/ has hosts/{web1,ghost}.example.com.yaml + os/family/{RedHat,Debian}.yaml + default.yaml,
       # and its tier patterns are hosts/*, os/family/*, default.yaml — all files match.
       # ghost.example.com.yaml is fact-orphan but NOT structurally unreachable — that is
-      # hierarchy:orphaned-paths' concern, not this detector's.
+      # hierarchy:paths-missing-reported-facts' concern, not this detector's.
       let(:findings) { described_class.new(corpus_for('orphans')).call }
 
       it 'emits nothing (every file matches some tier pattern; ghost hosts are not this detector\'s concern)' do

@@ -1,3 +1,5 @@
+require 'pathname'
+
 require 'driftless/corpus'
 require 'driftless/logger'
 require 'driftless/reported'
@@ -96,9 +98,22 @@ module Driftless
       detectors = selected_detectors
       Driftless.logger.info("Running #{detectors.size} detectors")
       detector_findings = detectors.flat_map do |klass|
-        result = phase(klass.key) { klass.new(corpus).call }
-        Driftless.logger.info("  #{klass.key} → #{result.size} findings")
-        result
+        instance = klass.new(corpus)
+
+        unless instance.option(:enabled)
+          Driftless.logger.info("  #{klass.key} → disabled by config")
+          next []
+        end
+
+        raw      = phase(klass.key) { instance.call }
+        patterns = instance.option(:exclude_paths)
+        filtered = apply_exclude_paths(raw, patterns, klass.key)
+
+        excluded = raw.size - filtered.size
+        summary  = "#{filtered.size} findings"
+        summary += " (#{excluded} excluded by config)" if excluded > 0
+        Driftless.logger.info("  #{klass.key} → #{summary}")
+        filtered
       end
 
       all_findings = meta_findings + detector_findings
@@ -139,6 +154,35 @@ module Driftless
       elapsed_ms = ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - t) * 1000).round(1)
       Driftless.logger.debug("  [#{elapsed_ms}ms] #{name}")
       result
+    end
+
+    # Filters findings whose `path` matches any of the given glob patterns.
+    # Patterns are matched against repo-relative paths. Findings without a
+    # path (structural findings like `skipped:*`) are never excluded.
+    # Each exclusion emits a DEBUG line naming the matching pattern.
+    def apply_exclude_paths(findings, patterns, detector_key)
+      return findings if patterns.empty?
+
+      findings.reject do |f|
+        next false unless f.path
+        rel = relative_to_repo(f.path)
+        # Deliberately NO FNM_PATHNAME — with it, `modules/**` would only match
+        # a single segment under `modules/` (a Ruby-glob quirk). Users expect
+        # `.gitignore`-style semantics where `modules/**` matches any depth.
+        matched = patterns.find { |p| File.fnmatch(p, rel, File::FNM_EXTGLOB) }
+        next false unless matched
+        Driftless.logger.debug("  excluded by #{detector_key}.exclude_paths[#{matched}]: #{rel}")
+        true
+      end
+    end
+
+    def relative_to_repo(path)
+      return path unless repo_dir
+      Pathname.new(path).relative_path_from(Pathname.new(repo_dir)).to_s
+    rescue ArgumentError
+      # Path not under repo_dir (unusual — absolute path pointing elsewhere).
+      # Fall back to the raw path; glob patterns can still target absolute paths.
+      path
     end
   end
 end

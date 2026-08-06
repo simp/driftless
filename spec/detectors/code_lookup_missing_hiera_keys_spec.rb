@@ -7,11 +7,11 @@ require 'driftless/models/hiera_data_file_info'
 require 'driftless/models/lookup_call'
 
 RSpec.describe Driftless::Detectors::CodeLookupMissingHieraKeys do
-  def hand_corpus(data_files: [], lookup_calls: [])
+  def hand_corpus(data_files: [], code_lookup_calls: [])
     Driftless::Corpus.new(
       repo_dir: nil, hiera_tiers: [], puppet_classes: {},
       data_files: data_files, reported: Driftless::Reported.new(data: {}),
-      lookup_calls: lookup_calls, log: nil,
+      code_lookup_calls: code_lookup_calls, data_lookup_calls: [], log: nil,
     )
   end
 
@@ -35,7 +35,7 @@ RSpec.describe Driftless::Detectors::CodeLookupMissingHieraKeys do
           Driftless::LookupCall.new(key: 'orphan::with::default', file: 'db.pp', line: 3,  has_default: true),
         ]
       end
-      let(:corpus)   { hand_corpus(data_files: [default_yaml], lookup_calls: calls) }
+      let(:corpus)   { hand_corpus(data_files: [default_yaml], code_lookup_calls: calls) }
       let(:findings) { described_class.new(corpus).call }
 
       it 'emits one finding per lookup call whose key is not defined in any data file' do
@@ -70,7 +70,7 @@ RSpec.describe Driftless::Detectors::CodeLookupMissingHieraKeys do
           Driftless::LookupCall.new(key: 'missing::key', file: 'b.pp', line: 5, has_default: true),
         ]
       end
-      let(:corpus)   { hand_corpus(data_files: [default_yaml], lookup_calls: calls) }
+      let(:corpus)   { hand_corpus(data_files: [default_yaml], code_lookup_calls: calls) }
       let(:findings) { described_class.new(corpus).call }
 
       it 'emits per-call (not deduplicated), preserving each call site\'s context' do
@@ -85,7 +85,7 @@ RSpec.describe Driftless::Detectors::CodeLookupMissingHieraKeys do
     context 'with no data files at all' do
       it 'flags every lookup call as missing' do
         calls = [Driftless::LookupCall.new(key: 'anything', file: 'x.pp', line: 1, has_default: false)]
-        expect(described_class.new(hand_corpus(lookup_calls: calls)).call.length).to eq(1)
+        expect(described_class.new(hand_corpus(code_lookup_calls: calls)).call.length).to eq(1)
       end
     end
 

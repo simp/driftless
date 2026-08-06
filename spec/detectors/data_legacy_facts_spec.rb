@@ -12,7 +12,7 @@ RSpec.describe Driftless::Detectors::DataLegacyFacts do
       puppet_classes: {},
       data_files:     data_files,
       reported:       Driftless::Reported.new(data: {}),
-      lookup_calls:   [],
+      code_lookup_calls:   [], data_lookup_calls: [],
       log:            nil,
     )
   end

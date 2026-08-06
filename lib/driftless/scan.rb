@@ -37,8 +37,9 @@ module Driftless
       meta_findings.concat(mpl_findings)
       Driftless.logger.info("Discovered #{manifest_files.size} Puppet manifest files")
 
-      puppet_classes = {}
-      lookup_calls   = []
+      puppet_classes    = {}
+      code_lookup_calls = []
+      data_lookup_calls = []
 
       phase('manifest parsing') do
         manifest_files.each do |path|
@@ -48,11 +49,11 @@ module Driftless
           ClassExtractor.extract(program: program, file: path).each do |cls|
             puppet_classes[cls.fqname] = cls
           end
-          lookup_calls.concat(LookupCallExtractor.extract(program: program, file: path))
+          code_lookup_calls.concat(LookupCallExtractor.extract(program: program, file: path))
         end
       end
       Driftless.logger.info(
-        "Extracted #{puppet_classes.size} classes and #{lookup_calls.size} lookup calls from manifests"
+        "Extracted #{puppet_classes.size} classes and #{code_lookup_calls.size} lookup calls from manifests"
       )
 
       epp_paths = discover_epp_templates
@@ -61,7 +62,7 @@ module Driftless
           program, errs = Inputs::EppParser.parse(path)
           meta_findings.concat(errs)
           next unless program
-          lookup_calls.concat(LookupCallExtractor.extract(program: program, file: path))
+          code_lookup_calls.concat(LookupCallExtractor.extract(program: program, file: path))
         end
       end
       Driftless.logger.info("Scanned #{epp_paths.size} EPP templates")
@@ -77,18 +78,19 @@ module Driftless
       phase('lookup extraction from Hiera data') do
         data_files.each do |df|
           next unless File.file?(df.path)
-          lookup_calls.concat(LookupCallExtractor.extract_from_yaml_source(df.source, df.path))
+          data_lookup_calls.concat(LookupCallExtractor.extract_from_yaml_source(df.source, df.path))
         end
       end
 
       corpus = Corpus.new(
-        repo_dir:       repo_dir,
-        hiera_tiers:    hiera_tiers,
-        puppet_classes: puppet_classes,
-        data_files:     data_files,
-        reported:       reported,
-        lookup_calls:   lookup_calls,
-        log:            log,
+        repo_dir:          repo_dir,
+        hiera_tiers:       hiera_tiers,
+        puppet_classes:    puppet_classes,
+        data_files:        data_files,
+        reported:          reported,
+        code_lookup_calls: code_lookup_calls,
+        data_lookup_calls: data_lookup_calls,
+        log:               log,
       )
 
       detectors = selected_detectors

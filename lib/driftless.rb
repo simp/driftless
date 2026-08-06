@@ -27,6 +27,7 @@ require 'driftless/detectors/data_codebase_missing_class'
 require 'driftless/detectors/data_codebase_missing_class_param'
 require 'driftless/detectors/data_legacy_facts'
 require 'driftless/detectors/code_lookup_missing_hiera_keys'
+require 'driftless/detectors/data_lookup_missing_hiera_keys'
 
 require 'driftless/scan'
 

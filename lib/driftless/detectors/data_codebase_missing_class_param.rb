@@ -10,7 +10,10 @@ module Driftless
 
       def call
         findings   = []
-        exemptions = corpus.lookup_calls.map(&:key).to_set
+        # Explicit lookups (code OR data interpolation) exempt a namespace-shaped
+        # key from missing-param findings — someone is using it intentionally,
+        # even if it doesn't map to a real param on the referenced class.
+        exemptions = (corpus.code_lookup_calls + corpus.data_lookup_calls).map(&:key).to_set
 
         corpus.data_files.each do |df|
           df.top_level_keys.each do |key, line|

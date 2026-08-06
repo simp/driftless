@@ -4,23 +4,24 @@ require 'driftless/detectors/base'
 
 module Driftless
   module Detectors
-    class CodeLookupMissingHieraKeys < Base
-      key 'code:lookup-missing-hiera-keys'
-      about 'Explicit lookup() calls searching for keys not defined anywhere in Hiera'
+    class DataLookupMissingHieraKeys < Base
+      key 'data:lookup-missing-hiera-keys'
+      about 'Hiera value interpolations (%{lookup(...)}, %{alias(...)}, ' \
+            '%{hiera(...)}) referencing keys not defined anywhere in Hiera'
 
       def call
         defined_keys = collect_defined_keys
         findings     = []
 
-        corpus.code_lookup_calls.each do |lc|
+        corpus.data_lookup_calls.each do |lc|
           next if defined_keys.include?(lc.key)
 
           findings << build_finding(
             path:    lc.file,
             line:    lc.line,
-            message: "lookup call for #{lc.key.inspect} but no top-level key with " \
-                     'that name is defined in any Hiera data file',
-            meta:    { lookup_key: lc.key, has_default: lc.has_default },
+            message: "hiera value interpolation for #{lc.key.inspect} but no top-level key " \
+                     'with that name is defined in any Hiera data file',
+            meta:    { lookup_key: lc.key },
           )
         end
         findings

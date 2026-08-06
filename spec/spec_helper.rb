@@ -18,13 +18,14 @@ end
 # updating this helper, not every spec's hand-rolled builder.
 def build_corpus(**overrides)
   defaults = {
-    repo_dir:       nil,
-    hiera_tiers:    [],
-    puppet_classes: {},
-    data_files:     [],
-    reported:       Driftless::Reported.new(data: {}),
-    lookup_calls:   [],
-    log:            nil,
+    repo_dir:          nil,
+    hiera_tiers:       [],
+    puppet_classes:    {},
+    data_files:        [],
+    reported:          Driftless::Reported.new(data: {}),
+    code_lookup_calls: [],
+    data_lookup_calls: [],
+    log:               nil,
   }
   Driftless::Corpus.new(**defaults.merge(overrides))
 end

@@ -9,11 +9,11 @@ require 'driftless/models/class_parameter'
 require 'driftless/models/lookup_call'
 
 RSpec.describe Driftless::Detectors::DataCodebaseMissingClassParam do
-  def hand_corpus(data_files: [], puppet_classes: {}, lookup_calls: [])
+  def hand_corpus(data_files: [], puppet_classes: {}, code_lookup_calls: [])
     Driftless::Corpus.new(
       repo_dir: nil, hiera_tiers: [], puppet_classes: puppet_classes,
       data_files: data_files, reported: Driftless::Reported.new(data: {}),
-      lookup_calls: lookup_calls, log: nil,
+      code_lookup_calls: code_lookup_calls, data_lookup_calls: [], log: nil,
     )
   end
 
@@ -79,7 +79,7 @@ RSpec.describe Driftless::Detectors::DataCodebaseMissingClassParam do
         )
       end
       let(:corpus) do
-        hand_corpus(data_files: [df], puppet_classes: { 'profile::web' => web_class }, lookup_calls: [lookup])
+        hand_corpus(data_files: [df], puppet_classes: { 'profile::web' => web_class }, code_lookup_calls: [lookup])
       end
 
       it 'exempts the key from missing-param findings' do

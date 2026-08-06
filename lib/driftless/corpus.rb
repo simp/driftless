@@ -4,13 +4,13 @@ module Driftless
   # once by {Scan#run} before any detector fires; guaranteed frozen for the
   # scan's duration. Detectors receive this instance and MUST NOT mutate it.
   #
-  # If methods (e.g. a unified `#lookup_calls` view combining code + data) are
+  # If methods (e.g. a unified view combining code + data lookup calls) are
   # needed later, promote to `class Corpus < Data.define(...)` with instance
   # methods — the Data base preserves the immutability guarantees.
   #
   # @!attribute [r] repo_dir
-  #   @return [String, nil] Absolute path to the control-repo environment being
-  #     scanned. Populated by {Scan#run} from its own `repo_dir:` argument.
+  #   @return [String, nil] Absolute path to the control-repo environment
+  #     being scanned. Populated by {Scan#run} from its own `repo_dir:` arg.
   #
   # @!attribute [r] hiera_tiers
   #   @return [Array<HieraTier>] Parsed from hiera.yaml, in declared tier
@@ -32,12 +32,17 @@ module Driftless
   #     loaded from incoming_dir. Detectors query via #missing?(name) /
   #     #report(name).
   #
-  # @!attribute [r] lookup_calls
-  #   @return [Array<LookupCall>] All hiera-key references discovered anywhere
-  #     in the repo — both Puppet-code lookup(...)/hiera(...) calls AND YAML
-  #     value interpolations (%{lookup(...)}, %{alias(...)}, %{hiera(...)}).
-  #     Callers cannot currently distinguish the two sources; see the pending
-  #     Phase 3 split into code_lookup_calls + data_lookup_calls.
+  # @!attribute [r] code_lookup_calls
+  #   @return [Array<LookupCall>] Extracted from Puppet AST — i.e., lookup(...)
+  #     / hiera(...) function calls in .pp and .epp files. `has_default` is
+  #     meaningful for these (it captures whether the call site provided one).
+  #
+  # @!attribute [r] data_lookup_calls
+  #   @return [Array<LookupCall>] Extracted from Hiera YAML value
+  #     interpolations — %{lookup(...)}, %{alias(...)}, %{hiera(...)}.
+  #     `has_default` is always false (the interpolation syntax cannot carry
+  #     a default). Kept separate from code_lookup_calls because the code:*
+  #     and data:* detector namespaces analyze different artifact domains.
   #
   # @!attribute [r] log
   #   @return [IO, nil] Diagnostic write target. Deprecated slot;
@@ -45,6 +50,6 @@ module Driftless
   #     or repurpose.
   Corpus = Data.define(
     :repo_dir, :hiera_tiers, :puppet_classes, :data_files, :reported,
-    :lookup_calls, :log,
+    :code_lookup_calls, :data_lookup_calls, :log,
   )
 end

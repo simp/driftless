@@ -27,11 +27,11 @@ RSpec.describe Driftless::LookupCallExtractor do
         expect(calls.length).to eq(3)
       end
 
-      it 'sets has_default? based on argument count' do
+      it 'sets has_default? based on Puppet lookup() signature semantics' do
         by_key = calls.each_with_object({}) { |c, h| h[c.key] = c }
-        expect(by_key['simple::key'].has_default?).to be false
-        expect(by_key['with::default'].has_default?).to be true
-        expect(by_key['legacy::key'].has_default?).to be false
+        expect(by_key['simple::key'].has_default?).to be false      # 1 arg
+        expect(by_key['with::default'].has_default?).to be true     # 4-arg positional
+        expect(by_key['legacy::key'].has_default?).to be false      # 1 arg (hiera)
       end
 
       it 'records the source file for each call' do
@@ -44,6 +44,44 @@ RSpec.describe Driftless::LookupCallExtractor do
         expect(by_key['with::default'].line).to eq(3)
         expect(by_key['legacy::key'].line).to eq(4)
       end
+    end
+
+    context 'has_default? for each Puppet lookup() call form' do
+      # These tests exercise the signature-aware `has_default_arg?` heuristic
+      # by parsing tiny manifest strings directly (bypassing ManifestParser
+      # which only accepts file paths). Covers the surprisingly-varied forms
+      # Puppet accepts.
+      def parse_and_extract(code)
+        require 'puppet/pops'
+        program = Puppet::Pops::Parser::EvaluatingParser.new.parse_string(code)
+        described_class.extract(program: program, file: '(inline)')
+      end
+
+      it 'no default when only key (1 arg)' do
+        expect(parse_and_extract("$x = lookup('k')").first.has_default?).to be false
+      end
+
+      it 'no default when key + type (2 args) — was a day-one bug misclassifying this' do
+        expect(parse_and_extract("$x = lookup('k', String)").first.has_default?).to be false
+      end
+
+      it 'no default when key + type + merge (3 args)' do
+        expect(parse_and_extract("$x = lookup('k', String, 'first')").first.has_default?).to be false
+      end
+
+      it 'has default when 4-arg positional (name, type, merge, default)' do
+        expect(parse_and_extract("$x = lookup('k', String, 'first', 'fallback')").first.has_default?).to be true
+      end
+
+      it 'has default when block form (lambda present)' do
+        expect(parse_and_extract("$x = lookup('k') |$key| { 'from_block' }").first.has_default?).to be true
+      end
+
+      # Hash form (lookup({'name' => 'k', 'default_value' => 'v'})) is NOT
+      # captured by the extractor at all — literal_first_arg() requires a
+      # LiteralString. The has_default_arg? branch that would handle it is
+      # documented as defensive-not-reachable. When hash-form extractor
+      # support lands, add tests here for both default_value present/absent.
     end
 
     context 'against a manifest with no lookup calls' do

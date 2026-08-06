@@ -2,12 +2,10 @@ require 'puppet'
 
 require 'driftless/models/puppet_class'
 require 'driftless/models/class_parameter'
+require 'driftless/role_profile'
 
 module Driftless
   class ClassExtractor
-    ROLE_RE    = /(?:\A|::)role(?:::|\z)/.freeze
-    PROFILE_RE = /(?:\A|::)profile(?:::|\z)/.freeze
-
     def self.extract(program:, file:)
       new(program: program, file: file).extract
     end
@@ -35,8 +33,8 @@ module Driftless
         fqname:  fqname,
         file:    @file,
         params:  build_params(node),
-        role:    fqname.match?(ROLE_RE),
-        profile: fqname.match?(PROFILE_RE),
+        role:    RoleProfile.role?(fqname),
+        profile: RoleProfile.profile?(fqname),
       )
     end
 

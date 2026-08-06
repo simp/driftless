@@ -204,55 +204,31 @@ RSpec.describe Driftless::Detectors::CodeLookupMissingHieraKeys do
         end
       end
 
-      describe 'role_regex override' do
-        it 'default regex \Arole:: exempts role::* classes' do
+      describe 'puppet.role_regex / puppet.profile_regex codebase config' do
+        it 'default (permissive) regex exempts both role::* AND baseline::role::* out of the box' do
           set_config({})
-          calls = [Driftless::LookupCall.new(
-            key: 'role::web::settings', file: '/repo/site-modules/role/manifests/web.pp',
-            line: 1, has_default: false,
-          )]
+          calls = [
+            Driftless::LookupCall.new(key: 'role::web',           file: '/repo/site-modules/role/manifests/web.pp',        line: 1, has_default: false),
+            Driftless::LookupCall.new(key: 'baseline::role::web', file: '/repo/modules/baseline/manifests/role/web.pp',    line: 1, has_default: false),
+          ]
           findings = described_class.new(hand_corpus(code_lookup_calls: calls)).call
-          expect(findings.size).to eq(1)  # NOT skipped
+          # Both class names match the default RoleProfile regex → both exempted from
+          # module-local skip → both reach the "missing key" finding.
+          expect(findings.map { |f| f.meta[:lookup_key] })
+            .to contain_exactly('role::web', 'baseline::role::web')
         end
 
-        it 'user override exempts custom namespaced role classes' do
-          set_config('detectors' => {
-            'code:lookup-missing-hiera-keys' => { 'role_regex' => '\A(baseline::)?role::' },
-          })
+        it 'a narrower puppet.role_regex config lets namespaced classes be treated as module-local' do
+          set_config('puppet' => { 'role_regex' => '\Arole(?:::|\z)' })
           calls = [Driftless::LookupCall.new(
-            key: 'baseline::role::web::settings',
+            key: 'baseline::role::web',
             file: '/repo/modules/baseline/manifests/role/web.pp',
             line: 1, has_default: false,
           )]
+          # baseline::role::web no longer matches the narrow regex → module-local
+          # skip applies (module=baseline, key_ns=baseline) → SKIPPED.
           findings = described_class.new(hand_corpus(code_lookup_calls: calls)).call
-          # baseline::role::web is now a role class per the override → NOT skipped
-          expect(findings.size).to eq(1)
-        end
-
-        it 'without override: baseline::role::web IS skipped (module-local applies)' do
-          set_config({})
-          calls = [Driftless::LookupCall.new(
-            key: 'baseline::role::web::settings',
-            file: '/repo/modules/baseline/manifests/role/web.pp',
-            line: 1, has_default: false,
-          )]
-          findings = described_class.new(hand_corpus(code_lookup_calls: calls)).call
-          expect(findings).to be_empty  # baseline::role::web doesn't match \Arole::, module-local applies
-        end
-      end
-
-      describe 'profile_regex override' do
-        it 'user override exempts custom namespaced profile classes' do
-          set_config('detectors' => {
-            'code:lookup-missing-hiera-keys' => { 'profile_regex' => '\A(baseline::)?profile::' },
-          })
-          calls = [Driftless::LookupCall.new(
-            key: 'baseline::profile::apache::port',
-            file: '/repo/modules/baseline/manifests/profile/apache.pp',
-            line: 1, has_default: false,
-          )]
-          findings = described_class.new(hand_corpus(code_lookup_calls: calls)).call
-          expect(findings.size).to eq(1)  # NOT skipped
+          expect(findings).to be_empty
         end
       end
     end

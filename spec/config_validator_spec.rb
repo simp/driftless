@@ -100,10 +100,10 @@ RSpec.describe Driftless::ConfigValidator do
     end
 
     it 'accepts any option declared by at least one detector' do
-      # role_regex is declared by code:lookup-missing-hiera-keys; may be set
-      # in defaults to establish a codebase-wide convention.
+      # ignore_lookups_with_defaults is declared by code:lookup-missing-hiera-keys;
+      # may be set in defaults to establish a codebase-wide convention.
       expect {
-        validate('detectors' => { 'defaults' => { 'role_regex' => '\Arole::' } })
+        validate('detectors' => { 'defaults' => { 'ignore_lookups_with_defaults' => true } })
       }.not_to raise_error
     end
 

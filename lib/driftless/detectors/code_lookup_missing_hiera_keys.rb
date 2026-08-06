@@ -1,6 +1,7 @@
 require 'set'
 
 require 'driftless/detectors/base'
+require 'driftless/role_profile'
 
 module Driftless
   module Detectors
@@ -19,14 +20,6 @@ module Driftless
       # derivation via Puppet's autoloading convention.
       CLASS_PATH_RE = %r{/(?:site-)?modules/([^/]+)/manifests/(.*)\.pp\z}.freeze
 
-      # Defaults match "role" alone OR "role::anything" — so that init.pp
-      # (class `role` itself) is recognized alongside `role::web` etc. Sites
-      # with namespaced role/profile classes (e.g. baseline::role::*) override
-      # the regex to match their convention.
-      config_option :role_regex, type: :regexp, default: /\Arole(?:::|\z)/,
-        about: 'Regex matching role class names; module-local skip does NOT apply to matching classes'
-      config_option :profile_regex, type: :regexp, default: /\Aprofile(?:::|\z)/,
-        about: 'Regex matching profile class names; module-local skip does NOT apply to matching classes'
       config_option :ignore_lookups_with_defaults, type: :boolean, default: false,
         about: 'Skip flagging lookup() calls that provide an explicit default value'
 
@@ -71,7 +64,7 @@ module Driftless
         module_name = m[1]
 
         class_name = derive_class_name(lc.file)
-        return false if class_name && (option(:role_regex).match?(class_name) || option(:profile_regex).match?(class_name))
+        return false if RoleProfile.role?(class_name) || RoleProfile.profile?(class_name)
 
         key_ns = lc.key.split('::', 2).first
         module_name == key_ns

@@ -152,6 +152,20 @@ RSpec.describe Driftless::Detectors::CodeLookupMissingHieraKeys do
         )]
         expect(described_class.new(hand_corpus(code_lookup_calls: calls)).call).to be_empty
       end
+
+      it 'flags lookups from a profile init class (class named just `profile`)' do
+        # site-modules/profile/manifests/init.pp defines `class profile`. Under
+        # Puppet autoloading this derives to class name `profile` (no `::`).
+        # The default regex must accept this bare name, else profile init.pp
+        # incorrectly gets treated as module-local.
+        calls = [Driftless::LookupCall.new(
+          key: 'profile::fallback',
+          file: '/repo/site-modules/profile/manifests/init.pp',
+          line: 1, has_default: false,
+        )]
+        findings = described_class.new(hand_corpus(code_lookup_calls: calls)).call
+        expect(findings.map { |f| f.meta[:lookup_key] }).to eq(['profile::fallback'])
+      end
     end
 
     context 'with config-driven behavior' do

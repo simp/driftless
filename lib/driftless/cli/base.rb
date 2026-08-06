@@ -106,6 +106,7 @@ module Driftless
       def run(argv)
         argv = argv.dup
         parse_own_options!(argv)
+        after_own_parse
         apply_log_level
         if self.class.subcommands.empty?
           execute(argv)
@@ -113,6 +114,11 @@ module Driftless
           dispatch(argv)
         end
       end
+
+      # Hook fired after this command's own options are parsed but before
+      # the log-level derivation and dispatch/execute step. Default no-op;
+      # {Root} overrides to load the process-wide config from disk.
+      def after_own_parse; end
 
       def print_help(io = $stdout)
         io.puts build_parser

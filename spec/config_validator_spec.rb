@@ -1,0 +1,116 @@
+require 'spec_helper'
+require 'driftless/config_validator'
+require 'driftless/detectors/code_lookup_missing_hiera_keys'
+
+RSpec.describe Driftless::ConfigValidator do
+  def validate(hash)
+    described_class.new(Driftless::Config.new(merged: hash)).validate!
+  end
+
+  describe 'top-level keys' do
+    it 'accepts known subsystems' do
+      expect { validate('detectors' => {}, 'output' => {}) }.not_to raise_error
+    end
+
+    it 'accepts an empty config' do
+      expect { validate({}) }.not_to raise_error
+    end
+
+    it 'rejects an unknown top-level key' do
+      expect { validate('detactors' => {}) }
+        .to raise_error(Driftless::ConfigValidationError, /unknown top-level config key.*"detactors"/)
+    end
+
+    it 'suggests a close match for a typo (via did_you_mean)' do
+      expect { validate('detactors' => {}) }
+        .to raise_error(Driftless::ConfigValidationError, /did you mean "detectors"/)
+    end
+  end
+
+  describe 'detector keys' do
+    it 'accepts the special "defaults" key' do
+      expect { validate('detectors' => { 'defaults' => {} }) }.not_to raise_error
+    end
+
+    it 'accepts a registered detector key' do
+      expect {
+        validate('detectors' => { 'code:lookup-missing-hiera-keys' => {} })
+      }.not_to raise_error
+    end
+
+    it 'rejects an unknown detector key' do
+      expect {
+        validate('detectors' => { 'code:lookup-missing-hera-keys' => {} })
+      }.to raise_error(Driftless::ConfigValidationError, /unknown detector key.*"code:lookup-missing-hera-keys"/)
+    end
+
+    it 'suggests a close registered key for a typo' do
+      expect {
+        validate('detectors' => { 'code:lookup-missing-hera-keys' => {} })
+      }.to raise_error(Driftless::ConfigValidationError, /did you mean "code:lookup-missing-hiera-keys"/)
+    end
+  end
+
+  describe 'per-detector options' do
+    it 'accepts universal :enabled on a per-detector section' do
+      expect {
+        validate('detectors' => { 'code:lookup-missing-hiera-keys' => { 'enabled' => false } })
+      }.not_to raise_error
+    end
+
+    it 'accepts a detector-specific option declared on that detector' do
+      expect {
+        validate('detectors' => {
+          'code:lookup-missing-hiera-keys' => { 'ignore_lookups_with_defaults' => true },
+        })
+      }.not_to raise_error
+    end
+
+    it 'rejects an undeclared option under a per-detector section' do
+      expect {
+        validate('detectors' => {
+          'code:lookup-missing-hiera-keys' => { 'ignore_lookups_with_defualts' => true },
+        })
+      }.to raise_error(Driftless::ConfigValidationError,
+                       /unknown option in detectors\.code:lookup-missing-hiera-keys.*"ignore_lookups_with_defualts"/)
+    end
+
+    it 'suggests a close declared option for a typo' do
+      expect {
+        validate('detectors' => {
+          'code:lookup-missing-hiera-keys' => { 'ignore_lookups_with_defualts' => true },
+        })
+      }.to raise_error(Driftless::ConfigValidationError, /did you mean "ignore_lookups_with_defaults"/)
+    end
+
+    it 'rejects the not-yet-implemented ignore_lookups_for_optional_params (undeclared)' do
+      expect {
+        validate('detectors' => {
+          'code:lookup-missing-hiera-keys' => { 'ignore_lookups_for_optional_params' => true },
+        })
+      }.to raise_error(Driftless::ConfigValidationError, /unknown option.*ignore_lookups_for_optional_params/)
+    end
+  end
+
+  describe 'defaults section options' do
+    it 'accepts universal options (enabled, exclude_paths)' do
+      expect {
+        validate('detectors' => { 'defaults' => { 'enabled' => true, 'exclude_paths' => [] } })
+      }.not_to raise_error
+    end
+
+    it 'accepts any option declared by at least one detector' do
+      # role_regex is declared by code:lookup-missing-hiera-keys; may be set
+      # in defaults to establish a codebase-wide convention.
+      expect {
+        validate('detectors' => { 'defaults' => { 'role_regex' => '\Arole::' } })
+      }.not_to raise_error
+    end
+
+    it 'rejects an option no detector declares' do
+      expect {
+        validate('detectors' => { 'defaults' => { 'totally_made_up_option' => 1 } })
+      }.to raise_error(Driftless::ConfigValidationError, /unknown option in detectors\.defaults/)
+    end
+  end
+end

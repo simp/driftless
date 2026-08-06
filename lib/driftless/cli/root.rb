@@ -1,6 +1,8 @@
 require 'driftless/version'
 require 'driftless/config'
+require 'driftless/config_validator'
 require 'driftless/cli/base'
+require 'driftless/detectors'
 
 module Driftless
   module CLI
@@ -9,14 +11,20 @@ module Driftless
       desc 'Puppet/OpenVox control-repo linter'
 
       # After Root parses its own options (in particular --config / --no-config),
-      # load the process-wide config from disk. Any error surfaces as a clean
-      # user-facing message on stderr; exit 2 (same status as other usage errors).
+      # load the process-wide config from disk AND validate it strictly against
+      # the registered detectors and known subsystems. Any load or validation
+      # error surfaces as a clean user-facing message on stderr; exit 2 (same
+      # status as other usage errors).
       def after_own_parse
         ::Driftless.config = ::Driftless::Config.load(
           config_path: @options[:config_path],
           no_config:   @options[:no_config],
         )
-      rescue ::Driftless::ConfigLoadError => e
+        # Validation needs all detector classes loaded (so their config_options
+        # are declared). lib/driftless.rb requires each detector at load time.
+        require 'driftless'
+        ::Driftless::ConfigValidator.new(::Driftless.config).validate!
+      rescue ::Driftless::ConfigLoadError, ::Driftless::ConfigValidationError => e
         warn "config error: #{e.message}"
         exit 2
       end

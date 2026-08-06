@@ -15,7 +15,7 @@ RSpec.describe Driftless::Detectors::HierarchyOrphanedPaths do
     tiers, _ = Driftless::Inputs::HierarchyLoader.load(fixture(fixture_name))
     data = nodes.nil? ? {} : { 'all-active-nodes' => nodes }
     Driftless::Corpus.new(
-      repo:           nil,
+      repo_dir:       nil,
       hiera_tiers:    tiers,
       puppet_classes: {},
       data_files:     [],

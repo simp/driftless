@@ -11,7 +11,7 @@ require 'driftless/models/lookup_call'
 RSpec.describe Driftless::Detectors::DataCodebaseMissingClassParam do
   def hand_corpus(data_files: [], puppet_classes: {}, lookup_calls: [])
     Driftless::Corpus.new(
-      repo: nil, hiera_tiers: [], puppet_classes: puppet_classes,
+      repo_dir: nil, hiera_tiers: [], puppet_classes: puppet_classes,
       data_files: data_files, reported: Driftless::Reported.new(data: {}),
       lookup_calls: lookup_calls, log: nil,
     )

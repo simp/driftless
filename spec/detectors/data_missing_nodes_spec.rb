@@ -14,7 +14,7 @@ RSpec.describe Driftless::Detectors::DataMissingNodes do
   def corpus_for(fixture_name, nodes:)
     tiers, _ = Driftless::Inputs::HierarchyLoader.load(fixture(fixture_name))
     Driftless::Corpus.new(
-      repo: nil, hiera_tiers: tiers, puppet_classes: {},
+      repo_dir: nil, hiera_tiers: tiers, puppet_classes: {},
       data_files: [], reported: Driftless::Reported.new(data: nodes.nil? ? {} : { 'all-active-nodes' => nodes }),
       lookup_calls: [], log: nil,
     )

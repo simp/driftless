@@ -82,7 +82,7 @@ module Driftless
       end
 
       corpus = Corpus.new(
-        repo:           nil,
+        repo_dir:       repo_dir,
         hiera_tiers:    hiera_tiers,
         puppet_classes: puppet_classes,
         data_files:     data_files,

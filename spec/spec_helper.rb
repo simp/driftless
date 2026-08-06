@@ -11,3 +11,20 @@ RSpec.configure do |config|
   end
   config.disable_monkey_patching!
 end
+
+# Shared factory for Driftless::Corpus. Data.define is strict about missing
+# kwargs, so tests need sensible defaults for every field they don't care
+# about. Centralizing here means adding a new Corpus field only requires
+# updating this helper, not every spec's hand-rolled builder.
+def build_corpus(**overrides)
+  defaults = {
+    repo_dir:       nil,
+    hiera_tiers:    [],
+    puppet_classes: {},
+    data_files:     [],
+    reported:       Driftless::Reported.new(data: {}),
+    lookup_calls:   [],
+    log:            nil,
+  }
+  Driftless::Corpus.new(**defaults.merge(overrides))
+end

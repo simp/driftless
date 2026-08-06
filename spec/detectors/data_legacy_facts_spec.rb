@@ -7,7 +7,7 @@ require 'driftless/reported'
 RSpec.describe Driftless::Detectors::DataLegacyFacts do
   def hand_corpus(data_files: [])
     Driftless::Corpus.new(
-      repo:           nil,
+      repo_dir:       nil,
       hiera_tiers:    [],
       puppet_classes: {},
       data_files:     data_files,

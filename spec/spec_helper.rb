@@ -25,7 +25,6 @@ def build_corpus(**overrides)
     reported:          Driftless::Reported.new(data: {}),
     code_lookup_calls: [],
     data_lookup_calls: [],
-    log:               nil,
   }
   Driftless::Corpus.new(**defaults.merge(overrides))
 end

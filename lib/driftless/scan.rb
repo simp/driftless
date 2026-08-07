@@ -12,10 +12,10 @@ require 'driftless/inputs/report_loader'
 module Driftless
   class Scan
     attr_reader :repo_dir, :incoming_dir, :only, :skip, :basemodulepath,
-                :environments, :allow_missing_envs, :log
+                :environments, :allow_missing_envs
 
     def initialize(repo_dir:, incoming_dir:, only: nil, skip: nil, basemodulepath: nil,
-                   environments: nil, allow_missing_envs: false, log: $stderr)
+                   environments: nil, allow_missing_envs: false)
       @repo_dir           = repo_dir
       @incoming_dir       = incoming_dir
       @only               = only
@@ -23,7 +23,6 @@ module Driftless
       @basemodulepath     = basemodulepath
       @environments       = environments
       @allow_missing_envs = allow_missing_envs
-      @log                = log
     end
 
     def run
@@ -101,7 +100,6 @@ module Driftless
         reported:          reported,
         code_lookup_calls: code_lookup_calls,
         data_lookup_calls: data_lookup_calls,
-        log:               log,
       )
 
       detectors = selected_detectors
@@ -200,7 +198,7 @@ module Driftless
       seen_envs = Set.new
 
       filtered_data = {}
-      Inputs::ReportLoader::MVP_QUERIES.each do |query|
+      Inputs::ReportLoader::QUERIES.each do |query|
         next if reported.missing?(query)
 
         kept = reported.report(query).select do |node|

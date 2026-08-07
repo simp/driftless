@@ -8,7 +8,7 @@ require 'driftless/models/node'
 module Driftless
   module Inputs
     class ReportLoader
-      MVP_QUERIES  = %w[all-active-nodes factsets-for-all-active-nodes].freeze
+      QUERIES  = %w[all-active-nodes factsets-for-all-active-nodes].freeze
       NODE_QUERIES = %w[all-active-nodes factsets-for-all-active-nodes].freeze
 
       def self.load(incoming_dir)
@@ -22,7 +22,7 @@ module Driftless
       def load
         data     = {}
         findings = []
-        MVP_QUERIES.each do |query|
+        QUERIES.each do |query|
           records, errs = load_query(query)
           data[query] = records
           findings.concat(errs)

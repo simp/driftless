@@ -15,7 +15,7 @@ RSpec.describe Driftless::Detectors::HierarchyUnreachableDataFiles do
     Driftless::Corpus.new(
       repo_dir: nil, hiera_tiers: tiers, puppet_classes: {},
       data_files: [], reported: Driftless::Reported.new(data: {}),
-      code_lookup_calls: [], data_lookup_calls: [], log: nil,
+      code_lookup_calls: [], data_lookup_calls: [],
     )
   end
 

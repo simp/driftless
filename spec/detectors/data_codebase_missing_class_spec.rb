@@ -13,7 +13,7 @@ RSpec.describe Driftless::Detectors::DataCodebaseMissingClass do
     Driftless::Corpus.new(
       repo_dir: nil, hiera_tiers: [], puppet_classes: puppet_classes,
       data_files: data_files, reported: Driftless::Reported.new(data: {}),
-      code_lookup_calls: code_lookup_calls, data_lookup_calls: [], log: nil,
+      code_lookup_calls: code_lookup_calls, data_lookup_calls: [],
     )
   end
 

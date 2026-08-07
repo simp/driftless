@@ -44,12 +44,8 @@ module Driftless
   #     a default). Kept separate from code_lookup_calls because the code:*
   #     and data:* detector namespaces analyze different artifact domains.
   #
-  # @!attribute [r] log
-  #   @return [IO, nil] Diagnostic write target. Deprecated slot;
-  #     {Driftless.logger} (Phase 2) is the current mechanism. TODO: remove
-  #     or repurpose.
   Corpus = Data.define(
     :repo_dir, :hiera_tiers, :puppet_classes, :data_files, :reported,
-    :code_lookup_calls, :data_lookup_calls, :log,
+    :code_lookup_calls, :data_lookup_calls,
   )
 end

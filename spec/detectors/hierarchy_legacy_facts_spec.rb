@@ -13,7 +13,6 @@ RSpec.describe Driftless::Detectors::HierarchyLegacyFacts do
       data_files:     [],
       reported:       Driftless::Reported.new(data: {}),
       code_lookup_calls:   [], data_lookup_calls: [],
-      log:            nil,
     )
   end
 

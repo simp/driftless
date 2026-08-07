@@ -54,13 +54,26 @@ module Driftless
           exit 3
         end
 
-        findings = ::Driftless::Scan.new(
-          repo_dir:       @options[:repo_dir],
-          incoming_dir:   @options[:incoming_dir],
-          only:           @options[:only],
-          skip:           @options[:skip],
-          basemodulepath: @options[:basemodulepath],
-        ).run
+        unless @options[:environments]&.any?
+          warn "scan error: puppet.environments is required — set it in driftless.yaml or pass --environments"
+          print_help($stderr)
+          exit 2
+        end
+
+        begin
+          findings = ::Driftless::Scan.new(
+            repo_dir:           @options[:repo_dir],
+            incoming_dir:       @options[:incoming_dir],
+            only:               @options[:only],
+            skip:               @options[:skip],
+            basemodulepath:     @options[:basemodulepath],
+            environments:       @options[:environments],
+            allow_missing_envs: @options[:allow_missing_envs] || false,
+          ).run
+        rescue ::Driftless::ScanError => e
+          warn "scan error: #{e.message}"
+          exit 2
+        end
 
         emit(findings)
 
@@ -96,6 +109,17 @@ module Driftless
         end
 
         o.separator ''
+        o.separator 'Environment scoping:'
+        o.on('--environments=ENVS', Array,
+             'Puppet environments to lint, comma-separated (required)') do |v|
+          @options[:environments] = v
+        end
+        o.on('--allow-missing-envs',
+             'Warn instead of error when a listed environment has no reports') do
+          @options[:allow_missing_envs] = true
+        end
+
+        o.separator ''
         o.separator 'Other:'
         o.on('--basemodulepath=PATH', 'Override $basemodulepath (colon-separated)') { |v| @options[:basemodulepath] = v.split(':') }
         o.on('--fail-on=WHEN', %w[any never],
@@ -111,13 +135,15 @@ module Driftless
       def config_defaults
         cfg = ::Driftless.config
         {
-          fail_on:        cfg.dig('scan',      'fail_on'),
-          format:         cfg.dig('output',    'format'),
-          output_file:    cfg.dig('output',    'default_file'),
-          basemodulepath: normalize_modulepath(cfg.dig('puppet', 'basemodulepath')),
-          only:           cfg.dig('detectors', 'only'),
-          skip:           cfg.dig('detectors', 'skip'),
-          incoming_dir:   cfg.dig('scan',      'incoming_dir'),
+          fail_on:            cfg.dig('scan',      'fail_on'),
+          format:             cfg.dig('output',    'format'),
+          output_file:        cfg.dig('output',    'default_file'),
+          basemodulepath:     normalize_modulepath(cfg.dig('puppet', 'basemodulepath')),
+          environments:       cfg.dig('puppet',    'environments'),
+          allow_missing_envs: cfg.dig('puppet',    'allow_missing_envs'),
+          only:               cfg.dig('detectors', 'only'),
+          skip:               cfg.dig('detectors', 'skip'),
+          incoming_dir:       cfg.dig('scan',      'incoming_dir'),
         }.compact
       end
 

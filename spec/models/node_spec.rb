@@ -16,6 +16,17 @@ RSpec.describe Driftless::Node do
     )
   end
 
+  describe 'environment field' do
+    it 'defaults to nil when not supplied' do
+      expect(node.environment).to be_nil
+    end
+
+    it 'stores an environment when supplied' do
+      n = described_class.new(certname: 'x', environment: 'production', facts: {}, trusted: {})
+      expect(n.environment).to eq('production')
+    end
+  end
+
   describe '#fact' do
     it 'resolves an explicit facts.X path against the facts hash' do
       expect(node.fact('facts.os.family')).to eq('RedHat')

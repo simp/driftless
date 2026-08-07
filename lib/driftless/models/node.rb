@@ -3,9 +3,13 @@ require 'puppet/pops/lookup/sub_lookup'
 
 module Driftless
   Node = Struct.new(
-    :certname, :facts, :trusted,
+    :certname, :environment, :facts, :trusted,
     keyword_init: true,
   ) do
+    def initialize(certname:, environment: nil, facts: {}, trusted: {})
+      super
+    end
+
     include Puppet::Pops::Lookup::SubLookup
 
     def fact(path)

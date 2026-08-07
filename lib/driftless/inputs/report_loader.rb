@@ -1,6 +1,7 @@
 require 'json'
 
 require 'driftless/finding'
+require 'driftless/logger'
 require 'driftless/reported'
 require 'driftless/models/node'
 
@@ -84,17 +85,32 @@ module Driftless
         return candidate if existing.nil?
         et = existing[:record]['report_timestamp']  || ''
         ct = candidate[:record]['report_timestamp'] || ''
-        return candidate if ct > et
-        return existing  if et > ct
-        # Tie on report_timestamp — alphabetically-first contributor wins (deterministic)
-        candidate[:contributor] < existing[:contributor] ? candidate : existing
+        winner =
+          if ct > et then candidate
+          elsif et > ct then existing
+          else candidate[:contributor] < existing[:contributor] ? candidate : existing
+          end
+
+        ee = existing[:record]['catalog_environment']  || existing[:record]['environment']
+        ce = candidate[:record]['catalog_environment'] || candidate[:record]['environment']
+        if ee && ce && ee != ce
+          certname    = winner[:record]['certname']
+          winning_env = winner.equal?(candidate) ? ce : ee
+          Driftless.logger.warn(
+            "certname #{certname.inspect} appears in multiple environments " \
+            "(#{ee.inspect} vs #{ce.inspect}); keeping #{winning_env.inspect}",
+          )
+        end
+
+        winner
       end
 
       def build_node(record)
         Node.new(
-          certname: record['certname'],
-          facts:    record['facts']   || {},
-          trusted:  record['trusted'] || {},
+          certname:    record['certname'],
+          environment: record['catalog_environment'] || record['environment'],
+          facts:       record['facts']   || {},
+          trusted:     record['trusted'] || {},
         )
       end
     end

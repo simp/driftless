@@ -11,15 +11,19 @@ require 'driftless/inputs/report_loader'
 
 module Driftless
   class Scan
-    attr_reader :repo_dir, :incoming_dir, :only, :skip, :basemodulepath, :log
+    attr_reader :repo_dir, :incoming_dir, :only, :skip, :basemodulepath,
+                :environments, :allow_missing_envs, :log
 
-    def initialize(repo_dir:, incoming_dir:, only: nil, skip: nil, basemodulepath: nil, log: $stderr)
-      @repo_dir       = repo_dir
-      @incoming_dir   = incoming_dir
-      @only           = only
-      @skip           = skip
-      @basemodulepath = basemodulepath
-      @log            = log
+    def initialize(repo_dir:, incoming_dir:, only: nil, skip: nil, basemodulepath: nil,
+                   environments: nil, allow_missing_envs: false, log: $stderr)
+      @repo_dir           = repo_dir
+      @incoming_dir       = incoming_dir
+      @only               = only
+      @skip               = skip
+      @basemodulepath     = basemodulepath
+      @environments       = environments
+      @allow_missing_envs = allow_missing_envs
+      @log                = log
     end
 
     def run
@@ -76,6 +80,11 @@ module Driftless
       reported, rl_findings = phase('report load') { Inputs::ReportLoader.load(incoming_dir) }
       meta_findings.concat(rl_findings)
       Driftless.logger.info("Loaded PuppetDB reports from #{incoming_dir}")
+
+      if environments&.any?
+        reported = phase('environment filter') { apply_environment_filter(reported) }
+        Driftless.logger.info("Filtered reports to environments: #{environments.join(', ')}")
+      end
 
       phase('lookup extraction from Hiera data') do
         data_files.each do |df|
@@ -184,5 +193,43 @@ module Driftless
       # Fall back to the raw path; glob patterns can still target absolute paths.
       path
     end
+
+    def apply_environment_filter(reported)
+      require 'set'
+      env_set   = Set.new(environments)
+      seen_envs = Set.new
+
+      filtered_data = {}
+      Inputs::ReportLoader::MVP_QUERIES.each do |query|
+        next if reported.missing?(query)
+
+        kept = reported.report(query).select do |node|
+          env = node.environment
+          if env.nil?
+            true
+          elsif env_set.include?(env)
+            seen_envs << env
+            true
+          else
+            Driftless.logger.info("  node #{node.certname.inspect} excluded (environment #{env.inspect} not in puppet.environments)")
+            false
+          end
+        end
+        filtered_data[query] = kept
+      end
+
+      (env_set - seen_envs).each do |env|
+        msg = "environment #{env.inspect} listed in puppet.environments but has no reports in #{incoming_dir}"
+        if allow_missing_envs
+          Driftless.logger.warn(msg)
+        else
+          raise ScanError, msg
+        end
+      end
+
+      Reported.new(data: filtered_data)
+    end
   end
+
+  class ScanError < StandardError; end
 end

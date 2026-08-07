@@ -13,7 +13,8 @@ module Driftless
   # Called by {Driftless::CLI::Root#after_own_parse} after config load;
   # failures surface as `config error: ...` on stderr + exit 2.
   class ConfigValidator
-    KNOWN_SUBSYSTEMS = %w[detectors puppet output scan logging].freeze
+    KNOWN_SUBSYSTEMS   = %w[detectors puppet output scan logging].freeze
+    KNOWN_PUPPET_KEYS  = %w[environments allow_missing_envs basemodulepath].freeze
 
     def initialize(config)
       @config = config
@@ -23,6 +24,7 @@ module Driftless
       check_top_level_keys
       check_detector_keys
       check_detector_options
+      check_puppet_keys
     end
 
     private
@@ -99,6 +101,23 @@ module Driftless
         k.config_options.keys.each { |name| set << name.to_s }
       end
       set
+    end
+
+    def check_puppet_keys
+      puppet_section = @config['puppet']
+      return unless puppet_section.is_a?(Hash)
+
+      puppet_section.keys.each do |key|
+        next if KNOWN_PUPPET_KEYS.include?(key)
+
+        msg = "unknown puppet config key: #{key.inspect}"
+        if (sug = suggest(key, KNOWN_PUPPET_KEYS))
+          msg += " (did you mean #{sug.inspect}?)"
+        else
+          msg += " (known: #{KNOWN_PUPPET_KEYS.join(', ')})"
+        end
+        raise ConfigValidationError, msg
+      end
     end
 
     def suggest(input, candidates)

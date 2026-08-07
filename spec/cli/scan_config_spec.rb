@@ -58,6 +58,16 @@ RSpec.describe Driftless::CLI::Scan do
       set_config('puppet' => { 'basemodulepath' => ['/a', '/b'] })
       expect(opts_after_construct[:basemodulepath]).to eq(['/a', '/b'])
     end
+
+    it 'reads puppet.environments as the environments list' do
+      set_config('puppet' => { 'environments' => ['production', 'staging'] })
+      expect(opts_after_construct[:environments]).to eq(['production', 'staging'])
+    end
+
+    it 'reads puppet.allow_missing_envs' do
+      set_config('puppet' => { 'allow_missing_envs' => true })
+      expect(opts_after_construct[:allow_missing_envs]).to be(true)
+    end
   end
 
   describe 'precedence: CLI > parent_options > config > hardcoded' do

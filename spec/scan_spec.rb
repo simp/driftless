@@ -4,6 +4,7 @@ require 'tmpdir'
 require 'fileutils'
 
 require 'driftless/scan'
+require 'driftless/inputs/report_loader'
 
 RSpec.describe Driftless::Scan do
   # Save/restore Driftless.config around every example — Scan#run reads it
@@ -101,6 +102,69 @@ RSpec.describe Driftless::Scan do
         # And the log narrates the skip.
         expect(@captured.string).to match(/hierarchy:paths-missing-reported-facts → disabled by config/)
       end
+    end
+  end
+
+  describe '#apply_environment_filter' do
+    def make_node(certname:, environment:)
+      Driftless::Node.new(certname: certname, environment: environment, facts: {}, trusted: {})
+    end
+
+    def make_reported(nodes)
+      Driftless::Reported.new(data: { 'all-active-nodes' => nodes })
+    end
+
+    def filter_scan(environments:, allow_missing_envs: false)
+      described_class.new(
+        repo_dir:           '/tmp',
+        incoming_dir:       '/tmp/incoming',
+        environments:       environments,
+        allow_missing_envs: allow_missing_envs,
+      )
+    end
+
+    it 'passes nodes whose environment is in the list' do
+      scan     = filter_scan(environments: ['production'])
+      reported = make_reported([make_node(certname: 'web1', environment: 'production')])
+      result   = scan.send(:apply_environment_filter, reported)
+      expect(result.report('all-active-nodes').map(&:certname)).to eq(['web1'])
+    end
+
+    it 'excludes nodes whose environment is not listed' do
+      scan     = filter_scan(environments: ['production'], allow_missing_envs: true)
+      reported = make_reported([
+        make_node(certname: 'web1', environment: 'production'),
+        make_node(certname: 'dev1', environment: 'dev'),
+      ])
+      result = scan.send(:apply_environment_filter, reported)
+      expect(result.report('all-active-nodes').map(&:certname)).to eq(['web1'])
+    end
+
+    it 'passes nodes with nil environment through unconditionally' do
+      scan     = filter_scan(environments: ['production'], allow_missing_envs: true)
+      reported = make_reported([make_node(certname: 'legacy', environment: nil)])
+      result   = scan.send(:apply_environment_filter, reported)
+      expect(result.report('all-active-nodes').map(&:certname)).to eq(['legacy'])
+    end
+
+    it 'raises ScanError when a listed env has no reports and allow_missing_envs is false' do
+      scan     = filter_scan(environments: ['production', 'staging'])
+      reported = make_reported([make_node(certname: 'web1', environment: 'production')])
+      expect { scan.send(:apply_environment_filter, reported) }
+        .to raise_error(Driftless::ScanError, /staging/)
+    end
+
+    it 'warns instead of raising when allow_missing_envs is true' do
+      scan     = filter_scan(environments: ['production', 'staging'], allow_missing_envs: true)
+      reported = make_reported([make_node(certname: 'web1', environment: 'production')])
+      expect { scan.send(:apply_environment_filter, reported) }.not_to raise_error
+    end
+
+    it 'keeps MissingReport queries absent from the filtered result' do
+      scan     = filter_scan(environments: ['production'], allow_missing_envs: true)
+      reported = Driftless::Reported.new(data: {})
+      result   = scan.send(:apply_environment_filter, reported)
+      expect(result.missing?('all-active-nodes')).to be true
     end
   end
 

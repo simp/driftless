@@ -9,7 +9,7 @@ module Driftless
   module Inputs
     class ReportLoader
       QUERIES  = %w[all-active-nodes factsets-for-all-active-nodes].freeze
-      NODE_QUERIES = %w[all-active-nodes factsets-for-all-active-nodes].freeze
+      NODE_REPORTS = %w[all-active-nodes factsets-for-all-active-nodes].freeze
 
       def self.load(incoming_dir)
         new(incoming_dir).load
@@ -41,7 +41,7 @@ module Driftless
 
         per_contributor = newest_per_contributor(files)
         records, errs   = merge_per_certname(per_contributor, query)
-        records = records.map { |r| build_node(r) } if NODE_QUERIES.include?(query)
+        records = records.map { |r| build_node(r) } if NODE_REPORTS.include?(query)
         [records, errs]
       end
 

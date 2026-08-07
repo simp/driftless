@@ -138,25 +138,12 @@ module Driftless
           fail_on:            cfg.dig('scan',      'fail_on'),
           format:             cfg.dig('output',    'format'),
           output_file:        cfg.dig('output',    'default_file'),
-          basemodulepath:     normalize_modulepath(cfg.dig('puppet', 'basemodulepath')),
           environments:       cfg.dig('puppet',    'environments'),
           allow_missing_envs: cfg.dig('puppet',    'allow_missing_envs'),
           only:               cfg.dig('detectors', 'only'),
           skip:               cfg.dig('detectors', 'skip'),
           incoming_dir:       cfg.dig('scan',      'incoming_dir'),
         }.compact
-      end
-
-      # Accepts either a colon-separated string ("/a:/b") or an array of
-      # strings (["/a", "/b"]). CLI flag parses string→array via v.split(':');
-      # config lets users write either form for convenience.
-      def normalize_modulepath(v)
-        case v
-        when nil     then nil
-        when Array   then v
-        when String  then v.split(':')
-        else              v  # let downstream error meaningfully
-        end
       end
 
       def emit(findings)

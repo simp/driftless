@@ -14,7 +14,7 @@ module Driftless
   # failures surface as `config error: ...` on stderr + exit 2.
   class ConfigValidator
     KNOWN_SUBSYSTEMS   = %w[detectors puppet output scan logging].freeze
-    KNOWN_PUPPET_KEYS  = %w[environments allow_missing_envs basemodulepath].freeze
+    KNOWN_PUPPET_KEYS  = %w[environments allow_missing_envs].freeze
 
     def initialize(config)
       @config = config

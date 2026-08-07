@@ -93,14 +93,18 @@ RSpec.describe Driftless::ConfigValidator do
   end
 
   describe 'puppet section keys' do
-    it 'accepts known keys (environments, allow_missing_envs, basemodulepath)' do
+    it 'accepts known keys (environments, allow_missing_envs)' do
       expect {
         validate('puppet' => {
           'environments'       => ['production'],
           'allow_missing_envs' => false,
-          'basemodulepath'     => '/a:/b',
         })
       }.not_to raise_error
+    end
+
+    it 'rejects basemodulepath (source of truth is environment.conf, not config)' do
+      expect { validate('puppet' => { 'basemodulepath' => '/a:/b' }) }
+        .to raise_error(Driftless::ConfigValidationError, /unknown puppet config key.*"basemodulepath"/)
     end
 
     it 'accepts an absent puppet section' do

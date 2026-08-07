@@ -49,16 +49,6 @@ RSpec.describe Driftless::CLI::Scan do
       expect(opts_after_construct[:incoming_dir]).to eq('/repo/raw_reports')
     end
 
-    it 'accepts puppet.basemodulepath as a colon-separated string' do
-      set_config('puppet' => { 'basemodulepath' => '/a:/b:/c' })
-      expect(opts_after_construct[:basemodulepath]).to eq(['/a', '/b', '/c'])
-    end
-
-    it 'accepts puppet.basemodulepath as an array' do
-      set_config('puppet' => { 'basemodulepath' => ['/a', '/b'] })
-      expect(opts_after_construct[:basemodulepath]).to eq(['/a', '/b'])
-    end
-
     it 'reads puppet.environments as the environments list' do
       set_config('puppet' => { 'environments' => ['production', 'staging'] })
       expect(opts_after_construct[:environments]).to eq(['production', 'staging'])

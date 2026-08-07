@@ -108,5 +108,97 @@ RSpec.describe Driftless::Inputs::ReportLoader do
         end
       end
     end
+
+    context 'NDJSON format (.ndjson extension)' do
+      it 'parses each line as a separate JSON record' do
+        Dir.mktmpdir do |dir|
+          FileUtils.mkdir_p(File.join(dir, 'factsets-for-all-active-nodes'))
+          File.write(
+            File.join(dir, 'factsets-for-all-active-nodes', 'puppet--20260807160000.ndjson'),
+            [
+              JSON.generate({ certname: 'web1.example.com', environment: 'production',
+                              facts: { 'hostname' => 'web1' }, trusted: {} }),
+              JSON.generate({ certname: 'db1.example.com',  environment: 'production',
+                              facts: { 'hostname' => 'db1'  }, trusted: {} }),
+            ].join("\n") + "\n",
+          )
+
+          reported, findings = described_class.load(dir)
+          expect(findings).to be_empty
+          nodes = reported.report('factsets-for-all-active-nodes')
+          expect(nodes.map(&:certname)).to contain_exactly('web1.example.com', 'db1.example.com')
+        end
+      end
+
+      it 'captures the environment field from NDJSON records' do
+        Dir.mktmpdir do |dir|
+          FileUtils.mkdir_p(File.join(dir, 'factsets-for-all-active-nodes'))
+          File.write(
+            File.join(dir, 'factsets-for-all-active-nodes', 'puppet--20260807160000.ndjson'),
+            JSON.generate({ certname: 'web1.example.com', environment: 'staging',
+                            facts: {}, trusted: {} }) + "\n",
+          )
+
+          reported, = described_class.load(dir)
+          node = reported.report('factsets-for-all-active-nodes').first
+          expect(node.environment).to eq('staging')
+        end
+      end
+
+      it 'skips blank lines in NDJSON files' do
+        Dir.mktmpdir do |dir|
+          FileUtils.mkdir_p(File.join(dir, 'factsets-for-all-active-nodes'))
+          File.write(
+            File.join(dir, 'factsets-for-all-active-nodes', 'puppet--20260807160000.ndjson'),
+            "\n" + JSON.generate({ certname: 'web1.example.com', environment: 'production',
+                                   facts: {}, trusted: {} }) + "\n\n",
+          )
+
+          reported, findings = described_class.load(dir)
+          expect(findings).to be_empty
+          expect(reported.report('factsets-for-all-active-nodes').size).to eq(1)
+        end
+      end
+
+      it 'emits a data:json-parse-error for a malformed NDJSON line' do
+        Dir.mktmpdir do |dir|
+          FileUtils.mkdir_p(File.join(dir, 'factsets-for-all-active-nodes'))
+          File.write(
+            File.join(dir, 'factsets-for-all-active-nodes', 'puppet--20260807160000.ndjson'),
+            "not valid json\n",
+          )
+
+          _, findings = described_class.load(dir)
+          expect(findings.map(&:key)).to include('data:json-parse-error')
+        end
+      end
+
+      it 'prefers a newer .ndjson over an older .json from the same contributor' do
+        Dir.mktmpdir do |dir|
+          FileUtils.mkdir_p(File.join(dir, 'factsets-for-all-active-nodes'))
+          File.write(
+            File.join(dir, 'factsets-for-all-active-nodes', 'puppet--20260807150000.json'),
+            JSON.generate([{ certname: 'web1.example.com', environment: 'production',
+                             facts: { 'source' => 'old' }, trusted: {} }]),
+          )
+          File.write(
+            File.join(dir, 'factsets-for-all-active-nodes', 'puppet--20260807160000.ndjson'),
+            JSON.generate({ certname: 'web1.example.com', environment: 'production',
+                            facts: { 'source' => 'new' }, trusted: {} }) + "\n",
+          )
+
+          reported, = described_class.load(dir)
+          node = reported.report('factsets-for-all-active-nodes').first
+          expect(node.facts['source']).to eq('new')
+        end
+      end
+    end
+
+    context 'factsets-for-all-active-nodes query' do
+      it 'is absent (MissingReport) when the directory does not exist' do
+        reported, = described_class.load('/does/not/exist')
+        expect(reported.missing?('factsets-for-all-active-nodes')).to be true
+      end
+    end
   end
 end

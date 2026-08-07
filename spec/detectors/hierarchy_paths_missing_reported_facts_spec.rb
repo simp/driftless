@@ -13,7 +13,7 @@ RSpec.describe Driftless::Detectors::HierarchyPathsMissingReportedFacts do
 
   def corpus_for(fixture_name, nodes: nil)
     tiers, _ = Driftless::Inputs::HierarchyLoader.load(fixture(fixture_name))
-    data = nodes.nil? ? {} : { 'factsets-for-all-nodes' => nodes }
+    data = nodes.nil? ? {} : { 'factsets-for-all-active-nodes' => nodes }
     Driftless::Corpus.new(
       repo_dir:       nil,
       hiera_tiers:    tiers,
@@ -34,7 +34,7 @@ RSpec.describe Driftless::Detectors::HierarchyPathsMissingReportedFacts do
   end
 
   describe '#call' do
-    context 'with no report:factsets-for-all-nodes data' do
+    context 'with no report:factsets-for-all-active-nodes data' do
       let(:findings) { described_class.new(corpus_for('orphans')).call }
 
       it 'emits exactly one skipped meta finding' do

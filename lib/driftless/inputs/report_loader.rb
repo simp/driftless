@@ -8,7 +8,8 @@ require 'driftless/models/node'
 module Driftless
   module Inputs
     class ReportLoader
-      MVP_QUERIES = %w[all-active-nodes].freeze
+      MVP_QUERIES  = %w[all-active-nodes factsets-for-all-active-nodes].freeze
+      NODE_QUERIES = %w[all-active-nodes factsets-for-all-active-nodes].freeze
 
       def self.load(incoming_dir)
         new(incoming_dir).load
@@ -35,19 +36,19 @@ module Driftless
         query_dir = File.join(@incoming_dir, query)
         return [Reported::MissingReport, []] unless File.directory?(query_dir)
 
-        files = Dir[File.join(query_dir, '*.json')]
+        files = Dir[File.join(query_dir, '*.json'), File.join(query_dir, '*.ndjson')]
         return [Reported::MissingReport, []] if files.empty?
 
         per_contributor = newest_per_contributor(files)
         records, errs   = merge_per_certname(per_contributor, query)
-        records = records.map { |r| build_node(r) } if query == 'all-active-nodes'
+        records = records.map { |r| build_node(r) } if NODE_QUERIES.include?(query)
         [records, errs]
       end
 
       def newest_per_contributor(files)
         per = {}
         files.each do |path|
-          base = File.basename(path, '.json')
+          base = File.basename(path, '.*')
           contributor, timestamp = base.split('--', 2)
           next unless contributor && timestamp
           if !per[contributor] || timestamp > per[contributor][:timestamp]
@@ -63,7 +64,7 @@ module Driftless
         per_contributor.each do |contributor, info|
           records =
             begin
-              JSON.parse(File.read(info[:path]))
+              parse_records(info[:path])
             rescue JSON::ParserError => e
               errs << Finding.new(
                 key: 'data:json-parse-error', path: info[:path], line: nil,
@@ -103,6 +104,18 @@ module Driftless
         end
 
         winner
+      end
+
+      def parse_records(path)
+        if path.end_with?('.ndjson')
+          File.foreach(path).filter_map do |line|
+            line = line.strip
+            next if line.empty?
+            JSON.parse(line)
+          end
+        else
+          JSON.parse(File.read(path))
+        end
       end
 
       def build_node(record)

@@ -10,7 +10,7 @@ module Driftless
   # `--no-config` skips all files (returns an empty config).
   #
   # See project memory `project_driftless_config_design.md` for the full
-  # design rationale, rejected alternatives, and forthcoming Phase 3 chunks.
+  # design rationale and rejected alternatives.
   #
   # @!attribute [r] sources
   #   @return [Array<String>] Absolute paths of every file that actually
@@ -149,8 +149,8 @@ module Driftless
   class ConfigLoadError < StandardError; end
 
   # Module-level accessor for the process-wide loaded config. Matches the
-  # {Driftless.logger} pattern (Phase 2): set once at startup by Root's
-  # config-load step; accessed by detectors and other consumers.
+  # {Driftless.logger} pattern: set once at startup by Root's config-load
+  # step; accessed by detectors and other consumers.
   class << self
     attr_writer :config
 

@@ -1,7 +1,7 @@
 require 'spec_helper'
 require 'driftless/cli/scan'
 
-# Focused coverage for Scan's config-derived defaults (chunk 7 of Phase 3).
+# Focused coverage for Scan's config-derived defaults.
 # The broader Scan#execute integration (with real fixtures) lives in
 # spec/scan_spec.rb; this file only exercises the @options-population
 # precedence order at construction time.

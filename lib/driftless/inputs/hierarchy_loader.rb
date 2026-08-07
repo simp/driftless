@@ -63,7 +63,7 @@ module Driftless
             findings << finding(
               'hierarchy:unsupported-backend',
               "tier #{name.inspect} uses a lookup_key/data_dig backend " \
-              '(MVP supports data_hash tiers with a datadir)',
+              '(only data_hash tiers with a datadir are currently supported)',
             )
             next
           end

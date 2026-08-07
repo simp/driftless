@@ -69,7 +69,7 @@ RSpec.describe Driftless::Inputs::DatadirLoader do
       expect(malformed_findings.length).to eq(1)
     end
 
-    it 'skips tiers whose backend is not yaml_data (MVP scope)' do
+    it 'skips tiers whose backend is not yaml_data' do
       json_tier = Driftless::HieraTier.new(
         name: 'json', datadir: datadir, backend: :json_data,
         path_templates: [], interpolation_vars: [], multi_path: false,

@@ -61,7 +61,7 @@ module Driftless
       end
 
       # Universal detector controls, declared once on Base and inherited by
-      # every subclass. Consumers wire behavior in chunk 4:
+      # every subclass.
       # - :enabled — {Scan#run} skips detectors where option(:enabled) is false.
       # - :exclude_paths — findings whose path matches any pattern are dropped.
       config_option :enabled, type: :boolean, default: true,

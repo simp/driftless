@@ -12,6 +12,7 @@ require 'openssl'
 require 'optparse'
 require 'socket'
 require 'stringio'
+require 'time'
 require 'uri'
 require 'zlib'
 
@@ -32,51 +33,58 @@ rescue LoadError, StandardError
   }
 end
 
-defaults = puppet_defaults
-
 opts = {
   url:       'https://localhost:8081',
-  cert:      defaults[:cert],
-  key:       defaults[:key],
-  cacert:    defaults[:cacert],
+  cert:      nil,
+  key:       nil,
+  cacert:    nil,
   page_size: 500,
   sleep:     0.25,
   jitter:    0.25,
   output:    '-',
   timeout:   120,
   attempts:  3,
-  verbose:   false,
+  log_level:   Logger::INFO,
 }
 
 OptionParser.new do |o|
   o.banner = "Usage: #{$PROGRAM_NAME} [options] > factsets.ndjson"
   o.on('--url URL',        "PuppetDB base URL (default #{opts[:url]})")       { |v| opts[:url] = v }
-  o.on('--cert PATH',      "Client cert (default #{opts[:cert]})")            { |v| opts[:cert] = v }
-  o.on('--key PATH',       "Client key (default #{opts[:key]})")              { |v| opts[:key] = v }
-  o.on('--cacert PATH',    "CA bundle (default #{opts[:cacert]})")            { |v| opts[:cacert] = v }
+  o.on('--cert PATH',      'Client cert (default: from puppet SSL config)')   { |v| opts[:cert] = v }
+  o.on('--key PATH',       'Client key (default: from puppet SSL config)')    { |v| opts[:key] = v }
+  o.on('--cacert PATH',    'CA bundle (default: from puppet SSL config)')     { |v| opts[:cacert] = v }
   o.on('--page-size N',  Integer, "Nodes per page (default #{opts[:page_size]})")  { |v| opts[:page_size] = v }
   o.on('--sleep SECS',   Float,   "Base sleep between pages (default #{opts[:sleep]})")     { |v| opts[:sleep] = v }
   o.on('--jitter SECS',  Float,   "Extra random sleep, 0..jitter (default #{opts[:jitter]})") { |v| opts[:jitter] = v }
   o.on('--output PATH',           "NDJSON output; '-' for stdout (default '-')")            { |v| opts[:output] = v }
   o.on('--timeout SECS', Integer, "HTTP read timeout (default #{opts[:timeout]})")           { |v| opts[:timeout] = v }
   o.on('--attempts N',   Integer, "Retry attempts per page (default #{opts[:attempts]})")    { |v| opts[:attempts] = v }
-  o.on('-v', '--verbose',         'Log per-page progress to stderr')                         { opts[:verbose] = true }
+  o.on('-v', '--verbose',         'Also log queries and per-request retries') { opts[:log_level] = Logger::DEBUG }
   o.on('-h', '--help')            { puts o; exit 0 }
 end.parse!
 
 log = Logger.new($stderr)
-log.level = opts[:verbose] ? Logger::DEBUG : Logger::INFO
+log.level = opts[:log_level]
 log.formatter = ->(sev, t, _p, msg) { "#{t.iso8601} #{sev} #{msg}\n" }
 
 uri  = URI("#{opts[:url].chomp('/')}/pdb/query/v4")
 http = Net::HTTP.new(uri.host, uri.port)
 http.use_ssl            = uri.scheme == 'https'
-http.verify_mode        = OpenSSL::SSL::VERIFY_PEER
-http.cert               = OpenSSL::X509::Certificate.new(File.read(opts[:cert]))
-http.key                = OpenSSL::PKey::RSA.new(File.read(opts[:key]))
-http.ca_file            = opts[:cacert]
 http.read_timeout       = opts[:timeout]
 http.keep_alive_timeout = 30
+
+if http.use_ssl?
+  if opts[:cert].nil? || opts[:key].nil? || opts[:cacert].nil?
+    defaults = puppet_defaults
+    opts[:cert]   ||= defaults[:cert]
+    opts[:key]    ||= defaults[:key]
+    opts[:cacert] ||= defaults[:cacert]
+  end
+  http.verify_mode = OpenSSL::SSL::VERIFY_PEER
+  http.cert        = OpenSSL::X509::Certificate.new(File.read(opts[:cert]))
+  http.key         = OpenSSL::PKey::RSA.new(File.read(opts[:key]))
+  http.ca_file     = opts[:cacert]
+end
 
 query_page = lambda do |pql|
   req = Net::HTTP::Post.new(uri)
@@ -114,6 +122,7 @@ http.start do
   log.info('phase 1: listing active certnames')
   certs = query_page.call(certs_pql).map { |r| r.fetch('certname') }
   log.info("phase 1: #{certs.size} active nodes")
+  log.debug("pql: '#{certs_pql}'")
 
   # Phase 2: fetch factsets in batches.
   total = 0
@@ -123,6 +132,7 @@ http.start do
     # `in` is index-friendly on PDB
     #  and performant compared to order by + limit
     pql = "inventory[certname, environment, trusted, facts] { certname in [#{quoted}] }"
+    log.debug("phase 2 |page #{page.to_s.ljust(pages.to_s.size)}|  pql: '#{pql}'")
 
     rows = query_page.call(pql)
     rows.each { |row| out.puts(JSON.dump(row)) }

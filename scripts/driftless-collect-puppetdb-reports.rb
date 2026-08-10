@@ -70,8 +70,8 @@ opts = {
   page_size:   500,
   sleep:       0.25,
   jitter:      0.25,
-  output_dir:  './collector-output',
-  contributor: nil,
+  output_dir:  './driftless-collector-output',
+  collector: nil,
   reports:     [],
   timeout:     120,
   attempts:    3,
@@ -85,7 +85,7 @@ OptionParser.new do |o|
   o.on('--key PATH',           'Client key (default: from puppet SSL config)')                                 { |v| opts[:key] = v }
   o.on('--cacert PATH',        'CA bundle (default: from puppet SSL config)')                                  { |v| opts[:cacert] = v }
   o.on('--output-dir PATH',    "Where to write sessions/ (default #{opts[:output_dir]})")                      { |v| opts[:output_dir] = v }
-  o.on('--contributor NAME',   'Contributor name for _summary.json (default: puppet certname or hostname -f)')  { |v| opts[:contributor] = v }
+  o.on('--collector NAME',   'Contributor name for _summary.json (default: puppet certname or hostname -f)')  { |v| opts[:collector] = v }
   o.on('--report NAME',        "Report to run (repeatable). Default: all. Known: #{REPORTS.keys.join(', ')}")  { |v| opts[:reports] << v }
   o.on('--page-size N', Integer, "Certnames per batched request (default #{opts[:page_size]})")                { |v| opts[:page_size] = v }
   o.on('--sleep SECS',  Float,   "Base sleep between batched requests (default #{opts[:sleep]})")              { |v| opts[:sleep] = v }
@@ -110,7 +110,7 @@ end
 uri = URI("#{opts[:url].chomp('/')}/pdb/query/v4")
 
 # Puppet will load iff we need TLS defaults. Same predicate drives both the
-# SSL cert bootstrap and the contributor default.
+# SSL cert bootstrap and the collector default.
 puppet_will_load = uri.scheme == 'https' &&
                    (opts[:cert].nil? || opts[:key].nil? || opts[:cacert].nil?)
 defaults         = puppet_will_load ? puppet_defaults : nil
@@ -130,7 +130,7 @@ if http.use_ssl?
   http.ca_file     = opts[:cacert]
 end
 
-contributor = opts[:contributor] ||
+collector = opts[:collector] ||
               (puppet_will_load && defaults[:certname]) ||
               `hostname -f`.chomp
 
@@ -139,7 +139,7 @@ session_id      = session_started.strftime('%Y-%m-%dT%H-%M-%SZ')
 session_dir     = File.join(opts[:output_dir], 'sessions', session_id)
 FileUtils.mkdir_p(session_dir)
 log.info("session #{session_id} → #{session_dir}")
-log.info("contributor: #{contributor}")
+log.info("collector: #{collector}")
 
 query_page = lambda do |pql|
   req = Net::HTTP::Post.new(uri)
@@ -245,7 +245,7 @@ http.start do
 
   summary = {
     'session_id'        => session_id,
-    'contributor'       => contributor,
+    'collector'         => collector,
     'pdb_url'           => opts[:url],
     'collector_version' => COLLECTOR_VERSION,
     'started_at'        => session_started.iso8601,

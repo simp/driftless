@@ -5,8 +5,8 @@ require 'driftless/hierarchy_interpolator'
 
 module Driftless
   module Detectors
-    class HierarchyPathsMissingReportedFacts < Base
-      key 'hierarchy:paths-missing-reported-facts'
+    class HierarchyFilesMissedByReportedFactValues < Base
+      key 'hierarchy:files-missed-by-reported-fact-values'
       about 'Hiera data files on disk that no hierarchy tier resolves to ' \
             'given any active node\'s reported facts'
       requires_reports 'factsets-for-all-active-nodes'
@@ -36,7 +36,7 @@ module Driftless
           if tier.interpolation_vars.any? && tier_reachable.empty?
             # A tier whose interpolation vars are satisfied by NO active node's facts.
             # Meta finding disabled until a severity/priority scheme exists — this
-            # is informational, not a bug. See `hierarchy:tiers-unmatched-to-reported-facts`
+            # is informational, not a bug. See `hierarchy:tiers-interpolating-unreported-facts`
             # in the issue catalog. The exclusion below is not for reporting; it
             # prevents the unresolvable tier's datadir subset from being flood-reported
             # by the main pass.
@@ -52,7 +52,7 @@ module Driftless
         orphans.each do |path|
           findings << build_finding(
             path:    path,
-            message: "no hierarchy tier resolves to #{path}",
+            message: 'no reported fact can resolve any hierarchy tier to this path',
           )
         end
 

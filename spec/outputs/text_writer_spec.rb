@@ -22,11 +22,11 @@ RSpec.describe Driftless::Outputs::TextWriter do
       described_class.write([
         finding(key: 'data:missing-class', path: '/tmp/a', line: 2, message: 'a1'),
         finding(key: 'data:missing-class', path: '/tmp/b', line: 3, message: 'b1'),
-        finding(key: 'hierarchy:paths-missing-reported-facts', path: '/tmp/c', line: nil, message: 'c1'),
+        finding(key: 'hierarchy:files-missed-by-reported-fact-values', path: '/tmp/c', line: nil, message: 'c1'),
       ], io)
       out = io.string
       expect(out).to include('data:missing-class (2 findings)')
-      expect(out).to include('hierarchy:paths-missing-reported-facts (1 finding)')
+      expect(out).to include('hierarchy:files-missed-by-reported-fact-values (1 finding)')
     end
 
     it 'sorts groups alphabetically by key' do

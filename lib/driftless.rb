@@ -21,7 +21,7 @@ require 'driftless/inputs/hierarchy_loader'
 require 'driftless/detectors'
 require 'driftless/detectors/base'
 
-require 'driftless/detectors/hierarchy_paths_missing_reported_facts'
+require 'driftless/detectors/hierarchy_files_missed_by_reported_fact_values'
 require 'driftless/detectors/hierarchy_unreachable_data_files'
 require 'driftless/detectors/hierarchy_legacy_facts'
 require 'driftless/detectors/data_missing_nodes'

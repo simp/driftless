@@ -4,7 +4,12 @@
 # Send a driftless collector session directory to a git repo as a
 # force-pushed single commit on a per-contributor branch 
 #
-# (No history: each update replaces the session branch with a new 1-commit tree)
+# Env vars honored (all optional; no plaintext secret ever written to disk):
+#   DRIFTLESS_REPORT_STORE_GITREPO   default for --repo
+#   DRIFTLESS_COLLECTOR_REPORTS_DIR  default reports/sessions root
+#   DRIFTLESS_REPORT_PUSH_TOKEN      HTTPS token/password (via GIT_ASKPASS shim)
+#   DRIFTLESS_REPORT_PUSH_USERNAME   HTTPS username (default: x-token-auth)
+#   DRIFTLESS_REPORT_PUSH_SSH_KEY    SSH private key material (via ephemeral ssh-agent)
 # ------------------------------------------------------------------------------
 
 require 'fileutils'
@@ -15,16 +20,6 @@ require 'optparse'
 require 'shellwords'
 require 'time'
 require 'tmpdir'
-
-# Shim that git invokes to obtain HTTPS credentials. Contains no secret —
-# reads DRIFTLESS_REPORT_PUSH_{USERNAME,TOKEN} from the environment at call time.
-ASKPASS_SHIM = <<~SH
-  #!/bin/sh
-  case "$1" in
-    Username*) echo "${DRIFTLESS_REPORT_PUSH_USERNAME:-x-token-auth}" ;;
-    *)         echo "$DRIFTLESS_REPORT_PUSH_TOKEN" ;;
-  esac
-SH
 
 def discover_session_dir(positional, reports_dir, session_pref, log)
   path = positional || reports_dir
@@ -70,18 +65,24 @@ def discover_session_dir(positional, reports_dir, session_pref, log)
   selected
 end
 
-def with_git_auth(workdir, log)
+def with_git_auth(log)
   extra_env = { 'GIT_TERMINAL_PROMPT' => '0' }
+  extra_config = []
   agent_pid = nil
-  disable_helper = false
 
   if ENV['DRIFTLESS_REPORT_PUSH_TOKEN']
-    askpass_path = File.join(workdir, '.git-askpass.sh')
-    File.write(askpass_path, ASKPASS_SHIM)
-    File.chmod(0o700, askpass_path)
-    extra_env['GIT_ASKPASS'] = askpass_path
-    disable_helper = true
-    log.info('git auth: HTTPS via DRIFTLESS_REPORT_PUSH_TOKEN (GIT_ASKPASS shim)')
+    # Inline helper — no file to exec, so a noexec /tmp is fine. `!` marks a
+    # shell command; git appends the action ("get") so $1 inside f is "get".
+    # Token stays in the env; only the (env-referencing) helper source is in `ps`.
+    helper = <<~SH.strip
+      !f() { case "$1" in
+        get) echo "username=${DRIFTLESS_REPORT_PUSH_USERNAME:-x-token-auth}"
+             echo "password=$DRIFTLESS_REPORT_PUSH_TOKEN" ;;
+      esac; }; f
+    SH
+    extra_config << 'credential.helper='             # clear inherited chain
+    extra_config << "credential.helper=#{helper}"    # install ours
+    log.info('git auth: HTTPS via DRIFTLESS_REPORT_PUSH_TOKEN (inline credential helper)')
   end
 
   if (key_material = ENV['DRIFTLESS_REPORT_PUSH_SSH_KEY'])
@@ -105,7 +106,7 @@ def with_git_auth(workdir, log)
     log.info('git auth: SSH via ephemeral ssh-agent + DRIFTLESS_REPORT_PUSH_SSH_KEY')
   end
 
-  yield extra_env, disable_helper
+  yield extra_env, extra_config
 ensure
   if agent_pid
     Process.kill('TERM', agent_pid) rescue nil
@@ -213,10 +214,10 @@ begin
   if opts[:dry_run]
     log.info("dry-run: prepared branch #{branch} in #{workdir}; skipping push")
   else
-    with_git_auth(workdir, log) do |auth_env, disable_helper|
+    with_git_auth(log) do |auth_env, auth_config|
       push_env = git_env.merge(auth_env)
       push_cmd = ['git', '-C', workdir]
-      push_cmd += ['-c', 'credential.helper='] if disable_helper
+      auth_config.each { |c| push_cmd += ['-c', c] }
       push_cmd += ['push', '--force', opts[:remote_git_repo], "#{branch}:#{branch}"]
       log.debug("$ #{push_cmd.shelljoin}")
       system(push_env, *push_cmd) or raise "git push failed (exit #{$?.exitstatus})"

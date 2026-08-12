@@ -47,6 +47,29 @@ RSpec.describe Driftless::Inputs::HierarchyLoader do
       end
     end
 
+    context 'source_line population' do
+      let(:result) { described_class.load(fixture('minimal')) }
+      let(:tiers)  { result[0] }
+
+      it 'sets 1-indexed source_line per tier from hiera.yaml position' do
+        # minimal/hiera.yaml: Per-host at line 7, OS family at line 9, Default at line 11
+        by_name = tiers.each_with_object({}) { |t, h| h[t.name] = t }
+        expect(by_name['Per-host'].source_line).to eq(7)
+        expect(by_name['OS family'].source_line).to eq(9)
+        expect(by_name['Default'].source_line).to eq(11)
+      end
+
+      it 'leaves source_line nil when the AST walk cannot align (parse-only, no crash)' do
+        Dir.mktmpdir do |dir|
+          # Valid YAML but unusual: hierarchy is a scalar, not a sequence.
+          # Loader emits no tiers (each_with_index over Array(nil) → no iteration);
+          # what we're asserting is that Psych parsing itself doesn't crash.
+          File.write(File.join(dir, 'hiera.yaml'), "---\nversion: 5\nhierarchy: nope\n")
+          expect { described_class.load(dir) }.not_to raise_error
+        end
+      end
+    end
+
     context 'with a multi-paths tier' do
       let(:result) { described_class.load(fixture('multi_paths_tier')) }
       let(:tiers)  { result[0] }

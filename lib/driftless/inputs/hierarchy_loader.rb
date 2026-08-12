@@ -30,9 +30,11 @@ module Driftless
           return [tiers, findings]
         end
 
+        source = File.read(@hiera_yaml)
+
         doc =
           begin
-            YAML.safe_load(File.read(@hiera_yaml), permitted_classes: [Symbol])
+            YAML.safe_load(source, permitted_classes: [Symbol])
           rescue Psych::SyntaxError => e
             findings << finding(
               'data:yaml-parse-error',
@@ -53,9 +55,12 @@ module Driftless
         default_datadir = defaults['datadir']   || 'data'
         default_backend = defaults['data_hash'] || 'yaml_data'
 
-        Array(doc['hierarchy']).each do |entry|
+        entry_lines = hierarchy_entry_lines(source)
+
+        Array(doc['hierarchy']).each_with_index do |entry, i|
           next unless entry.is_a?(Hash)
 
+          line    = entry_lines[i]
           name    = entry['name'] || '(unnamed)'
           datadir = File.expand_path(entry['datadir'] || default_datadir, @repo_dir)
 
@@ -64,6 +69,7 @@ module Driftless
               'hierarchy:unsupported-backend',
               "tier #{name.inspect} uses a lookup_key/data_dig backend " \
               '(only data_hash tiers with a datadir are currently supported)',
+              line: line,
             )
             next
           end
@@ -73,6 +79,7 @@ module Driftless
             findings << finding(
               'hierarchy:unsupported-backend',
               "tier #{name.inspect} uses unsupported data_hash: #{backend.inspect}",
+              line: line,
             )
             next
           end
@@ -82,6 +89,7 @@ module Driftless
             findings << finding(
               'hierarchy:tier-missing-path',
               "tier #{name.inspect} has neither path: nor paths:",
+              line: line,
             )
             next
           end
@@ -93,6 +101,7 @@ module Driftless
             path_templates:     templates,
             interpolation_vars: templates.flat_map { |t| interpolation_vars(t) }.uniq,
             multi_path:         multi,
+            source_line:        line,
           )
         end
 
@@ -100,6 +109,25 @@ module Driftless
       end
 
       private
+
+      # 1-indexed line numbers per hierarchy: entry, positionally aligned with
+      # Array(doc['hierarchy']). Any parse or shape mismatch → [], in which case
+      # every tier's source_line stays nil (nil-safe downstream).
+      def hierarchy_entry_lines(source)
+        ast = Psych.parse(source)
+        return [] unless ast
+        root = ast.root
+        return [] unless root.is_a?(Psych::Nodes::Mapping)
+
+        root.children.each_slice(2) do |key, value|
+          next unless key.is_a?(Psych::Nodes::Scalar) && key.value == 'hierarchy'
+          return [] unless value.is_a?(Psych::Nodes::Sequence)
+          return value.children.map { |entry| entry.start_line + 1 }
+        end
+        []
+      rescue Psych::SyntaxError
+        []
+      end
 
       def extract_templates(entry)
         if entry.key?('path')
@@ -115,8 +143,8 @@ module Driftless
         template.to_s.scan(INTERPOLATION_RE).map { |m| m[0].strip }
       end
 
-      def finding(key, message)
-        Finding.new(key: key, path: @hiera_yaml, line: nil, message: message, meta: {})
+      def finding(key, message, line: nil)
+        Finding.new(key: key, path: @hiera_yaml, line: line, message: message, meta: {})
       end
     end
   end

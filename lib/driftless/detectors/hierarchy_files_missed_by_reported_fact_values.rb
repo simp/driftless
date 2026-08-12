@@ -35,11 +35,10 @@ module Driftless
 
           if tier.interpolation_vars.any? && tier_reachable.empty?
             # A tier whose interpolation vars are satisfied by NO active node's facts.
-            # Meta finding disabled until a severity/priority scheme exists — this
-            # is informational, not a bug. See `hierarchy:tiers-interpolating-unreported-facts`
-            # in the issue catalog. The exclusion below is not for reporting; it
-            # prevents the unresolvable tier's datadir subset from being flood-reported
-            # by the main pass.
+            # This condition is reported at tier-scope by
+            # `hierarchy:tiers-interpolating-unreported-facts`. The exclusion below
+            # is not for reporting; it prevents this tier's datadir subset from being
+            # flood-reported at file-scope by the main pass here.
             excluded_by_tiers.merge(would_match_files(tier))
           else
             reachable.merge(tier_reachable)

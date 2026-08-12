@@ -19,12 +19,17 @@ module Driftless
         # Level-2 detector also no-ops in this case; keep the two consistent.
         return [] if nodes.empty?
 
+        exclude_tier_patterns = option(:exclude_tiers)
+        exclude_fact_patterns = option(:exclude_facts)
+
         findings = []
         corpus.hiera_tiers.each do |tier|
           next if tier.interpolation_vars.empty?
+          next if exclude_tier_patterns.any? { |pat| File.fnmatch(pat, tier.name.to_s) }
 
           unreported = tier.interpolation_vars.reject do |var|
-            nodes.any? { |node| !node.fact(var).nil? }
+            exclude_fact_patterns.any? { |pat| File.fnmatch(pat, var) } ||
+              nodes.any? { |node| !node.fact(var).nil? }
           end
           next if unreported.empty?
 

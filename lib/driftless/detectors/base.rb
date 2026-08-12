@@ -68,6 +68,12 @@ module Driftless
         about: 'Whether this detector runs during a scan'
       config_option :exclude_paths, type: :array, default: [],
         about: 'Glob patterns; findings whose path matches any pattern are filtered out'
+      config_option :exclude_tiers, type: :array, default: [],
+        about: 'Glob patterns matched against Hiera tier names; ' \
+               'tier-iterating detectors skip any matching tier'
+      config_option :exclude_facts, type: :array, default: [],
+        about: 'Glob patterns matched against fact / interpolation-variable names; ' \
+               'fact-examining detectors treat any matching name as "not our concern"'
 
       attr_reader :corpus
 

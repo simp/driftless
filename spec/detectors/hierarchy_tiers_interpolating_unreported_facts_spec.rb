@@ -82,5 +82,55 @@ RSpec.describe Driftless::Detectors::HierarchyTiersInterpolatingUnreportedFacts 
         expect(findings.map { |f| f.meta[:tier] }).not_to include('Default')
       end
     end
+
+    context 'with exclude_tiers / exclude_facts configured' do
+      around do |ex|
+        original = Driftless.instance_variable_get(:@config)
+        ex.run
+      ensure
+        Driftless.instance_variable_set(:@config, original)
+      end
+
+      def set_detector_config(opts)
+        Driftless.config = Driftless::Config.new(merged: {
+          'detectors' => { described_class.key => opts },
+        })
+      end
+
+      it 'exclude_tiers by literal name suppresses that tier\'s finding' do
+        set_detector_config('exclude_tiers' => ['Compliance profile'])
+        findings = described_class.new(corpus_for('unresolvable_tier', nodes: [web1])).call
+        expect(findings).to be_empty
+      end
+
+      it 'exclude_tiers accepts glob patterns' do
+        set_detector_config('exclude_tiers' => ['Comp*'])
+        findings = described_class.new(corpus_for('unresolvable_tier', nodes: [web1])).call
+        expect(findings).to be_empty
+      end
+
+      it 'exclude_facts by literal name removes the fact from the "unreported" check' do
+        set_detector_config('exclude_facts' => ['compliance_profile'])
+        findings = described_class.new(corpus_for('unresolvable_tier', nodes: [web1])).call
+        # The tier's only interpolation var is now excluded → nothing left unreported → no finding
+        expect(findings).to be_empty
+      end
+
+      it 'exclude_facts accepts glob patterns' do
+        set_detector_config('exclude_facts' => ['comp*'])
+        findings = described_class.new(corpus_for('unresolvable_tier', nodes: [web1])).call
+        expect(findings).to be_empty
+      end
+
+      it 'a non-matching exclude leaves the finding intact' do
+        set_detector_config(
+          'exclude_tiers' => ['SomeOtherTier'],
+          'exclude_facts' => ['some_other_fact'],
+        )
+        findings = described_class.new(corpus_for('unresolvable_tier', nodes: [web1])).call
+        expect(findings.length).to eq(1)
+        expect(findings.first.meta[:tier]).to eq('Compliance profile')
+      end
+    end
   end
 end

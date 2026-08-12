@@ -4,9 +4,9 @@ require 'driftless/corpus'
 require 'driftless/reported'
 require 'driftless/models/node'
 require 'driftless/inputs/hierarchy_loader'
-require 'driftless/detectors/hierarchy_paths_missing_reported_facts'
+require 'driftless/detectors/hierarchy_files_missed_by_reported_fact_values'
 
-RSpec.describe Driftless::Detectors::HierarchyPathsMissingReportedFacts do
+RSpec.describe Driftless::Detectors::HierarchyFilesMissedByReportedFactValues do
   def fixture(name)
     File.expand_path("../fixtures/control_repos/#{name}", __dir__)
   end
@@ -40,14 +40,14 @@ RSpec.describe Driftless::Detectors::HierarchyPathsMissingReportedFacts do
         expect(findings.length).to eq(1)
       end
 
-      it 'the skip finding is keyed skipped:hierarchy:paths-missing-reported-facts' do
-        expect(findings.first.key).to eq('skipped:hierarchy:paths-missing-reported-facts')
+      it 'the skip finding is keyed skipped:hierarchy:files-missed-by-reported-fact-values' do
+        expect(findings.first.key).to eq('skipped:hierarchy:files-missed-by-reported-fact-values')
       end
     end
 
     context 'against the orphans fixture with one node (web1 / RedHat)' do
       let(:findings) { described_class.new(corpus_for('orphans', nodes: [web1])).call }
-      let(:orphans)  { findings.select { |f| f.key == 'hierarchy:paths-missing-reported-facts' } }
+      let(:orphans)  { findings.select { |f| f.key == 'hierarchy:files-missed-by-reported-fact-values' } }
 
       it 'reports exactly the two files no tier resolves to' do
         expect(orphans.map(&:path)).to contain_exactly(
@@ -76,18 +76,18 @@ RSpec.describe Driftless::Detectors::HierarchyPathsMissingReportedFacts do
       it 'does NOT emit a meta finding for the unresolvable tier (disabled; low-priority informational)' do
         keys = findings.map(&:key)
         expect(keys).not_to include('hierarchy:tier-unresolved')
-        expect(keys).not_to include('hierarchy:tiers-unmatched-to-reported-facts')
+        expect(keys).not_to include('hierarchy:tiers-interpolating-unreported-facts')
       end
 
       it 'does NOT flood-report the unresolvable tier\'s files (suppression still active)' do
         stig_path = File.join(fixture('unresolvable_tier'), 'data/compliance/stig.yaml')
-        orphan_paths = findings.select { |f| f.key == 'hierarchy:paths-missing-reported-facts' }.map(&:path)
+        orphan_paths = findings.select { |f| f.key == 'hierarchy:files-missed-by-reported-fact-values' }.map(&:path)
         expect(orphan_paths).not_to include(stig_path)
       end
 
       it 'still recognizes default.yaml as reachable via the static Default tier' do
         default_path = File.join(fixture('unresolvable_tier'), 'data/default.yaml')
-        orphan_paths = findings.select { |f| f.key == 'hierarchy:paths-missing-reported-facts' }.map(&:path)
+        orphan_paths = findings.select { |f| f.key == 'hierarchy:files-missed-by-reported-fact-values' }.map(&:path)
         expect(orphan_paths).not_to include(default_path)
       end
     end

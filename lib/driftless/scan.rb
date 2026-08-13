@@ -154,8 +154,7 @@ module Driftless
       d
     end
 
-    # Times a block and emits a DEBUG line with elapsed ms. Level filtering
-    # means the debug output only shows up when a caller has run `driftless -vv`.
+    # Times a block and emits a DEBUG line with elapsed ms
     def phase(name)
       t = Process.clock_gettime(Process::CLOCK_MONOTONIC)
       result = yield
@@ -165,18 +164,13 @@ module Driftless
     end
 
     # Filters findings whose `path` matches any of the given glob patterns.
-    # Patterns are matched against repo-relative paths. Findings without a
-    # path (structural findings like `skipped:*`) are never excluded.
-    # Each exclusion emits a DEBUG line naming the matching pattern.
+    # Findings without a path (e.g.,`skipped:*`) are never excluded.
     def apply_exclude_paths(findings, patterns, detector_key)
       return findings if patterns.empty?
 
       findings.reject do |f|
         next false unless f.path
         rel = relative_to_repo(f.path)
-        # Deliberately NO FNM_PATHNAME — with it, `modules/**` would only match
-        # a single segment under `modules/` (a Ruby-glob quirk). Users expect
-        # `.gitignore`-style semantics where `modules/**` matches any depth.
         matched = patterns.find { |p| File.fnmatch(p, rel, File::FNM_EXTGLOB) }
         next false unless matched
         Driftless.logger.debug("  excluded by #{detector_key}.exclude_paths[#{matched}]: #{rel}")
@@ -184,11 +178,8 @@ module Driftless
       end
     end
 
-    # Rewrites each finding's path to repo-relative form when the path lies
-    # under repo_dir. Paths outside the repo (basemodulepath components,
-    # incoming_dir-scoped findings like data:json-parse-error) stay absolute
-    # rather than degenerating into "../../../etc/puppetlabs/..." forms.
-    # Assumes repo_dir is absolute (normalized at the CLI boundary).
+    # Rewrites each finding's path to repo-relative form is under repo_dir
+    # Paths outside the repo stay absolute to stay sensible
     def relativize_finding_paths!(findings)
       return findings unless repo_dir
       prefix = repo_dir.end_with?('/') ? repo_dir : "#{repo_dir}/"

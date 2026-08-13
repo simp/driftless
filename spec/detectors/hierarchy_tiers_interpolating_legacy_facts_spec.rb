@@ -1,10 +1,10 @@
 require 'spec_helper'
 
-require 'driftless/detectors/hierarchy_legacy_facts'
+require 'driftless/detectors/hierarchy_tiers_interpolating_legacy_facts'
 require 'driftless/models/hiera_tier'
 require 'driftless/reported'
 
-RSpec.describe Driftless::Detectors::HierarchyLegacyFacts do
+RSpec.describe Driftless::Detectors::HierarchyTiersInterpolatingLegacyFacts do
   def hand_corpus(hiera_tiers: [], repo_dir: nil)
     Driftless::Corpus.new(
       repo_dir:       repo_dir,

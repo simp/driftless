@@ -166,6 +166,32 @@ RSpec.describe Driftless::Scan do
       result   = scan.send(:apply_environment_filter, reported)
       expect(result.missing?('all-active-nodes')).to be true
     end
+
+    context 'when every report query is MissingReport (empty inventory)' do
+      let(:empty_reported) { Driftless::Reported.new(data: {}) }
+
+      it 'raises ScanError with a message that names the incoming_dir, not puppet.environments' do
+        scan = filter_scan(environments: ['production', 'staging'])
+        expect { scan.send(:apply_environment_filter, empty_reported) }
+          .to raise_error(Driftless::ScanError) { |e|
+            expect(e.message).to match(%r{no PuppetDB reports loaded from /tmp/incoming})
+            expect(e.message).not_to match(/puppet\.environments/)
+          }
+      end
+
+      it 'warns and returns the (still-empty) reported when allow_missing_envs is true' do
+        scan   = filter_scan(environments: ['production'], allow_missing_envs: true)
+        result = scan.send(:apply_environment_filter, empty_reported)
+        expect(result.missing?('all-active-nodes')).to be true
+        expect(result.missing?('factsets-for-all-active-nodes')).to be true
+      end
+
+      it 'names the expected file-layout shape in its message' do
+        scan = filter_scan(environments: ['production'])
+        expect { scan.send(:apply_environment_filter, empty_reported) }
+          .to raise_error(Driftless::ScanError, /contributor.*timestamp.*ndjson/)
+      end
+    end
   end
 
   describe '#relativize_finding_paths!' do

@@ -168,6 +168,66 @@ RSpec.describe Driftless::Scan do
     end
   end
 
+  describe '#relativize_finding_paths!' do
+    let(:scan) { described_class.new(repo_dir: '/tmp/repo', incoming_dir: '/tmp/incoming') }
+
+    def finding(path)
+      Driftless::Finding.new(key: 'x', path: path, line: nil, message: 'm', meta: {})
+    end
+
+    it 'rewrites paths under repo_dir to repo-relative form' do
+      f = finding('/tmp/repo/data/common.yaml')
+      scan.send(:relativize_finding_paths!, [f])
+      expect(f.path).to eq('data/common.yaml')
+    end
+
+    it 'leaves paths outside repo_dir absolute' do
+      f = finding('/etc/puppetlabs/code/modules/stdlib/manifests/init.pp')
+      scan.send(:relativize_finding_paths!, [f])
+      expect(f.path).to eq('/etc/puppetlabs/code/modules/stdlib/manifests/init.pp')
+    end
+
+    it 'does not strip when a path merely shares a prefix with repo_dir but is not under it' do
+      # /tmp/repo-other/... starts with "/tmp/repo" but is not under "/tmp/repo/".
+      # The trailing-slash guard in the helper is what prevents a wrong strip here.
+      f = finding('/tmp/repo-other/data/common.yaml')
+      scan.send(:relativize_finding_paths!, [f])
+      expect(f.path).to eq('/tmp/repo-other/data/common.yaml')
+    end
+
+    it 'leaves nil-path findings alone' do
+      f = finding(nil)
+      scan.send(:relativize_finding_paths!, [f])
+      expect(f.path).to be_nil
+    end
+
+    it 'no-ops when repo_dir is nil' do
+      s = described_class.new(repo_dir: nil, incoming_dir: '/tmp/incoming')
+      f = finding('/tmp/repo/data/common.yaml')
+      s.send(:relativize_finding_paths!, [f])
+      expect(f.path).to eq('/tmp/repo/data/common.yaml')
+    end
+
+    it 'end-to-end: Scan#run emits repo-relative paths' do
+      Dir.mktmpdir do |dir|
+        minimal_repo(dir)
+        # Plant an orphan data file so hierarchy:unreachable-data-files fires;
+        # it's inventory-independent and reliably yields a path-carrying finding.
+        File.write(File.join(dir, 'data', 'orphan.yaml'), "---\n{}\n")
+        set_config('puppet' => { 'environments' => ['production'] })
+        findings = described_class.new(
+          repo_dir:     dir,
+          incoming_dir: File.join(dir, 'incoming'),
+          environments: ['production'],
+          allow_missing_envs: true,
+        ).run
+        paths = findings.map(&:path).compact
+        expect(paths).to include('data/orphan.yaml')
+        expect(paths.none? { |p| p.start_with?('/') }).to be(true), "expected all paths relative, got #{paths.inspect}"
+      end
+    end
+  end
+
   describe 'detector :exclude_paths integration' do
     it 'filters findings whose path matches an exclude pattern' do
       # Construct a corpus + config directly and drive Scan's private helper

@@ -124,6 +124,7 @@ module Driftless
       end
 
       all_findings = meta_findings + detector_findings
+      relativize_finding_paths!(all_findings)
       Driftless.logger.info("Scan complete: #{all_findings.size} findings")
       all_findings
     end
@@ -181,6 +182,21 @@ module Driftless
         Driftless.logger.debug("  excluded by #{detector_key}.exclude_paths[#{matched}]: #{rel}")
         true
       end
+    end
+
+    # Rewrites each finding's path to repo-relative form when the path lies
+    # under repo_dir. Paths outside the repo (basemodulepath components,
+    # incoming_dir-scoped findings like data:json-parse-error) stay absolute
+    # rather than degenerating into "../../../etc/puppetlabs/..." forms.
+    # Assumes repo_dir is absolute (normalized at the CLI boundary).
+    def relativize_finding_paths!(findings)
+      return findings unless repo_dir
+      prefix = repo_dir.end_with?('/') ? repo_dir : "#{repo_dir}/"
+      findings.each do |f|
+        next unless f.path
+        f.path = f.path[prefix.length..] if f.path.start_with?(prefix)
+      end
+      findings
     end
 
     def relative_to_repo(path)

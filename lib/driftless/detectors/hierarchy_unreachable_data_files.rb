@@ -39,8 +39,8 @@ module Driftless
 
           findings << build_finding(
             path:    file,
-            message: "no hierarchy tier template pattern could reach #{file} " \
-                     '(fact-independent structural check)',
+            message: "no hierarchy tier can reach this"
+                     
           )
         end
         findings

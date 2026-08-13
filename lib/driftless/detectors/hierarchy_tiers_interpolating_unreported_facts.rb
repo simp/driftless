@@ -4,8 +4,8 @@ module Driftless
   module Detectors
     class HierarchyTiersInterpolatingUnreportedFacts < Base
       key 'hierarchy:tiers-interpolating-unreported-facts'
-      about 'Hiera hierarchy tiers whose interpolation vars name facts ' \
-            'that no active node reports at all'
+      about 'Hierarchy tiers interpolating fact names ' \
+            'that no active node has reported'
       requires_reports 'factsets-for-all-active-nodes'
 
       def call

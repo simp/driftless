@@ -7,8 +7,8 @@ module Driftless
   module Detectors
     class HierarchyLegacyFacts < Base
       key 'hierarchy:legacy-facts'
-      about 'Hiera hierarchy tiers that interpolate legacy Facter fact names ' \
-            '(osfamily, hostname, etc.) rather than the modern structured equivalents'
+      about 'Hierarchy tiers that interpolate legacy facts ' \
+            '(osfamily, fqdn, etc.) instead of structured facts'
 
       def call
         findings = []

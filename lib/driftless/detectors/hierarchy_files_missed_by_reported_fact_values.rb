@@ -7,8 +7,8 @@ module Driftless
   module Detectors
     class HierarchyFilesMissedByReportedFactValues < Base
       key 'hierarchy:files-missed-by-reported-fact-values'
-      about 'Hiera data files on disk that no hierarchy tier resolves to ' \
-            'given any active node\'s reported facts'
+      about 'Hiera data files that tiers could reach but don\'t ' \
+            'because no reported facts match the necessary value'
       requires_reports 'factsets-for-all-active-nodes'
 
       BACKEND_EXT = {

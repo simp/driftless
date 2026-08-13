@@ -55,10 +55,10 @@ RSpec.describe Driftless::Inputs::ModulepathLoader do
       end
     end
 
-    it 'emits hierarchy:absolute-modulepath-missing for a basemodulepath dir that does not exist' do
+    it 'emits controlrepo:missing-modulepaths-from-envconf for a basemodulepath dir that does not exist' do
       Dir.mktmpdir do |repo|
         _, findings = described_class.load(repo, basemodulepath: ['/does/not/exist'])
-        expect(findings.map(&:key)).to eq(['hierarchy:absolute-modulepath-missing'])
+        expect(findings.map(&:key)).to eq(['controlrepo:missing-modulepaths-from-envconf'])
       end
     end
 
@@ -79,11 +79,11 @@ RSpec.describe Driftless::Inputs::ModulepathLoader do
         end
       end
 
-      it 'emits hierarchy:absolute-modulepath-missing when env.conf declares a modulepath dir that does not exist' do
+      it 'emits controlrepo:missing-modulepaths-from-envconf when env.conf declares a modulepath dir that does not exist' do
         Dir.mktmpdir do |repo|
           File.write(File.join(repo, 'environment.conf'), "modulepath = site\n")
           _, findings = described_class.load(repo, basemodulepath: [])
-          expect(findings.map(&:key)).to eq(['hierarchy:absolute-modulepath-missing'])
+          expect(findings.map(&:key)).to eq(['controlrepo:missing-modulepaths-from-envconf'])
           expect(findings.first.message).to match(%r{modulepath component not present.*/site$})
         end
       end

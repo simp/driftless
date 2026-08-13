@@ -32,7 +32,7 @@ module Driftless
             # optional and would be noise.
             if entry[:source] == :explicit
               findings << finding(
-                'hierarchy:absolute-modulepath-missing',
+                'controlrepo:missing-modulepaths-from-envconf',
                 entry[:path],
                 "modulepath component not present: #{entry[:path]}",
               )

@@ -31,13 +31,16 @@ module Driftless
         #   2. parent_options (inherited from Root's own CLI flags — verbose, etc.)
         #   3. config-derived values (from driftless.yaml, mapped via config_defaults)
         #   4. hardcoded defaults (fail_on: 'any')
-        # Ruby's Hash#merge is right-wins: put lower-priority sources on the LEFT.
         @options = { fail_on: 'any' }.merge(config_defaults).merge(@options)
       end
 
       def execute(_argv)
         @options[:repo_dir]     ||= self.class.default_repo_dir(Dir.pwd)
+        # Normalize path to absolute before auto-detecting incoming_dir 
+        # to be consistent with `-d .`
+        @options[:repo_dir]       = File.expand_path(@options[:repo_dir]) if @options[:repo_dir]
         @options[:incoming_dir] ||= self.class.default_incoming_dir(@options[:repo_dir])
+        @options[:incoming_dir]   = File.expand_path(@options[:incoming_dir]) if @options[:incoming_dir]
 
         unless @options[:repo_dir] && @options[:incoming_dir]
           missing = []
@@ -128,10 +131,7 @@ module Driftless
 
       private
 
-      # Extracts config-derived defaults for this Scan invocation. Each key is
-      # mapped from a specific config subsystem section per the CLI-flag ↔
-      # config table (see project_driftless_config_design memory §10).
-      # Nil values are dropped so they don't shadow hardcoded defaults below.
+      # Extracts config-derived defaults for this scan. 
       def config_defaults
         cfg = ::Driftless.config
         {

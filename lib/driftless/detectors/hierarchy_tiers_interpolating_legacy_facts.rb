@@ -5,8 +5,8 @@ require 'driftless/legacy_facts'
 
 module Driftless
   module Detectors
-    class HierarchyLegacyFacts < Base
-      key 'hierarchy:legacy-facts'
+    class HierarchyTiersInterpolatingLegacyFacts < Base
+      key 'hierarchy:tiers-interpolating-legacy-facts'
       about 'Hierarchy tiers that interpolate legacy facts ' \
             '(osfamily, fqdn, etc.) instead of structured facts'
 

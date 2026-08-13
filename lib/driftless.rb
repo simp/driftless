@@ -34,6 +34,7 @@ require 'driftless/detectors/data_lookup_missing_hiera_keys'
 
 require 'driftless/scan'
 require 'driftless/import/local'
+require 'driftless/import/git'
 
 require 'driftless/outputs/json_writer'
 require 'driftless/outputs/text_writer'

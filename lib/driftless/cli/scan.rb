@@ -57,6 +57,11 @@ module Driftless
           exit 3
         end
 
+        unless File.directory?(@options[:incoming_dir])
+          warn "incoming-dir not readable: #{@options[:incoming_dir]}"
+          exit 3
+        end
+
         unless @options[:environments]&.any?
           warn "scan error: puppet.environments is required — set it in driftless.yaml or pass --environments"
           print_help($stderr)

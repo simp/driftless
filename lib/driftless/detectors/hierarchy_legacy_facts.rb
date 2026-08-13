@@ -21,13 +21,21 @@ module Driftless
 
             modern = LegacyFacts::MAP[legacy]
             findings << build_finding(
+              path:    hiera_yaml_path,
+              line:    tier.source_line,
               message: "hierarchy tier #{tier.name.inspect} interpolates legacy fact " \
                        "#{legacy.inspect} (modern equivalent: #{modern.inspect})",
-              meta: { tier: tier.name, legacy: legacy, modern: modern, interpolation: var },
+              meta:    { tier: tier.name, legacy: legacy, modern: modern, interpolation: var },
             )
           end
         end
         findings
+      end
+
+      private
+
+      def hiera_yaml_path
+        corpus.repo_dir && File.join(corpus.repo_dir, 'hiera.yaml')
       end
     end
   end

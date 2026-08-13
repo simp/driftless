@@ -5,9 +5,9 @@ require 'driftless/models/hiera_tier'
 require 'driftless/reported'
 
 RSpec.describe Driftless::Detectors::HierarchyLegacyFacts do
-  def hand_corpus(hiera_tiers: [])
+  def hand_corpus(hiera_tiers: [], repo_dir: nil)
     Driftless::Corpus.new(
-      repo_dir:       nil,
+      repo_dir:       repo_dir,
       hiera_tiers:    hiera_tiers,
       puppet_classes: {},
       data_files:     [],
@@ -16,7 +16,7 @@ RSpec.describe Driftless::Detectors::HierarchyLegacyFacts do
     )
   end
 
-  def tier(name:, interpolation_vars:)
+  def tier(name:, interpolation_vars:, source_line: nil)
     Driftless::HieraTier.new(
       name:               name,
       datadir:            '/tmp/data',
@@ -24,6 +24,7 @@ RSpec.describe Driftless::Detectors::HierarchyLegacyFacts do
       path_templates:     [],
       interpolation_vars: interpolation_vars,
       multi_path:         false,
+      source_line:        source_line,
     )
   end
 
@@ -71,5 +72,28 @@ RSpec.describe Driftless::Detectors::HierarchyLegacyFacts do
     findings = described_class.new(hand_corpus(hiera_tiers: tiers)).call
     expect(findings.size).to eq(2)
     expect(findings.map { |f| f.meta[:tier] }).to contain_exactly('t1', 't2')
+  end
+
+  describe 'path and line attribution' do
+    it 'attaches findings to hiera.yaml with the tier\'s source_line when both are available' do
+      tiers    = [tier(name: 'per-os', interpolation_vars: ['osfamily'], source_line: 12)]
+      corpus   = hand_corpus(hiera_tiers: tiers, repo_dir: '/tmp/repo')
+      findings = described_class.new(corpus).call
+      expect(findings.first.path).to eq('/tmp/repo/hiera.yaml')
+      expect(findings.first.line).to eq(12)
+    end
+
+    it 'leaves path nil when the corpus has no repo_dir' do
+      tiers    = [tier(name: 'per-os', interpolation_vars: ['osfamily'], source_line: 12)]
+      findings = described_class.new(hand_corpus(hiera_tiers: tiers)).call
+      expect(findings.first.path).to be_nil
+      expect(findings.first.line).to eq(12)
+    end
+
+    it 'leaves line nil when the tier has no source_line' do
+      tiers    = [tier(name: 'per-os', interpolation_vars: ['osfamily'])]
+      findings = described_class.new(hand_corpus(hiera_tiers: tiers, repo_dir: '/tmp/repo')).call
+      expect(findings.first.line).to be_nil
+    end
   end
 end

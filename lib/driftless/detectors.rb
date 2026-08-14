@@ -13,6 +13,17 @@ module Driftless
       def find(key)
         registry.find { |k| k.key == key }
       end
+
+      # Union of `requires_reports` across every enabled detector class.
+      # Instantiating with `nil` corpus is safe — option(:enabled) only touches
+      # Driftless.config. Shared by Import::Cleanup (A+ rule) and Scan
+      # (coverage check).
+      def expected_reports
+        registry.each_with_object([]) do |klass, acc|
+          next unless klass.new(nil).option(:enabled)
+          klass.requires_reports.each { |r| acc << r.to_s }
+        end.uniq.sort
+      end
     end
   end
 end

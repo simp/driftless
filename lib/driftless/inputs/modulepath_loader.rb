@@ -35,6 +35,7 @@ module Driftless
                 'controlrepo:missing-modulepaths-from-envconf',
                 entry[:path],
                 "modulepath component not present: #{entry[:path]}",
+                quality: :weird,
               )
             end
             next
@@ -94,8 +95,11 @@ module Driftless
         end
       end
 
-      def finding(key, path, message)
-        Finding.new(key: key, path: path, line: nil, message: message, meta: {})
+      def finding(key, path, message, quality: nil)
+        Finding.new(
+          key: key, path: path, line: nil, message: message, meta: {},
+          quality: quality,
+        )
       end
     end
   end

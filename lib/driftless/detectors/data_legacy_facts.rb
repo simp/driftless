@@ -4,7 +4,9 @@ require 'driftless/legacy_facts'
 module Driftless
   module Detectors
     class DataLegacyFacts < Base
-      key 'data:legacy-facts'
+      key      'data:legacy-facts'
+      severity :error
+      quality  :wrong
       about 'Hiera data files that interpolate legacy facts' \
             '(%{osfamily}, %{hostname}, etc.) instead of the modern structured equivalents'
 

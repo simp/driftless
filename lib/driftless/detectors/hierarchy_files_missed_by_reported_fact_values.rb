@@ -6,7 +6,9 @@ require 'driftless/hierarchy_interpolator'
 module Driftless
   module Detectors
     class HierarchyFilesMissedByReportedFactValues < Base
-      key 'hierarchy:files-missed-by-reported-fact-values'
+      key      'hierarchy:files-missed-by-reported-fact-values'
+      severity :warning
+      quality  :stale
       about 'Hiera data files that tiers could reach but don\'t ' \
             'because no reported facts match the necessary value'
       requires_reports 'factsets-for-all-active-nodes'

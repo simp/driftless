@@ -5,7 +5,9 @@ require 'driftless/detectors/base'
 module Driftless
   module Detectors
     class DataCodebaseMissingClassParam < Base
-      key 'data:codebase-missing-class-param'
+      key      'data:codebase-missing-class-param'
+      severity :error
+      quality  :wrong
       about 'Data key references a parameter that does not exist on the referenced class'
 
       def call

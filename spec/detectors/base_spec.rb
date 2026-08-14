@@ -179,6 +179,113 @@ RSpec.describe Driftless::Detectors::Base do
     end
   end
 
+  describe '.severity' do
+    it 'defaults to :warning when the class does not declare one' do
+      expect(test_detector_class.severity).to eq(:warning)
+    end
+
+    it 'returns the declared value' do
+      klass = Class.new(described_class) do
+        key      'test:sev-error'
+        severity :error
+        def call; []; end
+      end
+      expect(klass.severity).to eq(:error)
+    end
+
+    it 'raises on an invalid symbol' do
+      # Test via post-hoc call rather than class-body DSL: an anonymous
+      # subclass that failed mid-declaration would still be in the
+      # process-wide registry with no #call defined, breaking scan_spec.
+      klass = Class.new(described_class) { def call; []; end }
+      expect { klass.severity(:fatal) }
+        .to raise_error(ArgumentError, /invalid severity :fatal/)
+    end
+  end
+
+  describe '.quality' do
+    it 'defaults to nil (unlabelled) when the class does not declare one' do
+      expect(test_detector_class.quality).to be_nil
+    end
+
+    it 'returns the declared value' do
+      klass = Class.new(described_class) do
+        key     'test:q-weird'
+        quality :weird
+        def call; []; end
+      end
+      expect(klass.quality).to eq(:weird)
+    end
+
+    it 'raises on an invalid symbol' do
+      klass = Class.new(described_class) { def call; []; end }
+      expect { klass.quality(:dangerous) }
+        .to raise_error(ArgumentError, /invalid quality :dangerous/)
+    end
+  end
+
+  describe '#build_finding — severity/quality propagation' do
+    let(:tagged_class) do
+      Class.new(described_class) do
+        key      'test:tagged'
+        severity :error
+        quality  :wrong
+        def call; []; end
+      end
+    end
+
+    it 'inherits severity + quality from the class defaults' do
+      f = tagged_class.new(corpus).send(:build_finding, message: 'x')
+      expect(f.severity).to eq(:error)
+      expect(f.quality).to eq(:wrong)
+    end
+
+    it 'per-finding kwargs override class defaults' do
+      f = tagged_class.new(corpus)
+            .send(:build_finding, message: 'x', severity: :warning, quality: :stale)
+      expect(f.severity).to eq(:warning)
+      expect(f.quality).to eq(:stale)
+    end
+
+    it 'falls back to Base defaults when the class declares neither' do
+      # test_detector_class declares neither severity nor quality
+      f = instance.send(:build_finding, message: 'x')
+      expect(f.severity).to eq(:warning)
+      expect(f.quality).to be_nil
+    end
+  end
+
+  describe '#meta_finding — severity/quality propagation' do
+    let(:tagged_class) do
+      Class.new(described_class) do
+        key      'test:tagged-meta'
+        severity :error
+        quality  :wrong
+        def call; []; end
+      end
+    end
+
+    it 'inherits severity + quality from the emitting class defaults' do
+      f = tagged_class.new(corpus).send(:meta_finding, key: 'other:key', message: 'x')
+      expect(f.severity).to eq(:error)
+      expect(f.quality).to eq(:wrong)
+    end
+  end
+
+  describe '#skip_meta_finding' do
+    it 'emits :note severity regardless of the class defaults' do
+      klass = Class.new(described_class) do
+        key      'test:skip'
+        severity :error
+        quality  :wrong
+        def call; []; end
+      end
+      f = klass.new(corpus).send(:skip_meta_finding, reason: 'no data')
+      expect(f.severity).to eq(:note)
+      expect(f.quality).to be_nil
+    end
+  end
+
   describe 'universal options on Base' do
     it ':enabled defaults to true when no config is set' do
       expect(instance.option(:enabled)).to be(true)

@@ -5,7 +5,9 @@ require 'driftless/detectors/base'
 module Driftless
   module Detectors
     class DataLookupMissingHieraKeys < Base
-      key 'data:lookup-missing-hiera-keys'
+      key      'data:lookup-missing-hiera-keys'
+      severity :error
+      quality  :wrong
       about 'Hiera value interpolations (%{lookup(...)}, %{alias(...)}, ' \
             '%{hiera(...)}) referencing keys not defined anywhere in Hiera'
 

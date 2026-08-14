@@ -3,7 +3,9 @@ require 'driftless/detectors/base'
 module Driftless
   module Detectors
     class HierarchyTiersInterpolatingUnreportedFacts < Base
-      key 'hierarchy:tiers-interpolating-unreported-facts'
+      key      'hierarchy:tiers-interpolating-unreported-facts'
+      severity :warning
+      quality  :stale
       about 'Hierarchy tiers interpolating fact names ' \
             'that no active node has reported'
       requires_reports 'factsets-for-all-active-nodes'

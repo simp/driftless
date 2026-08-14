@@ -5,7 +5,9 @@ require 'driftless/detectors/base'
 module Driftless
   module Detectors
     class DataMissingNodes < Base
-      key 'data:missing-nodes'
+      key      'data:missing-nodes'
+      severity :warning
+      quality  :stale
       about 'Data under certnames/fqdns not present in report:all-active-nodes'
       requires_reports 'all-active-nodes'
 

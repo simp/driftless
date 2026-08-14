@@ -6,7 +6,9 @@ require 'driftless/role_profile'
 module Driftless
   module Detectors
     class CodeLookupMissingHieraKeys < Base
-      key 'code:lookup-missing-hiera-keys'
+      key      'code:lookup-missing-hiera-keys'
+      severity :error
+      quality  :wrong
       about 'Explicit lookup() calls searching for keys not defined anywhere in Hiera'
 
       # Matches any file under a Puppet module directory (modules/ or

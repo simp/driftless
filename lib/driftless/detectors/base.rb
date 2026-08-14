@@ -22,6 +22,34 @@ module Driftless
           end
         end
 
+        # SARIF-aligned severity applied by default to every finding this
+        # detector emits (per-finding override via {Base#build_finding}).
+        # Defaults to :warning; declare :error to force intentionality.
+        def severity(s = nil)
+          return (@severity || :warning) if s.nil?
+
+          unless Finding::SEVERITIES.include?(s)
+            raise ArgumentError,
+                  "invalid severity #{s.inspect} for #{self}; " \
+                  "must be one of #{Finding::SEVERITIES.inspect}"
+          end
+          @severity = s
+        end
+
+        # Optional categorical tag applied by default to every finding this
+        # detector emits (per-finding override via {Base#build_finding}).
+        # Nil means unlabelled — filter-only utility, no reader-facing tag.
+        def quality(q = nil)
+          return @quality if q.nil?
+
+          unless Finding::QUALITIES.include?(q)
+            raise ArgumentError,
+                  "invalid quality #{q.inspect} for #{self}; " \
+                  "must be one of #{Finding::QUALITIES.inspect}"
+          end
+          @quality = q
+        end
+
         def inherited(subclass)
           super
           Detectors.register(subclass)
@@ -105,27 +133,41 @@ module Driftless
 
       protected
 
-      def build_finding(message:, path: nil, line: nil, meta: {})
+      def build_finding(message:, path: nil, line: nil, meta: {},
+                        severity: nil, quality: nil)
         Finding.new(
-          key: self.class.key,
-          path: path,
-          line: line,
-          message: message,
-          meta: meta,
+          key:      self.class.key,
+          path:     path,
+          line:     line,
+          message:  message,
+          meta:     meta,
+          severity: severity || self.class.severity,
+          quality:  quality  || self.class.quality,
         )
       end
 
-      def meta_finding(key:, message:, path: nil, line: nil, meta: {})
-        Finding.new(key: key, path: path, line: line, message: message, meta: meta)
+      def meta_finding(key:, message:, path: nil, line: nil, meta: {},
+                       severity: nil, quality: nil)
+        Finding.new(
+          key:      key,
+          path:     path,
+          line:     line,
+          message:  message,
+          meta:     meta,
+          severity: severity || self.class.severity,
+          quality:  quality  || self.class.quality,
+        )
       end
 
       def skip_meta_finding(reason:)
         Finding.new(
-          key: "skipped:#{self.class.key}",
-          path: nil,
-          line: nil,
-          message: "detector skipped: #{reason}",
-          meta: {},
+          key:      "skipped:#{self.class.key}",
+          path:     nil,
+          line:     nil,
+          message:  "detector skipped: #{reason}",
+          meta:     {},
+          severity: :note,
+          quality:  nil,
         )
       end
 

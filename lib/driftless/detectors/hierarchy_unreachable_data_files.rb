@@ -5,7 +5,9 @@ require 'driftless/detectors/base'
 module Driftless
   module Detectors
     class HierarchyUnreachableDataFiles < Base
-      key 'hierarchy:unreachable-data-files'
+      key      'hierarchy:unreachable-data-files'
+      severity :warning
+      quality  :impossible
       about 'Hiera data files that are unreachable by the Hiera hierarchy ' \
             '(no tier template pattern could match, regardless of facts)'
 

@@ -8,21 +8,26 @@ require 'driftless/inputs/hierarchy_loader'
 require 'driftless/inputs/modulepath_loader'
 require 'driftless/inputs/datadir_loader'
 require 'driftless/inputs/report_loader'
+require 'driftless/inputs/summary_index'
 
 module Driftless
   class Scan
     attr_reader :repo_dir, :incoming_dir, :only, :skip, :basemodulepath,
-                :environments, :allow_missing_envs
+                :environments, :allow_missing_envs, :summary_dir,
+                :accept_partial_report_sessions
 
     def initialize(repo_dir:, incoming_dir:, only: nil, skip: nil, basemodulepath: nil,
-                   environments: nil, allow_missing_envs: false)
-      @repo_dir           = repo_dir
-      @incoming_dir       = incoming_dir
-      @only               = only
-      @skip               = skip
-      @basemodulepath     = basemodulepath
-      @environments       = environments
-      @allow_missing_envs = allow_missing_envs
+                   environments: nil, allow_missing_envs: false,
+                   summary_dir: nil, accept_partial_report_sessions: nil)
+      @repo_dir                       = repo_dir
+      @incoming_dir                   = incoming_dir
+      @only                           = only
+      @skip                           = skip
+      @basemodulepath                 = basemodulepath
+      @environments                   = environments
+      @allow_missing_envs             = allow_missing_envs
+      @summary_dir                    = summary_dir
+      @accept_partial_report_sessions = accept_partial_report_sessions
     end
 
     def run
@@ -79,6 +84,8 @@ module Driftless
       reported, rl_findings = phase('report load') { Inputs::ReportLoader.load(incoming_dir) }
       meta_findings.concat(rl_findings)
       Driftless.logger.info("Loaded PuppetDB reports from #{incoming_dir}")
+
+      phase('summary coverage check') { check_summary_coverage! }
 
       if environments&.any?
         reported = phase('environment filter') { apply_environment_filter(reported) }
@@ -197,6 +204,55 @@ module Driftless
       # Path not under repo_dir (unusual — absolute path pointing elsewhere).
       # Fall back to the raw path; glob patterns can still target absolute paths.
       path
+    end
+
+    # Compares each collector's latest session summary against the expected
+    # report set (union of enabled detectors' `requires_reports`). Gaps mean
+    # scan would run against a tree cleanup would quarantine.
+    #
+    # - No summary_dir wired / missing dir / no summaries → no-op (fresh state
+    #   or all archived is vacuously OK).
+    # - --accept-partial-report-sessions bare → skip entirely.
+    # - --accept-partial-report-sessions=A,B,C → warn on gap, expected = list.
+    # - No flag (strict) → raise ScanError on gap.
+    def check_summary_coverage!
+      return unless @summary_dir
+
+      expected =
+        case @accept_partial_report_sessions
+        when :bare  then return
+        when Array  then @accept_partial_report_sessions.map(&:to_s).uniq.sort
+        else             Detectors.expected_reports
+        end
+      return if expected.empty?
+
+      latest = Inputs::SummaryIndex.latest_per_collector(@summary_dir)
+      return if latest.empty?
+
+      strict = @accept_partial_report_sessions.nil?
+      gaps = latest.each_with_object({}) do |(collector, entry), acc|
+        missing = expected.reject do |r|
+          e = entry.reports_declared[r]
+          e.is_a?(Hash) && e['status'] == 'ok'
+        end
+        acc[collector] = missing unless missing.empty?
+      end
+      return if gaps.empty?
+
+      per_collector = gaps.map { |c, m| "#{c} missing #{m.join(',')}" }.join('; ')
+      if strict
+        raise ScanError,
+              "collector coverage gap: #{per_collector} " \
+              "(run `driftless import cleanup` to garden #{@incoming_dir}, " \
+              "or pass --accept-partial-report-sessions)"
+      else
+        gaps.each do |collector, missing|
+          Driftless.logger.warn(
+            "scan: collector #{collector} missing expected reports #{missing.inspect} " \
+            "(accepting partial session per --accept-partial-report-sessions)"
+          )
+        end
+      end
     end
 
     def apply_environment_filter(reported)

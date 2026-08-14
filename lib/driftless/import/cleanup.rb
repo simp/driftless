@@ -78,10 +78,7 @@ module Driftless
       private
 
       def derive_expected_reports
-        Detectors.registry.each_with_object(Set.new) do |klass, acc|
-          next unless klass.new(nil).option(:enabled)
-          klass.requires_reports.each { |r| acc.add(r.to_s) }
-        end
+        Detectors.expected_reports
       end
 
       def discover_summaries

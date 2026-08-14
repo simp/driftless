@@ -294,4 +294,144 @@ RSpec.describe Driftless::Scan do
       expect(result.map(&:path)).to eq(['/tmp/repo/site.pp'])
     end
   end
+
+  describe '#check_summary_coverage!' do
+    def scan_with(summary_dir:, override: nil, incoming: '/tmp/incoming')
+      described_class.new(
+        repo_dir:                       '/tmp/repo',
+        incoming_dir:                   incoming,
+        summary_dir:                    summary_dir,
+        accept_partial_report_sessions: override,
+      )
+    end
+
+    def write_summary(dir, collector, session_id, reports)
+      FileUtils.mkdir_p(dir)
+      File.write(
+        File.join(dir, "#{collector}--#{session_id}.json"),
+        JSON.generate('collector' => collector, 'session_id' => session_id, 'reports' => reports),
+      )
+    end
+
+    # Stubs Detectors.expected_reports so the tests don't drift when
+    # detectors are added/removed.
+    before do
+      allow(Driftless::Detectors).to receive(:expected_reports)
+        .and_return(%w[all-active-nodes factsets-for-all-active-nodes])
+    end
+
+    it 'no-ops when summary_dir is nil' do
+      expect { scan_with(summary_dir: nil).send(:check_summary_coverage!) }.not_to raise_error
+    end
+
+    it 'no-ops when summary_dir does not exist' do
+      expect { scan_with(summary_dir: '/nonexistent/here').send(:check_summary_coverage!) }.not_to raise_error
+    end
+
+    it 'no-ops when summary_dir is empty' do
+      Dir.mktmpdir do |dir|
+        expect { scan_with(summary_dir: dir).send(:check_summary_coverage!) }.not_to raise_error
+      end
+    end
+
+    it 'passes when every expected report is status:ok in the latest summary' do
+      Dir.mktmpdir do |dir|
+        write_summary(dir, 'c1', 's1', {
+          'all-active-nodes'              => { 'status' => 'ok' },
+          'factsets-for-all-active-nodes' => { 'status' => 'ok' },
+        })
+        expect { scan_with(summary_dir: dir).send(:check_summary_coverage!) }.not_to raise_error
+      end
+    end
+
+    it 'raises ScanError when the latest summary is missing an expected report (strict)' do
+      Dir.mktmpdir do |dir|
+        write_summary(dir, 'c1', 's1', {
+          'all-active-nodes' => { 'status' => 'ok' },
+        })
+        expect { scan_with(summary_dir: dir).send(:check_summary_coverage!) }
+          .to raise_error(Driftless::ScanError, /c1 missing factsets-for-all-active-nodes/)
+      end
+    end
+
+    it 'raises ScanError when an expected report has non-ok status (strict)' do
+      Dir.mktmpdir do |dir|
+        write_summary(dir, 'c1', 's1', {
+          'all-active-nodes'              => { 'status' => 'ok' },
+          'factsets-for-all-active-nodes' => { 'status' => 'failed' },
+        })
+        expect { scan_with(summary_dir: dir).send(:check_summary_coverage!) }
+          .to raise_error(Driftless::ScanError, /factsets-for-all-active-nodes/)
+      end
+    end
+
+    it 'includes the cleanup remediation hint in the error message' do
+      Dir.mktmpdir do |dir|
+        write_summary(dir, 'c1', 's1', { 'all-active-nodes' => { 'status' => 'ok' } })
+        expect { scan_with(summary_dir: dir, incoming: '/tmp/xyz').send(:check_summary_coverage!) }
+          .to raise_error(Driftless::ScanError) { |e|
+            expect(e.message).to include('driftless import cleanup')
+            expect(e.message).to include('/tmp/xyz')
+            expect(e.message).to include('--accept-partial-report-sessions')
+          }
+      end
+    end
+
+    it 'checks the LATEST session per collector, not older ones' do
+      Dir.mktmpdir do |dir|
+        # Older session was partial…
+        write_summary(dir, 'c1', '2026-01-01T00-00-00Z', { 'all-active-nodes' => { 'status' => 'ok' } })
+        # …newer session covers everything → passes.
+        write_summary(dir, 'c1', '2026-06-01T00-00-00Z', {
+          'all-active-nodes'              => { 'status' => 'ok' },
+          'factsets-for-all-active-nodes' => { 'status' => 'ok' },
+        })
+        expect { scan_with(summary_dir: dir).send(:check_summary_coverage!) }.not_to raise_error
+      end
+    end
+
+    it 'reports gaps for each affected collector in strict mode' do
+      Dir.mktmpdir do |dir|
+        write_summary(dir, 'alpha', 's1', { 'all-active-nodes' => { 'status' => 'ok' } })
+        write_summary(dir, 'beta',  's1', { 'all-active-nodes' => { 'status' => 'ok' } })
+        expect { scan_with(summary_dir: dir).send(:check_summary_coverage!) }
+          .to raise_error(Driftless::ScanError) { |e|
+            expect(e.message).to include('alpha missing')
+            expect(e.message).to include('beta missing')
+          }
+      end
+    end
+
+    context 'with --accept-partial-report-sessions bare' do
+      it 'skips the check entirely — no error even when reports are missing' do
+        Dir.mktmpdir do |dir|
+          write_summary(dir, 'c1', 's1', {}) # nothing declared
+          expect { scan_with(summary_dir: dir, override: :bare).send(:check_summary_coverage!) }.not_to raise_error
+        end
+      end
+    end
+
+    context 'with --accept-partial-report-sessions=A,B (Array)' do
+      it 'checks against the given list, not the derived expected set' do
+        Dir.mktmpdir do |dir|
+          # Derived set (mocked): all-active-nodes + factsets-*. Override list demands only 'all-active-nodes'.
+          write_summary(dir, 'c1', 's1', { 'all-active-nodes' => { 'status' => 'ok' } })
+          expect(Driftless.logger).not_to receive(:warn)
+          expect {
+            scan_with(summary_dir: dir, override: ['all-active-nodes']).send(:check_summary_coverage!)
+          }.not_to raise_error
+        end
+      end
+
+      it 'warns instead of raising when the given list is not covered' do
+        Dir.mktmpdir do |dir|
+          write_summary(dir, 'c1', 's1', { 'all-active-nodes' => { 'status' => 'ok' } })
+          expect(Driftless.logger).to receive(:warn).with(/c1 missing.*wanted-but-absent/)
+          expect {
+            scan_with(summary_dir: dir, override: ['wanted-but-absent']).send(:check_summary_coverage!)
+          }.not_to raise_error
+        end
+      end
+    end
+  end
 end

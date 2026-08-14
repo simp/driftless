@@ -37,7 +37,7 @@ module Driftless
 
       def execute(_argv)
         @options[:repo_dir]     ||= self.class.default_repo_dir(Dir.pwd)
-        # Normalize path to absolute before auto-detecting incoming_dir 
+        # Normalize path to absolute before auto-detecting incoming_dir
         # to be consistent with `-d .`
         @options[:repo_dir]       = File.expand_path(@options[:repo_dir]) if @options[:repo_dir]
         @options[:incoming_dir] ||= self.class.default_incoming_dir(@options[:repo_dir])
@@ -69,15 +69,24 @@ module Driftless
           exit 2
         end
 
+        summary_dir =
+          if @options[:summary_dir]
+            File.expand_path(@options[:summary_dir])
+          else
+            File.join(File.dirname(@options[:incoming_dir]), 'summary')
+          end
+
         begin
           findings = ::Driftless::Scan.new(
-            repo_dir:           @options[:repo_dir],
-            incoming_dir:       @options[:incoming_dir],
-            only:               @options[:only],
-            skip:               @options[:skip],
-            basemodulepath:     @options[:basemodulepath],
-            environments:       @options[:environments],
-            allow_missing_envs: @options[:allow_missing_envs] || false,
+            repo_dir:                       @options[:repo_dir],
+            incoming_dir:                   @options[:incoming_dir],
+            only:                           @options[:only],
+            skip:                           @options[:skip],
+            basemodulepath:                 @options[:basemodulepath],
+            environments:                   @options[:environments],
+            allow_missing_envs:             @options[:allow_missing_envs] || false,
+            summary_dir:                    summary_dir,
+            accept_partial_report_sessions: @options[:accept_partial_report_sessions],
           ).run
         rescue ::Driftless::ScanError => e
           warn "scan error: #{e.message}"
@@ -101,6 +110,9 @@ module Driftless
         o.on('-i', '--incoming-dir=DIR',
              'Path to the incoming PuppetDB reports directory tree',
              "Default: 'incoming/' (if it exists)") { |v| @options[:incoming_dir] = v }
+        o.on('-s', '--summary-dir=DIR',
+             'Path to the summary/ tree written by `driftless import`',
+             'Default: sibling summary/ of --incoming-dir') { |v| @options[:summary_dir] = v }
 
         o.separator ''
         o.separator 'Filtering:'

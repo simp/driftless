@@ -27,11 +27,12 @@ module Driftless
                           keyword_init: true)
 
       def initialize(incoming_dir:, summary_dir:, dry_run: false,
-                     expected_reports: nil)
-        @incoming_dir     = incoming_dir
-        @summary_dir      = summary_dir
-        @dry_run          = dry_run
-        @expected_reports = expected_reports
+                     expected_reports: nil, accept_missing_summary: false)
+        @incoming_dir           = incoming_dir
+        @summary_dir            = summary_dir
+        @dry_run                = dry_run
+        @expected_reports       = expected_reports
+        @accept_missing_summary = accept_missing_summary
       end
 
       def run
@@ -159,9 +160,9 @@ module Driftless
       # overridable per design §4 note).
       def classification_reason(session, expected)
         summary = session[:summary]
-        return 'no _summary.json' unless summary
+        return 'no _summary.json' unless summary || @accept_missing_summary
 
-        declared = summary[:reports_declared]
+        declared = summary ? summary[:reports_declared] : {}
 
         expected.each do |report|
           entry = declared[report]

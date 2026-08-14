@@ -321,6 +321,100 @@ RSpec.describe Driftless::Import::Cleanup do
     end
   end
 
+  describe '#run — bare override (accept_missing_summary + expected=[])' do
+    it 'accepts a session with no _summary.json (identity from filename)' do
+      Dir.mktmpdir do |tmp|
+        incoming = File.join(tmp, 'incoming')
+        summary  = File.join(tmp, 'summary')
+        make_session(incoming_dir: incoming, summary_dir: summary,
+                     collector: 'alpha', session_id: '2026-06-01T00-00-00Z',
+                     reports: { 'all-active-nodes' => nil }, summary_present: false)
+
+        result = described_class.new(
+          incoming_dir: incoming, summary_dir: summary,
+          expected_reports: [], accept_missing_summary: true,
+        ).run
+
+        expect(result.live.map { |s| [s.collector, s.session_id] })
+          .to eq([%w[alpha 2026-06-01T00-00-00Z]])
+        expect(result.quarantined).to be_empty
+      end
+    end
+
+    it 'accepts a session that covers only a subset of what detectors expect' do
+      Dir.mktmpdir do |tmp|
+        incoming = File.join(tmp, 'incoming')
+        summary  = File.join(tmp, 'summary')
+        make_session(incoming_dir: incoming, summary_dir: summary,
+                     collector: 'alpha', session_id: '2026-06-01T00-00-00Z',
+                     reports: { 'all-active-nodes' => nil })  # missing factsets
+
+        result = described_class.new(
+          incoming_dir: incoming, summary_dir: summary,
+          expected_reports: [], accept_missing_summary: true,
+        ).run
+
+        expect(result.live.map(&:session_id)).to eq(['2026-06-01T00-00-00Z'])
+      end
+    end
+
+    it 'still quarantines summary-vs-file mismatch (never overridable)' do
+      Dir.mktmpdir do |tmp|
+        incoming = File.join(tmp, 'incoming')
+        summary  = File.join(tmp, 'summary')
+        make_session(incoming_dir: incoming, summary_dir: summary,
+                     collector: 'alpha', session_id: '2026-06-01T00-00-00Z',
+                     reports: { 'all-active-nodes' => { status: 'ok', omit_file: true } })
+
+        result = described_class.new(
+          incoming_dir: incoming, summary_dir: summary,
+          expected_reports: [], accept_missing_summary: true,
+        ).run
+
+        expect(result.live).to be_empty
+        expect(result.quarantined.map(&:session_id)).to eq(['2026-06-01T00-00-00Z'])
+        expect(result.quarantined.first.reason).to match(/status:ok but no file/)
+      end
+    end
+  end
+
+  describe '#run — list override (expected_reports=[…], strict summary)' do
+    it 'requires exactly the listed reports and ignores what detectors declare' do
+      Dir.mktmpdir do |tmp|
+        incoming = File.join(tmp, 'incoming')
+        summary  = File.join(tmp, 'summary')
+        make_session(incoming_dir: incoming, summary_dir: summary,
+                     collector: 'alpha', session_id: '2026-06-01T00-00-00Z',
+                     reports: { 'all-active-nodes' => nil })  # would be incomplete under real detectors
+
+        result = described_class.new(
+          incoming_dir: incoming, summary_dir: summary,
+          expected_reports: %w[all-active-nodes],
+        ).run
+
+        expect(result.live.map(&:session_id)).to eq(['2026-06-01T00-00-00Z'])
+      end
+    end
+
+    it 'still requires _summary.json under list override' do
+      Dir.mktmpdir do |tmp|
+        incoming = File.join(tmp, 'incoming')
+        summary  = File.join(tmp, 'summary')
+        make_session(incoming_dir: incoming, summary_dir: summary,
+                     collector: 'alpha', session_id: '2026-06-01T00-00-00Z',
+                     reports: { 'all-active-nodes' => nil }, summary_present: false)
+
+        result = described_class.new(
+          incoming_dir: incoming, summary_dir: summary,
+          expected_reports: %w[all-active-nodes],  # list override; accept_missing_summary defaults false
+        ).run
+
+        expect(result.live).to be_empty
+        expect(result.quarantined.first.reason).to match(/no _summary\.json/)
+      end
+    end
+  end
+
   describe '#run — expected-set derivation from registered detectors' do
     it 'derives expected set from Detectors.registry when expected_reports arg is nil' do
       Dir.mktmpdir do |tmp|

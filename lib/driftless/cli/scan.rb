@@ -1,5 +1,6 @@
 require 'driftless/cli/base'
 require 'driftless/cli/root'
+require 'driftless/cli/import'
 require 'driftless/scan'
 require 'driftless/outputs/json_writer'
 require 'driftless/outputs/text_writer'
@@ -132,6 +133,7 @@ module Driftless
         o.on('--basemodulepath=PATH', 'Override $basemodulepath (colon-separated)') { |v| @options[:basemodulepath] = v.split(':') }
         o.on('--fail-on=WHEN', %w[any never],
              'Exit non-zero on findings: any (default) or never') { |v| @options[:fail_on] = v }
+        Import.declare_accept_partial(o, @options)
       end
 
       private

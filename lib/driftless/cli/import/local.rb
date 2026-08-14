@@ -68,6 +68,7 @@ module Driftless
           end
           o.on('--rm-after', 'Remove the session dir after a successful import') { @options[:rm_after] = true }
           o.on('--dry-run',  'Log what would be copied without touching the filesystem') { @options[:dry_run] = true }
+          Import.declare_accept_partial(o, @options)
         end
 
         private

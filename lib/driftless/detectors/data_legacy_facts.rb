@@ -5,8 +5,8 @@ module Driftless
   module Detectors
     class DataLegacyFacts < Base
       key 'data:legacy-facts'
-      about 'Hiera data files that interpolate legacy Facter fact names in values ' \
-            '(%{osfamily}, %{hostname}, etc.) rather than the modern structured equivalents'
+      about 'Hiera data files that interpolate legacy facts' \
+            '(%{osfamily}, %{hostname}, etc.) instead of the modern structured equivalents'
 
       # Line-by-line scan matches bare `%{...}` in value positions. Multi-line
       # scalar values with legacy fact interpolations will still be caught, but

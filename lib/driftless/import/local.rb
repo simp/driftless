@@ -13,11 +13,12 @@ module Driftless
     # source is a local session directory produced by
     # scripts/driftless-collect-puppetdb-reports.rb.
     class Local
-      Result = Struct.new(:copied, :skipped_missing, :collector, :session_id,
-                          keyword_init: true)
+      Result = Struct.new(:copied, :skipped_missing, :summary_copied,
+                          :collector, :session_id, keyword_init: true)
 
-      def initialize(incoming_dir:, dry_run: false, rm_after: false)
+      def initialize(incoming_dir:, summary_dir: nil, dry_run: false, rm_after: false)
         @incoming_dir = incoming_dir
+        @summary_dir  = summary_dir
         @dry_run      = dry_run
         @rm_after     = rm_after
       end
@@ -36,9 +37,14 @@ module Driftless
         session_id  = summary.fetch('session_id')
 
         Driftless.logger.info("import local: session #{session_id} collector #{collector}")
-        Driftless.logger.info("import local: target #{@incoming_dir}#{@dry_run ? ' (dry-run)' : ''}")
+        Driftless.logger.info(
+          "import local: target #{@incoming_dir}" \
+          "#{@summary_dir ? " (summary -> #{@summary_dir})" : ''}" \
+          "#{@dry_run ? ' (dry-run)' : ''}"
+        )
 
         copied, missing = copy_reports(session_dir, summary, collector, session_id)
+        summary_copied  = copy_summary(session_dir, collector, session_id)
 
         if @rm_after && !@dry_run && copied.positive?
           FileUtils.rm_rf(session_dir)
@@ -48,6 +54,7 @@ module Driftless
         Result.new(
           copied:          copied,
           skipped_missing: missing,
+          summary_copied:  summary_copied,
           collector:       collector,
           session_id:      session_id,
         )
@@ -83,6 +90,20 @@ module Driftless
         JSON.parse(File.read(path))
       rescue JSON::ParserError => e
         raise Error, "invalid _summary.json in #{session_dir}: #{e.message}"
+      end
+
+      def copy_summary(session_dir, collector, session_id)
+        return 0 unless @summary_dir
+        src = File.join(session_dir, '_summary.json')
+        dst = File.join(@summary_dir, "#{collector}--#{session_id}.json")
+        if @dry_run
+          Driftless.logger.info("import local: would copy #{src} -> #{dst}")
+        else
+          FileUtils.mkdir_p(@summary_dir)
+          FileUtils.cp(src, dst)
+          Driftless.logger.debug("import local: copied summary #{collector}--#{session_id}.json")
+        end
+        1
       end
 
       def copy_reports(session_dir, summary, collector, session_id)

@@ -71,10 +71,44 @@ RSpec.describe Driftless::Import::Local do
         session = File.join(tmp, 'sess-abc')
         make_session(session, collector: 'foo', session_id: 'sess-abc', reports: { 'all-active-nodes' => "{}\n" })
         incoming = File.join(tmp, 'incoming')
+        summary  = File.join(tmp, 'summary')
 
-        result = described_class.new(incoming_dir: incoming, dry_run: true).run(session)
+        result = described_class.new(incoming_dir: incoming, summary_dir: summary, dry_run: true).run(session)
         expect(result.copied).to eq(1)
+        expect(result.summary_copied).to eq(1)
         expect(File.directory?(incoming)).to be false
+        expect(File.directory?(summary)).to be false
+      end
+    end
+
+    it 'copies the session summary to <summary-dir>/<collector>--<session>.json' do
+      Dir.mktmpdir do |tmp|
+        session = File.join(tmp, 'sess-abc')
+        make_session(session, collector: 'foo', session_id: 'sess-abc', reports: {
+          'all-active-nodes' => "{}\n",
+        })
+        incoming = File.join(tmp, 'incoming')
+        summary  = File.join(tmp, 'summary')
+
+        result = described_class.new(incoming_dir: incoming, summary_dir: summary).run(session)
+
+        expect(result.summary_copied).to eq(1)
+        dst = File.join(summary, 'foo--sess-abc.json')
+        expect(File).to exist(dst)
+        expect(JSON.parse(File.read(dst)).fetch('collector')).to eq('foo')
+      end
+    end
+
+    it 'omits the summary copy when summary_dir is nil' do
+      Dir.mktmpdir do |tmp|
+        session = File.join(tmp, 'sess-abc')
+        make_session(session, collector: 'foo', session_id: 'sess-abc', reports: { 'all-active-nodes' => "{}\n" })
+        incoming = File.join(tmp, 'incoming')
+
+        result = described_class.new(incoming_dir: incoming).run(session)
+
+        expect(result.summary_copied).to eq(0)
+        expect(File.directory?(File.join(tmp, 'summary'))).to be false
       end
     end
 

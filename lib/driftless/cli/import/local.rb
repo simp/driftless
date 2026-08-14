@@ -29,8 +29,16 @@ module Driftless
             exit 2
           end
 
+          summary_dir =
+            if @options[:summary_dir]
+              File.expand_path(@options[:summary_dir])
+            else
+              File.join(File.dirname(@options[:incoming_dir]), 'summary')
+            end
+
           result = ::Driftless::Import::Local.new(
             incoming_dir: @options[:incoming_dir],
+            summary_dir:  summary_dir,
             dry_run:      @options[:dry_run]  || false,
             rm_after:     @options[:rm_after] || false,
           ).run(source, session_pref: @options[:session])
@@ -52,6 +60,9 @@ module Driftless
           o.on('-i', '--incoming-dir=DIR',
                'Target ingest dir',
                'Default: scan.incoming_dir from driftless.yaml') { |v| @options[:incoming_dir] = v }
+          o.on('-s', '--summary-dir=DIR',
+               'Target summary dir',
+               'Default: sibling summary/ of --incoming-dir') { |v| @options[:summary_dir] = v }
           o.on('--session=ID', "Explicit session id or 'latest' (default: latest)") do |v|
             @options[:session] = v
           end

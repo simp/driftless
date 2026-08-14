@@ -27,7 +27,7 @@ RSpec.describe Driftless::Inputs::ReportLoader do
       end
     end
 
-    context 'against a basic single-contributor incoming dir' do
+    context 'against a basic single-collector incoming dir' do
       let(:reported) { described_class.load(fixture('basic'))[0] }
       let(:nodes)    { reported.report('all-active-nodes') }
 
@@ -46,32 +46,32 @@ RSpec.describe Driftless::Inputs::ReportLoader do
       end
     end
 
-    context 'against a two-contributor incoming dir' do
-      let(:reported) { described_class.load(fixture('two_contributors'))[0] }
+    context 'against a two-collector incoming dir' do
+      let(:reported) { described_class.load(fixture('two_collectors'))[0] }
       let(:nodes)    { reported.report('all-active-nodes') }
       let(:by_certname) { nodes.each_with_object({}) { |n, h| h[n.certname] = n } }
 
-      it 'discards a contributor\'s older file in favor of its newest' do
+      it 'discards a collector\'s older file in favor of its newest' do
         # The 14:00 east file has alpha with facts.hostname="alpha-OLD"
         # The 15:00 east file has alpha with facts.hostname="alpha".
         # Older file must not contribute.
         expect(by_certname['alpha.example.com'].facts['hostname']).not_to eq('alpha-OLD')
       end
 
-      it 'produces the union of certnames across both contributors' do
+      it 'produces the union of certnames across both collectors' do
         expect(nodes.map(&:certname)).to contain_exactly(
           'alpha.example.com', 'beta.example.com', 'gamma.example.com',
         )
       end
 
-      it 'picks the record with the later report_timestamp on cross-contributor conflict' do
+      it 'picks the record with the later report_timestamp on cross-collector conflict' do
         # alpha: east 15:00 vs west 14:55 → east wins → hostname="alpha", not "alpha-west"
         expect(by_certname['alpha.example.com'].facts['hostname']).to eq('alpha')
       end
     end
 
     context 'tie-break on report_timestamp' do
-      it 'gives the tie to the alphabetically-first contributor' do
+      it 'gives the tie to the alphabetically-first collector' do
         Dir.mktmpdir do |dir|
           FileUtils.mkdir_p(File.join(dir, 'all-active-nodes'))
           File.write(
@@ -92,8 +92,8 @@ RSpec.describe Driftless::Inputs::ReportLoader do
       end
     end
 
-    context 'malformed JSON in one contributor file' do
-      it 'emits a data:json-parse-error finding and continues with other contributors' do
+    context 'malformed JSON in one collector file' do
+      it 'emits a data:json-parse-error finding and continues with other collectors' do
         Dir.mktmpdir do |dir|
           FileUtils.mkdir_p(File.join(dir, 'all-active-nodes'))
           File.write(File.join(dir, 'all-active-nodes', 'good--20260803150000.json'),
@@ -173,7 +173,7 @@ RSpec.describe Driftless::Inputs::ReportLoader do
         end
       end
 
-      it 'prefers a newer .ndjson over an older .json from the same contributor' do
+      it 'prefers a newer .ndjson over an older .json from the same collector' do
         Dir.mktmpdir do |dir|
           FileUtils.mkdir_p(File.join(dir, 'factsets-for-all-active-nodes'))
           File.write(

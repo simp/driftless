@@ -262,7 +262,7 @@ module Driftless
       # "no reports" rather than as a puppet.environments misconfiguration.
       if Inputs::ReportLoader::QUERIES.all? { |q| reported.missing?(q) }
         msg = "no PuppetDB reports loaded from #{incoming_dir} " \
-              "(expected <query>/<contributor>--<timestamp>.{json,ndjson} " \
+              "(expected <query>/<collector>--<timestamp>.{json,ndjson} " \
               "files under at least one of: #{Inputs::ReportLoader::QUERIES.join(', ')})"
         if allow_missing_envs
           Driftless.logger.warn(msg)

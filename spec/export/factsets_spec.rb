@@ -8,7 +8,7 @@ require 'driftless/export/factsets'
 
 RSpec.describe Driftless::Export::Factsets do
   # Layout matches Inputs::ReportLoader expectations:
-  # <incoming>/factsets-for-all-active-nodes/<contributor>--<timestamp>.ndjson
+  # <incoming>/factsets-for-all-active-nodes/<collector>--<timestamp>.ndjson
   def seed_factsets(incoming_dir, records)
     dir = File.join(incoming_dir, 'factsets-for-all-active-nodes')
     FileUtils.mkdir_p(dir)

@@ -189,7 +189,7 @@ RSpec.describe Driftless::Scan do
       it 'names the expected file-layout shape in its message' do
         scan = filter_scan(environments: ['production'])
         expect { scan.send(:apply_environment_filter, empty_reported) }
-          .to raise_error(Driftless::ScanError, /contributor.*timestamp.*ndjson/)
+          .to raise_error(Driftless::ScanError, /collector.*timestamp.*ndjson/)
       end
     end
   end

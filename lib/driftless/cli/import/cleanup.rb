@@ -35,10 +35,19 @@ module Driftless
               File.join(File.dirname(@options[:incoming_dir]), 'summary')
             end
 
+          expected_reports, accept_missing_summary =
+            case @options[:accept_partial_report_sessions]
+            when :bare  then [[], true]
+            when Array  then [@options[:accept_partial_report_sessions], false]
+            else             [nil, false]
+            end
+
           result = ::Driftless::Import::Cleanup.new(
-            incoming_dir: @options[:incoming_dir],
-            summary_dir:  summary_dir,
-            dry_run:      @options[:dry_run] || false,
+            incoming_dir:           @options[:incoming_dir],
+            summary_dir:            summary_dir,
+            dry_run:                @options[:dry_run] || false,
+            expected_reports:       expected_reports,
+            accept_missing_summary: accept_missing_summary,
           ).run
 
           verb = @options[:dry_run] ? 'would ' : ''
@@ -69,6 +78,7 @@ module Driftless
                'Default: sibling summary/ of --incoming-dir') { |v| @options[:summary_dir] = v }
           o.on('--dry-run',
                'Log what would be moved without touching the filesystem') { @options[:dry_run] = true }
+          Import.declare_accept_partial(o, @options)
         end
 
         private

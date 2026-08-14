@@ -13,6 +13,7 @@ module Driftless
       blue:    "\e[0;34m",
       magenta: "\e[0;35m",
       cyan:    "\e[0;36m",
+      white:   "\e[0;37m",
       bold:    "\e[1m",
       dim:     "\e[2m",
       reset:   "\e[0m",

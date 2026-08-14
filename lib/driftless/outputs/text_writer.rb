@@ -9,6 +9,18 @@ module Driftless
         note:    %i[cyan],
       }.freeze
 
+      # Quality is a categorical tag, not a severity axis — one color for all.
+      QUALITY_STYLES = {
+        stale:      %i[cyan],
+        wrong:      %i[cyan],
+        weird:      %i[cyan],
+        impossible: %i[cyan],
+      }.freeze
+
+      PATH_STYLES    = %i[white].freeze
+      LINE_STYLES    = %i[blue].freeze
+      MESSAGE_STYLES = %i[cyan].freeze
+
       # Column widths sized to the longest known label. Pad the RAW string
       # then wrap — ljust on an ANSI-wrapped string miscounts escape bytes.
       SEVERITY_WIDTH = 7   # "warning"
@@ -33,7 +45,7 @@ module Driftless
           io.puts if i > 0
           io.puts group_header(key, group, style)
           group.sort_by { |f| [f.path.to_s, f.line || 0] }.each do |f|
-            io.puts "  #{format_location(f)}  #{f.message}"
+            io.puts "  #{format_location(f, style)}  #{style.call(f.message, *MESSAGE_STYLES)}"
           end
         end
       end
@@ -48,14 +60,14 @@ module Driftless
         noun  = count == 1 ? 'finding' : 'findings'
 
         "#{style.call(sev, *SEVERITY_STYLES.fetch(f.severity, []))} " \
-          "#{qual}  " \
+          "#{style.call(qual, *QUALITY_STYLES.fetch(f.quality, []))}  " \
           "#{style.call(key, :bold)} (#{count} #{noun})"
       end
 
-      def format_location(f)
+      def format_location(f, style)
         return '-' unless f.path
-        return f.path unless f.line
-        "#{f.path}:#{f.line}"
+        return style.call(f.path, *PATH_STYLES) unless f.line
+        "#{style.call(f.path, *PATH_STYLES)}:#{style.call(f.line, *LINE_STYLES)}"
       end
     end
   end

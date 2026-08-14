@@ -121,5 +121,74 @@ RSpec.describe Driftless::Outputs::TextWriter do
       described_class.write([finding(key: 'k', severity: :error)], tty_io, color: false)
       expect(tty_io.string).not_to include("\e[")
     end
+
+    it 'colors quality-tagged group headers with cyan when color: true' do
+      io = StringIO.new
+      described_class.write(
+        [finding(key: 'k', severity: :warning, quality: :stale)],
+        io, color: true,
+      )
+      # Quality → :cyan (\e[0;36m). Wrap is applied to the padded label.
+      expect(io.string).to include("\e[0;36mstale     \e[0m")
+    end
+
+    it 'leaves the quality column uncolored when quality is nil (no reset in a blank column)' do
+      io = StringIO.new
+      described_class.write(
+        [finding(key: 'k', severity: :warning, quality: nil)],
+        io, color: true,
+      )
+      # The blank column between severity and key is plain spaces, no ANSI.
+      expect(io.string).to match(/\e\[0m\s{13}\e\[1mk/)
+    end
+  end
+
+  describe 'per-finding location coloring' do
+    it 'colors the path white when color: true' do
+      io = StringIO.new
+      described_class.write(
+        [finding(key: 'k', path: '/tmp/x', line: 42, message: 'msg')],
+        io, color: true,
+      )
+      expect(io.string).to include("\e[0;37m/tmp/x\e[0m")
+    end
+
+    it 'colors the line number blue when color: true (distinct from the path color)' do
+      io = StringIO.new
+      described_class.write(
+        [finding(key: 'k', path: '/tmp/x', line: 42, message: 'msg')],
+        io, color: true,
+      )
+      expect(io.string).to include("\e[0;34m42\e[0m")
+    end
+
+    it 'colors path-only locations (no line) when color: true' do
+      io = StringIO.new
+      described_class.write(
+        [finding(key: 'k', path: '/tmp/x', line: nil, message: 'msg')],
+        io, color: true,
+      )
+      expect(io.string).to include("\e[0;37m/tmp/x\e[0m")
+      expect(io.string).not_to include('/tmp/x:')
+    end
+
+    it 'colors the finding message cyan when color: true' do
+      io = StringIO.new
+      described_class.write(
+        [finding(key: 'k', path: '/tmp/x', line: 42, message: 'the message')],
+        io, color: true,
+      )
+      expect(io.string).to include("\e[0;36mthe message\e[0m")
+    end
+
+    it 'leaves the `-` placeholder uncolored for nil-path findings' do
+      io = StringIO.new
+      described_class.write(
+        [finding(key: 'k', path: nil, line: nil, message: 'no-path finding')],
+        io, color: true,
+      )
+      # `-` itself is a plain hyphen (no ANSI wrap); message afterward is cyan.
+      expect(io.string).to include("  -  \e[0;36mno-path finding\e[0m")
+    end
   end
 end

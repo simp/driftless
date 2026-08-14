@@ -37,6 +37,8 @@ require 'driftless/import/local'
 require 'driftless/import/git'
 require 'driftless/import/cleanup'
 
+require 'driftless/export/factsets'
+
 require 'driftless/outputs/json_writer'
 require 'driftless/outputs/text_writer'
 

@@ -200,5 +200,35 @@ RSpec.describe Driftless::Inputs::ReportLoader do
         expect(reported.missing?('factsets-for-all-active-nodes')).to be true
       end
     end
+
+    context 'dot-prefixed entries' do
+      it 'ignores dot-prefixed files inside a query dir' do
+        Dir.mktmpdir do |dir|
+          FileUtils.mkdir_p(File.join(dir, 'all-active-nodes'))
+          File.write(
+            File.join(dir, 'all-active-nodes', '.hidden--20260803150000.json'),
+            JSON.generate([{ certname: 'ghost', report_timestamp: '2026-08-03T15:00:00Z',
+                             facts: {}, trusted: {} }]),
+          )
+
+          reported, = described_class.load(dir)
+          expect(reported.missing?('all-active-nodes')).to be true
+        end
+      end
+
+      it 'ignores a dot-prefixed sibling dir (.archive) at the incoming root' do
+        Dir.mktmpdir do |dir|
+          FileUtils.mkdir_p(File.join(dir, '.archive', 'foo--sess-old'))
+          File.write(
+            File.join(dir, '.archive', 'foo--sess-old', 'all-active-nodes.ndjson'),
+            JSON.generate({ certname: 'archived', report_timestamp: '2026-01-01T00:00:00Z',
+                            facts: {}, trusted: {} }) + "\n",
+          )
+
+          reported, = described_class.load(dir)
+          expect(reported.missing?('all-active-nodes')).to be true
+        end
+      end
+    end
   end
 end

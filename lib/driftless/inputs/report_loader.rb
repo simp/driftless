@@ -33,10 +33,13 @@ module Driftless
       private
 
       def load_query(query)
+        return [Reported::MissingReport, []] if query.start_with?('.')
+
         query_dir = File.join(@incoming_dir, query)
         return [Reported::MissingReport, []] unless File.directory?(query_dir)
 
         files = Dir[File.join(query_dir, '*.json'), File.join(query_dir, '*.ndjson')]
+                  .reject { |f| File.basename(f).start_with?('.') }
         return [Reported::MissingReport, []] if files.empty?
 
         per_contributor = newest_per_contributor(files)

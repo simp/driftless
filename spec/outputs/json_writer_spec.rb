@@ -31,6 +31,25 @@ RSpec.describe Driftless::Outputs::JsonWriter do
       expect(parsed.first['meta']).to eq('foo' => 1)
     end
 
+    it 'includes severity and quality fields' do
+      io = StringIO.new
+      described_class.write(
+        [finding(key: 'a', severity: :error, quality: :wrong)],
+        io,
+      )
+      parsed = JSON.parse(io.string).first
+      expect(parsed['severity']).to eq('error')
+      expect(parsed['quality']).to  eq('wrong')
+    end
+
+    it 'preserves nil quality (unlabelled findings) rather than omitting the key' do
+      io = StringIO.new
+      described_class.write([finding(key: 'a', severity: :note, quality: nil)], io)
+      parsed = JSON.parse(io.string).first
+      expect(parsed).to have_key('quality')
+      expect(parsed['quality']).to be_nil
+    end
+
     it 'sorts findings deterministically by key then path then line' do
       io = StringIO.new
       findings = [

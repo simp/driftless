@@ -10,6 +10,9 @@ RSpec.describe Driftless::Outputs::TextWriter do
     Driftless::Finding.new(**defaults.merge(kwargs))
   end
 
+  # StringIO isn't a TTY, so auto-mode won't emit color. Tests that need to
+  # exercise color rendering pass `color: true` explicitly.
+
   describe '.write' do
     it 'says "no findings" and nothing else when given an empty list' do
       io = StringIO.new
@@ -36,8 +39,8 @@ RSpec.describe Driftless::Outputs::TextWriter do
         finding(key: 'a:bar', message: 'aaa'),
       ], io)
       lines = io.string.lines
-      expect(lines[0]).to match(/^a:bar/)
-      # First blank + heading for the next group
+      expect(lines[0]).to include('a:bar')
+      expect(lines[0]).not_to include('z:foo')
     end
 
     it 'formats location as path:line when both are present' do
@@ -66,7 +69,57 @@ RSpec.describe Driftless::Outputs::TextWriter do
         finding(key: 'b', path: '/y', line: 2, message: 'mb'),
       ], io)
       # blank line between the two groups
-      expect(io.string).to match(/ma\n\nb \(/)
+      expect(io.string).to match(/ma\n\n.*b \(/)
+    end
+  end
+
+  describe 'severity/quality header rendering' do
+    it 'renders the severity label in the group header' do
+      io = StringIO.new
+      described_class.write([finding(key: 'k', severity: :error, quality: :wrong)], io)
+      expect(io.string).to match(/^error\s+wrong\s+k \(1 finding\)/)
+    end
+
+    it 'leaves the quality column blank when quality is nil, preserving column alignment' do
+      io = StringIO.new
+      described_class.write([finding(key: 'k', severity: :warning, quality: nil)], io)
+      # severity ("warning" — fills 7-char col) + 1-space gutter + blank
+      # 10-char quality col + 2-space gutter = 13 spaces before the key.
+      expect(io.string).to match(/^warning\s{13}k \(1 finding\)/)
+    end
+
+    it 'aligns severity and quality columns across heterogeneous groups' do
+      io = StringIO.new
+      described_class.write([
+        finding(key: 'a', severity: :error,   quality: :wrong),
+        finding(key: 'b', severity: :warning, quality: :stale),
+        finding(key: 'c', severity: :note,    quality: nil),
+      ], io)
+      lines = io.string.lines
+      header_starts = lines.grep(/\(1 finding\)/).map { |l| l.index(/[abc] \(/) }
+      # All group-header key positions should be identical (column alignment).
+      expect(header_starts.uniq.length).to eq(1)
+    end
+
+    it 'omits ANSI escapes when color is off (default with non-TTY io)' do
+      io = StringIO.new
+      described_class.write([finding(key: 'k', severity: :error, quality: :wrong)], io)
+      expect(io.string).not_to include("\e[")
+    end
+
+    it 'emits ANSI escapes when color: true is passed explicitly' do
+      io = StringIO.new
+      described_class.write([finding(key: 'k', severity: :error, quality: :wrong)], io, color: true)
+      # error styling includes red + bold, key is bold
+      expect(io.string).to include("\e[0;31m")
+      expect(io.string).to include("\e[1m")
+      expect(io.string).to include("\e[0m")
+    end
+
+    it 'suppresses ANSI when color: false is passed explicitly even on a TTY-like io' do
+      tty_io = Class.new(StringIO) { def tty?; true; end }.new
+      described_class.write([finding(key: 'k', severity: :error)], tty_io, color: false)
+      expect(tty_io.string).not_to include("\e[")
     end
   end
 end

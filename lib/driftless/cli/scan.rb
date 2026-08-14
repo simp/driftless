@@ -170,10 +170,18 @@ module Driftless
         out    = @options[:output_file] ? File.open(@options[:output_file], 'w') : $stdout
         case format
         when 'json' then Outputs::JsonWriter.write(findings, out)
-        else            Outputs::TextWriter.write(findings, out)
+        else            Outputs::TextWriter.write(findings, out, color: resolve_color(out))
         end
       ensure
         out.close if out && out != $stdout
+      end
+
+      # Explicit --color / --no-color wins over NO_COLOR env; both win over
+      # the writer's auto-on-TTY default (returned as nil).
+      def resolve_color(_io)
+        return @options[:color] unless @options[:color].nil?
+        return false if ENV.key?('NO_COLOR') && !ENV['NO_COLOR'].empty?
+        nil
       end
     end
   end

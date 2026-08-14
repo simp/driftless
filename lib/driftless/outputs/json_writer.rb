@@ -17,11 +17,13 @@ module Driftless
 
       def finding_to_h(f)
         {
-          key:     f.key,
-          path:    f.path,
-          line:    f.line,
-          message: f.message,
-          meta:    f.meta || {},
+          key:      f.key,
+          severity: f.severity,
+          quality:  f.quality,
+          path:     f.path,
+          line:     f.line,
+          message:  f.message,
+          meta:     f.meta || {},
         }
       end
     end

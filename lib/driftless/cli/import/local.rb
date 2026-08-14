@@ -36,22 +36,38 @@ module Driftless
               File.join(File.dirname(@options[:incoming_dir]), 'summary')
             end
 
-          result = ::Driftless::Import::Local.new(
-            incoming_dir: @options[:incoming_dir],
-            summary_dir:  summary_dir,
-            dry_run:      @options[:dry_run]  || false,
-            rm_after:     @options[:rm_after] || false,
-          ).run(source, session_pref: @options[:session])
+          begin
+            result = ::Driftless::Import::Local.new(
+              incoming_dir: @options[:incoming_dir],
+              summary_dir:  summary_dir,
+              dry_run:      @options[:dry_run]  || false,
+              rm_after:     @options[:rm_after] || false,
+            ).run(source, session_pref: @options[:session])
 
-          verb = @options[:dry_run] ? 'would import' : 'imported'
-          extra = result.skipped_missing.zero? ? '' : " (#{result.skipped_missing} source file(s) missing)"
-          Driftless.logger.info(
-            "import local: #{verb} #{result.copied} report(s) for session #{result.session_id}#{extra}"
-          )
+            verb = @options[:dry_run] ? 'would import' : 'imported'
+            extra = result.skipped_missing.zero? ? '' : " (#{result.skipped_missing} source file(s) missing)"
+            Driftless.logger.info(
+              "import local: #{verb} #{result.copied} report(s) for session #{result.session_id}#{extra}"
+            )
+          rescue ::Driftless::Import::Error => e
+            warn "import local: #{e.message}"
+            exit 2
+          end
+
+          begin
+            Import.run_cleanup(
+              'import local: cleanup',
+              incoming_dir: @options[:incoming_dir],
+              summary_dir:  summary_dir,
+              dry_run:      @options[:dry_run] || false,
+              override:     @options[:accept_partial_report_sessions],
+            )
+          rescue ::Driftless::Import::Error => e
+            warn "import local: cleanup failed: #{e.message}"
+            exit 2
+          end
+
           exit 0
-        rescue ::Driftless::Import::Error => e
-          warn "import local: #{e.message}"
-          exit 2
         end
 
         protected

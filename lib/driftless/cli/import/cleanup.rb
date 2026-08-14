@@ -35,32 +35,13 @@ module Driftless
               File.join(File.dirname(@options[:incoming_dir]), 'summary')
             end
 
-          expected_reports, accept_missing_summary =
-            case @options[:accept_partial_report_sessions]
-            when :bare  then [[], true]
-            when Array  then [@options[:accept_partial_report_sessions], false]
-            else             [nil, false]
-            end
-
-          result = ::Driftless::Import::Cleanup.new(
-            incoming_dir:           @options[:incoming_dir],
-            summary_dir:            summary_dir,
-            dry_run:                @options[:dry_run] || false,
-            expected_reports:       expected_reports,
-            accept_missing_summary: accept_missing_summary,
-          ).run
-
-          verb = @options[:dry_run] ? 'would ' : ''
-          Driftless.logger.info(
-            "import cleanup: #{verb}kept #{result.live.size} live, " \
-            "#{verb}archived #{result.archived.size}, " \
-            "#{verb}quarantined #{result.quarantined.size}"
+          Import.run_cleanup(
+            'import cleanup',
+            incoming_dir: @options[:incoming_dir],
+            summary_dir:  summary_dir,
+            dry_run:      @options[:dry_run] || false,
+            override:     @options[:accept_partial_report_sessions],
           )
-          result.quarantined.each do |q|
-            Driftless.logger.warn(
-              "import cleanup: quarantined #{q.collector}--#{q.session_id} (#{q.reason})"
-            )
-          end
           exit 0
         rescue ::Driftless::Import::Error => e
           warn "import cleanup: #{e.message}"

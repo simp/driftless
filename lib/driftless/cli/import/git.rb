@@ -38,25 +38,45 @@ module Driftless
               File.join(File.dirname(@options[:incoming_dir]), 'summary')
             end
 
-          result = ::Driftless::Import::Git.new(
-            repo_url:      repo_url,
-            incoming_dir:  @options[:incoming_dir],
-            summary_dir:   summary_dir,
-            branch_prefix: @options[:branch_prefix],
-            collector:     @options[:collector],
-            dry_run:       @options[:dry_run] || false,
-          ).run
+          begin
+            result = ::Driftless::Import::Git.new(
+              repo_url:      repo_url,
+              incoming_dir:  @options[:incoming_dir],
+              summary_dir:   summary_dir,
+              branch_prefix: @options[:branch_prefix],
+              collector:     @options[:collector],
+              dry_run:       @options[:dry_run] || false,
+            ).run
 
-          verb = @options[:dry_run] ? 'would import' : 'imported'
-          Driftless.logger.info(
-            "import git: #{verb} #{result.reports_copied} report file(s) " \
-            "and #{result.summaries_copied} summary file(s) " \
-            "from #{result.branches_imported} branch(es)"
-          )
+            verb = @options[:dry_run] ? 'would import' : 'imported'
+            Driftless.logger.info(
+              "import git: #{verb} #{result.reports_copied} report file(s) " \
+              "and #{result.summaries_copied} summary file(s) " \
+              "from #{result.branches_imported} branch(es)"
+            )
+          rescue ::Driftless::Import::Error => e
+            warn "import git: #{e.message}"
+            exit 2
+          end
+
+          if summary_dir
+            begin
+              Import.run_cleanup(
+                'import git: cleanup',
+                incoming_dir: @options[:incoming_dir],
+                summary_dir:  summary_dir,
+                dry_run:      @options[:dry_run] || false,
+                override:     @options[:accept_partial_report_sessions],
+              )
+            rescue ::Driftless::Import::Error => e
+              warn "import git: cleanup failed: #{e.message}"
+              exit 2
+            end
+          else
+            Driftless.logger.info('import git: cleanup skipped (--no-summaries)')
+          end
+
           exit 0
-        rescue ::Driftless::Import::Error => e
-          warn "import git: #{e.message}"
-          exit 2
         end
 
         protected

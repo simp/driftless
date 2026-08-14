@@ -8,6 +8,7 @@ module Driftless
       class Git < Base
         register_command name: 'git', subcommand_of: Import
         desc 'Import collector sessions from a git remote (populated by driftless-store-reports-in-git)'
+        positional '<repo-url>'
 
         def initialize(parent_options: {})
           super

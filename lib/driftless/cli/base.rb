@@ -24,6 +24,14 @@ module Driftless
           text.nil? ? @desc : (@desc = text)
         end
 
+        # Positional-arg tokens for this leaf, appended to the Usage: line
+        # after `[options]`. Splat form so a leaf can declare several
+        # (`positional '<src>', '[<dst>]'`) without concatenating strings.
+        # Zero-arg call is the reader.
+        def positional(*tokens)
+          tokens.empty? ? (@positional || []) : (@positional = tokens.map(&:to_s))
+        end
+
         # Getter for the command's names (canonical + aliases). Set via register_command.
         def name
           @names || []
@@ -180,6 +188,7 @@ module Driftless
         parts = ['Usage:', *self.class.command_path]
         parts << '[options]'
         parts << '<subcommand>' unless self.class.subcommands.empty?
+        parts.concat(self.class.positional)
         parts.join(' ')
       end
 

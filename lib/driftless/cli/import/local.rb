@@ -8,6 +8,7 @@ module Driftless
       class Local < Base
         register_command name: 'local', subcommand_of: Import
         desc 'Import a collector session from a local directory'
+        positional '<source>'
 
         def initialize(parent_options: {})
           super

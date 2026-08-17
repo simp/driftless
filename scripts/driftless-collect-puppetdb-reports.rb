@@ -1,9 +1,20 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
+# ------------------------------------------------------------------------------
+# Standalone PuppetDB query + report collector
+# ------------------------------------------------------------------------------
+# - Executes battery of PQL queries, recording reports into a session directory
+# - Large DB queries are batched, to minimize impact on DB
+# - Collector-only;
+#    - Follow-on actions are expected to handle report session dir contents
 #
-# Collect one or more canonical PuppetDB reports in a single session and
-# write them to a session directory: one NDJSON per report plus a
-# _summary.json describing the run.
+# Session directory contents:
+#
+#   driftless-collector-output/
+#   └── sessions/
+#      └── <YYYY-mm-ddTHH-MM-SSZ>/
+#          ├── `_summary.json` describing the session
+#          └──  one `.ndjson` file per PQL report
 
 require 'fileutils'
 require 'json'
@@ -44,14 +55,14 @@ REPORTS = {
 
 def puppet_defaults
   require 'puppet'
-  Puppet.initialize_settings([])
+  Puppet.initialize_settings([]) # Loads settings from config files
   {
     cert:     Puppet.settings[:hostcert],
     key:      Puppet.settings[:hostprivkey],
     cacert:   Puppet.settings[:localcacert],
     certname: Puppet.settings[:certname],
   }
-rescue LoadError, StandardError
+rescue LoadError, StandardError => e
   host = Socket.gethostname
   {
     cert:     "/etc/puppetlabs/puppet/ssl/certs/#{host}.pem",

@@ -7,7 +7,7 @@ module Driftless
     class Export
       class Factsets < Base
         register_command name: 'factsets', subcommand_of: Export
-        desc 'Export report:factsets-for-all-active-nodes as onceover or puppet-lookup input'
+        desc 'Export reported factsets for onceover or puppet-lookup'
 
         def initialize(parent_options: {})
           super

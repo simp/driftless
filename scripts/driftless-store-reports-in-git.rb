@@ -2,9 +2,10 @@
 # frozen_string_literal: true
 # ------------------------------------------------------------------------------
 # Send a driftless collector session directory to a git repo as a
-# force-pushed single commit on a per-contributor branch 
+# force-pushed single commit on a per-contributor branch
 #
-# Env vars honored (all optional; no plaintext secret ever written to disk):
+# Env vars honored (all optional; no plaintext secret ever shown/saved to disk):
+#
 #   DRIFTLESS_REPORT_STORE_GITREPO   default for --repo
 #   DRIFTLESS_COLLECTOR_REPORTS_DIR  default reports/sessions root
 #   DRIFTLESS_REPORT_PUSH_TOKEN      HTTPS token/password (via GIT_ASKPASS shim)
@@ -71,9 +72,8 @@ def with_git_auth(log)
   agent_pid = nil
 
   if ENV['DRIFTLESS_REPORT_PUSH_TOKEN']
-    # Inline helper — no file to exec, so a noexec /tmp is fine. `!` marks a
-    # shell command; git appends the action ("get") so $1 inside f is "get".
-    # Token stays in the env; only the (env-referencing) helper source is in `ps`.
+    # Git cred helper *function*; will run even when /tmp is mounted 'noexec'.
+    # Secrets stay hidden in env; `ps` only shows the (env-referencing) function
     helper = <<~SH.strip
       !f() { case "$1" in
         get) echo "username=${DRIFTLESS_REPORT_PUSH_USERNAME:-x-token-auth}"

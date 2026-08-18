@@ -8,9 +8,11 @@
 #
 #   DRIFTLESS_REPORT_STORE_GITREPO   default for --repo
 #   DRIFTLESS_COLLECTOR_REPORTS_DIR  default reports/sessions root
-#   DRIFTLESS_REPORT_PUSH_TOKEN      HTTPS token/password (via GIT_ASKPASS shim)
-#   DRIFTLESS_REPORT_PUSH_USERNAME   HTTPS username (default: x-token-auth)
-#   DRIFTLESS_REPORT_PUSH_SSH_KEY    SSH private key material (via ephemeral ssh-agent)
+#   DRIFTLESS_REPORT_STORE_TOKEN     HTTPS token/password (via inline credential helper)
+#                                    GitLab PAT scopes: write_repository
+#                                    (+ read_repository unless --no-check-remote-before-push)
+#   DRIFTLESS_REPORT_STORE_USERNAME  HTTPS username (default: x-token-auth)
+#   DRIFTLESS_REPORT_STORE_SSH_KEY   SSH private key material (via ephemeral ssh-agent)
 # ------------------------------------------------------------------------------
 
 require 'fileutils'
@@ -71,21 +73,21 @@ def with_git_auth(log)
   extra_config = []
   agent_pid = nil
 
-  if ENV['DRIFTLESS_REPORT_PUSH_TOKEN']
+  if ENV['DRIFTLESS_REPORT_STORE_TOKEN']
     # Git cred helper *function*; will run even when /tmp is mounted 'noexec'.
     # Secrets stay hidden in env; `ps` only shows the (env-referencing) function
     helper = <<~SH.strip
       !f() { case "$1" in
-        get) echo "username=${DRIFTLESS_REPORT_PUSH_USERNAME:-x-token-auth}"
-             echo "password=$DRIFTLESS_REPORT_PUSH_TOKEN" ;;
+        get) echo "username=${DRIFTLESS_REPORT_STORE_USERNAME:-x-token-auth}"
+             echo "password=$DRIFTLESS_REPORT_STORE_TOKEN" ;;
       esac; }; f
     SH
     extra_config << 'credential.helper='             # clear inherited chain
     extra_config << "credential.helper=#{helper}"    # install ours
-    log.info('git auth: HTTPS via DRIFTLESS_REPORT_PUSH_TOKEN (inline credential helper)')
+    log.info('git auth: HTTPS via DRIFTLESS_REPORT_STORE_TOKEN (inline credential helper)')
   end
 
-  if (key_material = ENV['DRIFTLESS_REPORT_PUSH_SSH_KEY'])
+  if (key_material = ENV['DRIFTLESS_REPORT_STORE_SSH_KEY'])
     agent_out, agent_status = Open3.capture2('ssh-agent', '-s')
     raise 'ssh-agent failed to start' unless agent_status.success?
     sock = agent_out[/SSH_AUTH_SOCK=([^;]+);/, 1]
@@ -103,7 +105,7 @@ def with_git_auth(log)
 
     extra_env['SSH_AUTH_SOCK'] = sock
     extra_env['SSH_AGENT_PID'] = pid
-    log.info('git auth: SSH via ephemeral ssh-agent + DRIFTLESS_REPORT_PUSH_SSH_KEY')
+    log.info('git auth: SSH via ephemeral ssh-agent + DRIFTLESS_REPORT_STORE_SSH_KEY')
   end
 
   yield extra_env, extra_config
@@ -114,16 +116,71 @@ ensure
   end
 end
 
+# Returns true if the remote branch already carries a session_id >= the local
+# one (i.e. force-pushing would overwrite equal-or-newer reports). Uses
+# ls-remote + a tree-only partial clone; no blob transfer beyond tree objects.
+def remote_branch_is_newer?(remote_url, branch, local_session_id, auth_env, auth_config, log)
+  ls_cmd = ['git']
+  auth_config.each { |c| ls_cmd += ['-c', c] }
+  ls_cmd += ['ls-remote', '--exit-code', remote_url, "refs/heads/#{branch}"]
+  log.debug("$ #{ls_cmd.shelljoin}")
+  _, ls_status = Open3.capture2(auth_env, *ls_cmd)
+  case ls_status.exitstatus
+  when 0 then :branch_exists
+  when 2
+    log.info("remote check: branch #{branch} not on remote; safe to push")
+    return false
+  else
+    raise "git ls-remote failed (exit #{ls_status.exitstatus})"
+  end
+
+  Dir.mktmpdir('driftless-check-') do |check_dir|
+    clone_cmd = ['git']
+    auth_config.each { |c| clone_cmd += ['-c', c] }
+    clone_cmd += ['clone', '--quiet', '--depth', '1', '--filter=blob:none', '--no-checkout',
+                  '--branch', branch, remote_url, check_dir]
+    log.debug("$ #{clone_cmd.shelljoin}")
+    clone_out, clone_status = Open3.capture2e(auth_env, *clone_cmd)
+    raise "git clone (remote check) failed (exit #{clone_status.exitstatus}): #{clone_out.strip}" unless clone_status.success?
+
+    ls_tree_cmd = ['git', '-C', check_dir, 'ls-tree', '--name-only', branch, 'summary/']
+    log.debug("$ #{ls_tree_cmd.shelljoin}")
+    ls_tree_out, ls_tree_status = Open3.capture2(*ls_tree_cmd)
+    raise "git ls-tree failed (exit #{ls_tree_status.exitstatus})" unless ls_tree_status.success?
+
+    remote_ids = ls_tree_out.lines.map(&:chomp).reject(&:empty?).map do |path|
+      base = File.basename(path, '.json')
+      _collector, sid = base.split('--', 2)
+      sid
+    end.compact
+
+    if remote_ids.empty?
+      log.warn("remote branch #{branch} has no parseable summary/*.json; treating as safe to push")
+      return false
+    end
+
+    remote_newest = remote_ids.max
+    if remote_newest >= local_session_id
+      log.info("remote check: remote session_id=#{remote_newest} >= local session_id=#{local_session_id}")
+      true
+    else
+      log.info("remote check: remote session_id=#{remote_newest} < local session_id=#{local_session_id}; safe to push")
+      false
+    end
+  end
+end
+
 opts = {
-  branch_prefix:    'collector',
-  author:           'driftless-collector (%h)',
-  email:            'driftless-collector@localhost',
-  remote_git_repo:  ENV['DRIFTLESS_REPORT_STORE_GITREPO'],
-  reports_dir:      ENV['DRIFTLESS_COLLECTOR_REPORTS_DIR'],
-  session:          nil,
-  rm_after_push:    false,
-  dry_run:          false,
-  log_level:        Logger::INFO,
+  branch_prefix:              'collector',
+  author:                     'driftless-collector (%h)',
+  email:                      'driftless-collector@localhost',
+  remote_git_repo:            ENV['DRIFTLESS_REPORT_STORE_GITREPO'],
+  reports_dir:                ENV['DRIFTLESS_COLLECTOR_REPORTS_DIR'],
+  session:                    nil,
+  rm_after_push:              false,
+  dry_run:                    false,
+  check_remote_before_push:   true,
+  log_level:                  Logger::INFO,
 }
 
 OptionParser.new do |o|
@@ -139,6 +196,8 @@ OptionParser.new do |o|
   o.on('--author NAME',           "Git author/committer name (default '#{opts[:author]}')")         { |v| opts[:author] = v }
   o.on('--email ADDR',            "Git author/committer email (default '#{opts[:email]}')")         { |v| opts[:email] = v }
   o.on('--dry-run',               'Build the commit locally but do not push')                       { opts[:dry_run] = true }
+  o.on('--[no-]check-remote-before-push',
+       'Refuse push if remote branch has a session_id >= local (default: yes)')                     { |v| opts[:check_remote_before_push] = v }
   o.on('-v', '--verbose',         'Log git commands and per-file staging')                          { opts[:log_level] = Logger::DEBUG }
   o.on('-h', '--help')            { puts o; exit 0 }
 end.parse!
@@ -215,6 +274,16 @@ begin
     log.info("dry-run: prepared branch #{branch} in #{workdir}; skipping push")
   else
     with_git_auth(log) do |auth_env, auth_config|
+      if opts[:check_remote_before_push]
+        if remote_branch_is_newer?(opts[:remote_git_repo], branch, session_id, auth_env, auth_config, log)
+          log.error("refusing to push: remote #{branch} has session_id >= local (#{session_id})")
+          log.error('re-run the collector to produce a fresh session, or pass --no-check-remote-before-push to override')
+          exit 1
+        end
+      else
+        log.info('remote check skipped (--no-check-remote-before-push)')
+      end
+
       push_env = git_env.merge(auth_env)
       push_cmd = ['git', '-C', workdir]
       auth_config.each { |c| push_cmd += ['-c', c] }

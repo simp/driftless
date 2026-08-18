@@ -170,6 +170,35 @@ def remote_branch_is_newer?(remote_url, branch, local_session_id, auth_env, auth
   end
 end
 
+# After a successful push, remove now-pushed session and any earlier
+# sessions on disk belonging to the same collector.
+def prune_previous_sessions(session_dir, collector, pushed_session_id, log)
+  sessions_root = File.dirname(session_dir)
+  removed = 0
+
+  Dir.children(sessions_root).each do |name|
+    path = File.join(sessions_root, name)
+    summary_path = File.join(path, '_summary.json')
+    next unless File.file?(summary_path)
+
+    begin
+      s = JSON.parse(File.read(summary_path))
+    rescue JSON::ParserError => e
+      log.warn("prune: skipping #{path}: unparseable _summary.json (#{e.message})")
+      next
+    end
+    next unless s['collector'] == collector
+    sid = s['session_id']
+    next if sid.nil? || sid > pushed_session_id
+
+    FileUtils.rm_rf(path)
+    log.info("pruned session #{path}")
+    removed += 1
+  end
+
+  log.info("prune: removed #{removed} session(s) for collector #{collector}")
+end
+
 opts = {
   branch_prefix:              'collector',
   author:                     'driftless-collector (%h)',
@@ -177,7 +206,7 @@ opts = {
   remote_git_repo:            ENV['DRIFTLESS_REPORT_STORE_GITREPO'],
   reports_dir:                ENV['DRIFTLESS_COLLECTOR_REPORTS_DIR'],
   session:                    nil,
-  rm_after_push:              false,
+  prune_after_push:           false,
   dry_run:                    false,
   check_remote_before_push:   true,
   log_level:                  Logger::INFO,
@@ -191,7 +220,8 @@ OptionParser.new do |o|
   o.on('--repo URL',              'Git remote URL to push to (required unless --dry-run)', current_repo )          { |v| opts[:remote_git_repo] = v }
   o.on('--reports-dir PATH',      'Reports root; overrides DRIFTLESS_COLLECTOR_REPORTS_DIR')        { |v| opts[:reports_dir] = v }
   o.on('--session ID',            "Explicit session id, or 'latest' (default: latest)")             { |v| opts[:session] = v }
-  o.on('--rm-reports-after-push', 'Remove the session dir after a successful push')                 { opts[:rm_after_push] = true }
+  o.on('--prune-sessions-after-push',
+       'On successful push, remove the just-pushed session and all previous sessions for this collector') { opts[:prune_after_push] = true }
   o.on('--branch-prefix PREFIX',  "Per-collector branch prefix (default '#{opts[:branch_prefix]}')") { |v| opts[:branch_prefix] = v }
   o.on('--author NAME',           "Git author/committer name (default '#{opts[:author]}')")         { |v| opts[:author] = v }
   o.on('--email ADDR',            "Git author/committer email (default '#{opts[:email]}')")         { |v| opts[:email] = v }
@@ -298,7 +328,6 @@ ensure
   FileUtils.remove_entry(workdir) if !opts[:dry_run] && File.directory?(workdir)
 end
 
-if push_succeeded && opts[:rm_after_push]
-  FileUtils.rm_rf(session_dir)
-  log.info("removed session dir #{session_dir}")
+if push_succeeded && opts[:prune_after_push]
+  prune_previous_sessions(session_dir, collector, session_id, log)
 end

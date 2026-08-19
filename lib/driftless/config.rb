@@ -1,10 +1,13 @@
 require 'yaml'
 
 module Driftless
-  # Layered driftless.yaml config loader. Discovers config from the standard
-  # search chain (system → user → project — CWD-only, no parent walk), merges
-  # with later-wins-for-scalars and union-for-arrays semantics, returns a
-  # hash-like accessor.
+  # Layered driftless.yaml config loader.
+  #
+  # - Discovers config (system < user < project)
+  # - Project is CWD-only, no parent walk
+  # - Merging logic:
+  #   - scalars: latest one wins
+  #   - arrays:  union
   #
   # `--config=PATH` replaces the entire chain (this file is the only source).
   # `--no-config` skips all files (returns an empty config).
@@ -14,7 +17,7 @@ module Driftless
   #     contributed to the merged config, in load order (lowest to highest
   #     precedence). Useful for debugging ("which file set this?").
   class Config
-    SYSTEM_PATH        = '/etc/driftless/config.yaml'.freeze
+    SYSTEM_PATH        = '/etc/puppetlabs/driftless/config.yaml'.freeze
     PROJECT_FILENAME   = 'driftless.yaml'.freeze
     XDG_CONFIG_DEFAULT = '~/.config'.freeze
 
@@ -22,12 +25,12 @@ module Driftless
       Hash, Array, String, Integer, Float, TrueClass, FalseClass, NilClass,
     ].freeze
 
-    # Loads the merged config from the discovered sources.
+    # Loads the merged config from the discovered sources
     #
     # @param config_path [String, nil] If set, REPLACES the search chain
     #   entirely — this file becomes the only source. Nil means normal
-    #   layered discovery (system → user → project).
-    # @param no_config [Boolean] If true, skip all files; return empty config.
+    #   layered discovery
+    # @param no_config [Boolean] If true, skip all files + return empty config
     # @return [Config] Loaded config instance.
     def self.load(config_path: nil, no_config: false)
       sources = discover_sources(config_path: config_path, no_config: no_config)
@@ -35,17 +38,16 @@ module Driftless
       new(merged: merged, sources: sources.map(&:first))
     end
 
-    # The static search chain, lowest to highest precedence. Doesn't check
-    # what exists on disk; call {.discover_sources} for that.
+    # The static search chain, lowest to highest precedence
     #
-    # @return [Array<String>] Absolute paths in load order.
+    # @return [Array<String>] Absolute paths in load order
     def self.search_chain
       [SYSTEM_PATH, user_path, project_path]
     end
 
     # The user-scoped config path, honoring $XDG_CONFIG_HOME.
     #
-    # @return [String] Absolute path.
+    # @return [String] Absolute path
     def self.user_path
       base = ENV['XDG_CONFIG_HOME']
       base = File.expand_path(XDG_CONFIG_DEFAULT) if base.nil? || base.empty?
@@ -54,7 +56,7 @@ module Driftless
 
     # The project-scoped config path (CWD-only, no parent walk).
     #
-    # @return [String] Absolute path.
+    # @return [String] Absolute path:.
     def self.project_path
       File.join(Dir.pwd, PROJECT_FILENAME)
     end
@@ -142,12 +144,12 @@ module Driftless
   end
 
   # Raised for config load failures (missing file with --config=PATH,
-  # invalid YAML, non-mapping top-level, etc).
+  # invalid YAML, non-mapping top-level, etc)
   class ConfigLoadError < StandardError; end
 
   # Module-level accessor for the process-wide loaded config. Matches the
   # {Driftless.logger} pattern: set once at startup by Root's config-load
-  # step; accessed by detectors and other consumers.
+  # step; accessed by detectors and other consumers
   class << self
     attr_writer :config
 

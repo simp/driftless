@@ -51,7 +51,7 @@ module Driftless
       known = Set.new(['defaults'])
       Driftless::Detectors.registry.each { |k| known.add(k.key) }
 
-      detectors_section.keys.each do |section_key|
+      detectors_section.each_key do |section_key|
         next if known.include?(section_key)
 
         msg = "unknown detector key in config: #{section_key.inspect}"
@@ -81,7 +81,7 @@ module Driftless
             klass.config_options.keys.map(&:to_s).to_set
           end
 
-        section_body.keys.each do |opt|
+        section_body.each_key do |opt|
           next if known_options.include?(opt)
 
           msg = "unknown option in detectors.#{section_key}: #{opt.inspect}"
@@ -97,9 +97,9 @@ module Driftless
       set = Set.new
       # Universal options on Base (also inherited by all subclasses, but including
       # Base explicitly guarantees they're always accepted in defaults:).
-      Driftless::Detectors::Base.config_options.keys.each { |name| set << name.to_s }
+      Driftless::Detectors::Base.config_options.each_key { |name| set << name.to_s }
       Driftless::Detectors.registry.each do |k|
-        k.config_options.keys.each { |name| set << name.to_s }
+        k.config_options.each_key { |name| set << name.to_s }
       end
       set
     end
@@ -108,7 +108,7 @@ module Driftless
       puppet_section = @config['puppet']
       return unless puppet_section.is_a?(Hash)
 
-      puppet_section.keys.each do |key|
+      puppet_section.each_key do |key|
         next if KNOWN_PUPPET_KEYS.include?(key)
 
         msg = "unknown puppet config key: #{key.inspect}"

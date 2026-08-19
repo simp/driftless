@@ -131,9 +131,10 @@ module Driftless
         count
       end
 
-      # Mirrors the auth pattern in scripts/driftless-store-reports-in-git.rb
-      # but reads _PULL_* env vars so pull-only tokens can be scoped separately
-      # from push tokens.
+      # Yields {extra_env, config_args} pre-populated for HTTPS (via
+      # DRIFTLESS_REPORT_PULL_TOKEN, optional DRIFTLESS_REPORT_PULL_USERNAME)
+      # and/or SSH (via DRIFTLESS_REPORT_PULL_SSH_KEY, loaded into an ephemeral
+      # ssh-agent that terminates on block exit).
       def with_git_auth
         extra_env = { 'GIT_TERMINAL_PROMPT' => '0' }
         config_args = []

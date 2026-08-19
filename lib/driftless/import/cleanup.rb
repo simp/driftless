@@ -9,17 +9,17 @@ module Driftless
   module Import
     class Error < StandardError; end unless defined?(Error)
 
-    # Enforces the A+ acceptance rule on an <incoming-dir>/<summary-dir>
-    # pair produced by Import::Local / Import::Git. Per (collector,
-    # session-id): sessions with a summary that lists every expected report
-    # as status:ok + present file are complete; anything else quarantines.
-    # Per collector: newest complete session stays; older complete sessions
-    # archive in full. Session-atomic — no cross-session splicing.
+    # Classifies sessions under <incoming-dir>/<summary-dir> as live,
+    # archived, or quarantined. A session is complete when its summary lists
+    # every expected report with status:ok and each has a matching file on
+    # disk; anything else quarantines. Per collector, the newest complete
+    # session stays live and older complete ones move to .archive. Whole
+    # sessions move together — no cross-session splicing.
     #
-    # Expected set is derived from the union of `requires_reports` on all
-    # enabled `Detectors::Base` subclasses at cleanup time. Callers can
-    # pass `expected_reports:` to override (empty array = accept any set;
-    # non-empty array = require exactly those). See §6 of the design.
+    # `expected_reports:` overrides the default set (union of enabled
+    # detectors' `requires_reports`); `[]` accepts any set.
+    # `accept_missing_summary:` treats sessions with no summary as complete
+    # for the presence/status checks.
     class Cleanup
       SessionResult = Struct.new(:collector, :session_id, :reports_moved,
                                  :summary_moved, :reason, keyword_init: true)
@@ -151,10 +151,10 @@ module Driftless
         end
       end
 
-      # Returns nil when the session passes A+. Returns a short reason string
-      # otherwise. Two checks, kept distinct so §6's override can relax the
-      # first while keeping the second (summary-vs-file mismatch never
-      # overridable per design §4 note).
+      # Returns nil when the session is complete, or a short reason string on
+      # the first failure. Two checks: every expected report is declared
+      # status:ok in the summary, and every declared-ok report has a matching
+      # file on disk.
       def classification_reason(session, expected)
         summary = session[:summary]
         return 'no _summary.json' unless summary || @accept_missing_summary

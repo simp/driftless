@@ -1,14 +1,10 @@
 module Driftless
-  # Codebase-wide role/profile class-name detection. Sole owner of the
-  # "is this class name a role/profile?" question — {ClassExtractor} and
-  # detectors alike consult this module so a single config source of
-  # truth (puppet.role_regex / puppet.profile_regex) drives every
-  # role-profile-aware code path.
+  # Codebase-wide role/profile class-name detection. Config keys
+  # `puppet.role_regex` / `puppet.profile_regex` override the defaults.
   #
   # Defaults match "role"/"profile" at start or after any `::` — so both
   # standard (`role::web`) and namespaced (`baseline::role::web`) classes
-  # are recognized without config. Sites with different conventions
-  # override via config:
+  # are recognized without config. Site override:
   #
   #   puppet:
   #     role_regex:    '\A(baseline::)?role::'

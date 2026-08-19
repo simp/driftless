@@ -47,10 +47,9 @@ RSpec.describe Driftless::LookupCallExtractor do
     end
 
     context 'has_default? for each Puppet lookup() call form' do
-      # These tests exercise the signature-aware `has_default_arg?` heuristic
-      # by parsing tiny manifest strings directly (bypassing ManifestParser
-      # which only accepts file paths). Covers the surprisingly-varied forms
-      # Puppet accepts.
+      # Parses tiny manifest strings directly (bypassing ManifestParser, which
+      # only accepts file paths) and checks has_default? on the resulting
+      # LookupCall. One test per Puppet lookup() argument form.
       def parse_and_extract(code)
         require 'puppet/pops'
         program = Puppet::Pops::Parser::EvaluatingParser.new.parse_string(code)
@@ -61,7 +60,7 @@ RSpec.describe Driftless::LookupCallExtractor do
         expect(parse_and_extract("$x = lookup('k')").first.has_default?).to be false
       end
 
-      it 'no default when key + type (2 args) — was a day-one bug misclassifying this' do
+      it 'no default when key + type (2 args)' do
         expect(parse_and_extract("$x = lookup('k', String)").first.has_default?).to be false
       end
 
@@ -77,11 +76,8 @@ RSpec.describe Driftless::LookupCallExtractor do
         expect(parse_and_extract("$x = lookup('k') |$key| { 'from_block' }").first.has_default?).to be true
       end
 
-      # Hash form (lookup({'name' => 'k', 'default_value' => 'v'})) is NOT
-      # captured by the extractor at all — literal_first_arg() requires a
-      # LiteralString. The has_default_arg? branch that would handle it is
-      # documented as defensive-not-reachable. When hash-form extractor
-      # support lands, add tests here for both default_value present/absent.
+      # Hash form (lookup({'name' => 'k', 'default_value' => 'v'})) is not
+      # extracted — literal_first_arg() requires a LiteralString first arg.
     end
 
     context 'against a manifest with no lookup calls' do

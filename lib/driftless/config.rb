@@ -9,9 +9,6 @@ module Driftless
   # `--config=PATH` replaces the entire chain (this file is the only source).
   # `--no-config` skips all files (returns an empty config).
   #
-  # See project memory `project_driftless_config_design.md` for the full
-  # design rationale and rejected alternatives.
-  #
   # @!attribute [r] sources
   #   @return [Array<String>] Absolute paths of every file that actually
   #     contributed to the merged config, in load order (lowest to highest

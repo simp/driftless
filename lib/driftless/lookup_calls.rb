@@ -3,6 +3,11 @@ require 'puppet'
 require 'driftless/models/lookup_call'
 
 module Driftless
+  # Extracts {LookupCall} records (key, file, line, has_default) from either
+  # a parsed Puppet AST (`.extract`) or raw YAML source scanned for
+  # `%{lookup|alias|hiera(...)}` interpolations (`.extract_from_yaml_source`).
+  # Only calls whose first argument is a literal string are extracted; hash-
+  # form and dynamic-key calls are ignored.
   class LookupCallExtractor
     LOOKUP_FUNCTIONS       = %w[lookup hiera].freeze
     YAML_LOOKUP_INTERP_RE  = /%\{(?:lookup|alias|hiera)\(\s*['"]([^'"]+)['"]\s*\)\}/.freeze
@@ -64,33 +69,13 @@ module Driftless
       arg.value
     end
 
-    # Signature-aware detection of "does this lookup call supply a default?"
-    # Puppet's lookup()/hiera() default surface in three forms:
-    #   1. Block form:  lookup('k') |$x| { 'fallback' }        — lambda present
-    #   2. 4th positional: lookup(name, type, merge, default)   — args.length >= 4
-    #   3. Hash form:   lookup({'name' => 'k', 'default_value' => ...})
-    # The 2-arg form (name, type) and 3-arg form (name, type, merge) do NOT
-    # supply a default — a widespread confusion caught only when a consumer
-    # (config option ignore_lookups_with_defaults) surfaced the misclassification.
+    # True when the call supplies a default value: either a block form
+    # (`lookup('k') |$x| { ... }`) or a 4th positional arg
+    # (`lookup(name, type, merge, default)`). The 2- and 3-arg positional
+    # forms do not supply a default.
     def has_default_arg?(node)
       return true if node.respond_to?(:lambda) && !node.lambda.nil?
-
-      args = Array(node.arguments)
-      return true if args.length >= 4
-
-      # Hash form: lookup({'name' => 'k', 'default_value' => ...}).
-      # Currently defensive-not-reachable: literal_first_arg() filters non-
-      # LiteralString first args before we build a LookupCall at all, so
-      # hash-form calls never reach has_default_arg?. If extractor support
-      # for hash-form is added later, this branch already gives the right
-      # answer without further change.
-      if args.length == 1 && args.first.is_a?(Puppet::Pops::Model::LiteralHash)
-        return args.first.entries.any? do |entry|
-          entry.key.respond_to?(:value) && entry.key.value.to_s == 'default_value'
-        end
-      end
-
-      false
+      Array(node.arguments).length >= 4
     end
   end
 end

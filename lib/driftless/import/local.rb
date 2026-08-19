@@ -7,11 +7,9 @@ module Driftless
   module Import
     class Error < StandardError; end
 
-    # Copies a driftless-collector session into the ReportLoader ingest layout
-    # (<incoming-dir>/<query>/<collector>--<session-id>.ndjson) so `driftless
-    # scan -i <incoming-dir>` consumes it directly. No git transport involved;
-    # source is a local session directory produced by
-    # scripts/driftless-collect-puppetdb-reports.rb.
+    # Copies a session from a local directory tree into the ReportLoader
+    # ingest layout (<incoming-dir>/<query>/<collector>--<session-id>.ndjson)
+    # so `driftless scan -i <incoming-dir>` consumes it directly.
     class Local
       Result = Struct.new(:copied, :skipped_missing, :summary_copied,
                           :collector, :session_id, keyword_init: true)

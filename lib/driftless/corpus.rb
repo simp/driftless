@@ -1,12 +1,7 @@
 module Driftless
-  # The result of scanning a control repo — the shared read model every detector
-  # queries against. Immutable by construction (Data.define): populated exactly
-  # once by {Scan#run} before any detector fires; guaranteed frozen for the
-  # scan's duration. Detectors receive this instance and MUST NOT mutate it.
-  #
-  # If methods (e.g. a unified view combining code + data lookup calls) are
-  # needed later, promote to `class Corpus < Data.define(...)` with instance
-  # methods — the Data base preserves the immutability guarantees.
+  # The result of scanning a control repo — the shared read model every
+  # detector queries against. Immutable (Data.define), populated once by
+  # {Scan#run} before any detector fires.
   #
   # @!attribute [r] repo_dir
   #   @return [String, nil] Absolute path to the control-repo environment

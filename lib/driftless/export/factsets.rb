@@ -96,9 +96,8 @@ module Driftless
         facts
       end
 
-      # Mirrors scripts/hiera_lookup.sh in control_repo_model: only fills a key
-      # that is absent, so a factset that already carries top-level identity
-      # facts is left untouched.
+      # Fills each identity fact only where absent; existing top-level values
+      # are left untouched.
       def add_identity_facts!(facts, certname)
         net    = facts['networking'].is_a?(Hash) ? facts['networking'] : {}
         fqdn   = net['fqdn'] || certname.to_s

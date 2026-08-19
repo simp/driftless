@@ -7,13 +7,9 @@ module Driftless
       register_command name: 'import', subcommand_of: Root
       desc 'Import PuppetDB report sessions into the scan ingest tree'
 
-      # Declares `--accept-partial-report-sessions[=A,B,C]` on the given
-      # OptionParser, storing the tri-state in options[:accept_partial_report_sessions]:
-      #   - nil    → flag not given (strict A+)
-      #   - :bare  → bare flag; accept missing summary + any subset
-      #   - Array  → list form; expected set = exactly these reports (summary still required)
-      # Declared here so Import parent, its leaves, and Scan (§9) can
-      # share the identical option shape.
+      # Declares `--accept-partial-report-sessions[=A,B,C]` on the parser and
+      # stores nil / :bare / Array in options[:accept_partial_report_sessions].
+      # Shared by `driftless import`, its subcommands, and `driftless scan`.
       def self.declare_accept_partial(parser, options)
         parser.on('--accept-partial-report-sessions[=REPORTS]', Array,
                   'Accept partial-report sessions',

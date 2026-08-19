@@ -265,8 +265,8 @@ module Driftless
               '(expected <query>/<collector>--<timestamp>.{json,ndjson} ' \
               "files under at least one of: #{Inputs::ReportLoader::QUERIES.join(', ')})"
         raise ScanError, msg unless allow_missing_envs
-          Driftless.logger.warn(msg)
-          return reported
+        Driftless.logger.warn(msg)
+        return reported
 
       end
 
@@ -295,7 +295,7 @@ module Driftless
       (env_set - seen_envs).each do |env|
         msg = "environment #{env.inspect} listed in puppet.environments but has no reports in #{incoming_dir}"
         raise ScanError, msg unless allow_missing_envs
-          Driftless.logger.warn(msg)
+        Driftless.logger.warn(msg)
       end
 
       Reported.new(data: filtered_data)

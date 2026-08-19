@@ -19,10 +19,10 @@ module Driftless
       # Driftless.config. Shared by Import::Cleanup (A+ rule) and Scan
       # (coverage check).
       def expected_reports
-        registry.each_with_object([]) do |klass, acc|
+        registry.each_with_object([]) { |klass, acc|
           next unless klass.new(nil).option(:enabled)
           klass.requires_reports.each { |r| acc << r.to_s }
-        end.uniq.sort
+        }.uniq.sort
       end
     end
   end

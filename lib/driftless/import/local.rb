@@ -68,9 +68,9 @@ module Driftless
           raise Error, "no _summary.json in #{path} and no sessions/ subdir either"
         end
 
-        candidates = Dir.children(sessions_root).select do |name|
+        candidates = Dir.children(sessions_root).select { |name|
           File.file?(File.join(sessions_root, name, '_summary.json'))
-        end.sort
+        }.sort
         raise Error, "no sessions with _summary.json under #{sessions_root}" if candidates.empty?
 
         chosen = (session_pref.nil? || session_pref == 'latest') ? candidates.last : session_pref

@@ -58,13 +58,13 @@ module Driftless
 
       def template_to_regex(template)
         parts = template.split(/(%\{[^{}]+\})/)
-        regex_str = parts.map do |part|
+        regex_str = parts.map { |part|
           if (m = part.match(/\A%\{([^{}]+)\}\z/))
             NODE_CERTNAME_VARS.include?(m[1]) ? '(?<certname>[^/]+)' : '[^/]+'
           else
             Regexp.escape(part)
           end
-        end.join
+        }.join
         Regexp.new("\\A#{regex_str}\\z")
       end
     end

@@ -80,7 +80,8 @@ module Driftless
       def derive_class_name(path)
         m = CLASS_PATH_RE.match(path)
         return nil unless m
-        module_name, subpath = m[1], m[2]
+        module_name = m[1]
+        subpath = m[2]
         return module_name if subpath == 'init'
         ([module_name] + subpath.split('/')).join('::')
       end

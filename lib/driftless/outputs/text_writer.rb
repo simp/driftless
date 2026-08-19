@@ -4,22 +4,22 @@ module Driftless
   module Outputs
     module TextWriter
       SEVERITY_STYLES = {
-        error:   %i[red bold],
-        warning: %i[yellow],
-        note:    %i[cyan],
+        error:   [:red, :bold],
+        warning: [:yellow],
+        note:    [:cyan],
       }.freeze
 
       # Quality is a categorical tag, not a severity axis — one color for all.
       QUALITY_STYLES = {
-        stale:      %i[cyan],
-        wrong:      %i[cyan],
-        weird:      %i[cyan],
-        impossible: %i[cyan],
+        stale:      [:cyan],
+        wrong:      [:cyan],
+        weird:      [:cyan],
+        impossible: [:cyan],
       }.freeze
 
-      PATH_STYLES    = %i[white].freeze
-      LINE_STYLES    = %i[blue].freeze
-      MESSAGE_STYLES = %i[cyan].freeze
+      PATH_STYLES    = [:white].freeze
+      LINE_STYLES    = [:blue].freeze
+      MESSAGE_STYLES = [:cyan].freeze
 
       # Column widths sized to the longest known label. Pad the RAW string
       # then wrap — ljust on an ANSI-wrapped string miscounts escape bytes.

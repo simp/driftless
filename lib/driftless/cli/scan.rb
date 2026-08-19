@@ -126,7 +126,7 @@ module Driftless
         o.on('-o', '--output-file=PATH',
              'Write output to this file instead of stdout') do |v|
           @options[:output_file] = v
-          @options[:format] = 'json' if v =~ /\.json\Z/i
+          @options[:format] = 'json' if v.match?(/\.json\Z/i)
         end
 
         o.separator ''

@@ -35,7 +35,7 @@ module Driftless
       end
 
       Result = Struct.new(:exists, :modulepath, :manifest, keyword_init: true) do
-        def exists? 
+        def exists?
           exists
         end
       end

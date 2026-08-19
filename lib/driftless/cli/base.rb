@@ -184,7 +184,8 @@ module Driftless
           elsif @options[:verbose] then Logger::INFO
           elsif @options[:log_level]
             LOG_LEVEL_NAMES.fetch(@options[:log_level].to_s.downcase, Logger::WARN)
-          else Logger::WARN
+          else
+            Logger::WARN
           end
       end
 

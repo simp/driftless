@@ -9,7 +9,7 @@ module Driftless
         sorted = findings.sort_by { |f| [f.key, f.path.to_s, f.line || 0] }
         io.puts '['
         sorted.each_with_index do |f, i|
-          separator = i < sorted.length - 1 ? ',' : ''
+          separator = (i < sorted.length - 1) ? ',' : ''
           io.puts "  #{JSON.generate(finding_to_h(f))}#{separator}"
         end
         io.puts ']'

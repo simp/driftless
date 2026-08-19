@@ -57,7 +57,7 @@ module Driftless
         sev   = f.severity.to_s.ljust(SEVERITY_WIDTH)
         qual  = f.quality.to_s.ljust(QUALITY_WIDTH)
         count = group.length
-        noun  = count == 1 ? 'finding' : 'findings'
+        noun  = (count == 1) ? 'finding' : 'findings'
 
         "#{style.call(sev, *SEVERITY_STYLES.fetch(f.severity, []))} " \
           "#{style.call(qual, *QUALITY_STYLES.fetch(f.quality, []))}  " \

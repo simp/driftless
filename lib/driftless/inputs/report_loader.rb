@@ -92,7 +92,7 @@ module Driftless
         winner =
           if ct > et then candidate
           elsif et > ct then existing
-          else candidate[:collector] < existing[:collector] ? candidate : existing
+          else (candidate[:collector] < existing[:collector]) ? candidate : existing
           end
 
         ee = existing[:record]['catalog_environment']  || existing[:record]['environment']

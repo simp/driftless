@@ -47,7 +47,7 @@ module Driftless
           missing = []
           missing << '--repo-dir'     unless @options[:repo_dir]
           missing << '--incoming-dir' unless @options[:incoming_dir]
-          pronoun = missing.length > 1 ? 'them' : 'it'
+          pronoun = (missing.length > 1) ? 'them' : 'it'
           warn "scan requires #{missing.join(' and ')} (auto-detection did not supply #{pronoun})"
           print_help($stderr)
           exit 2

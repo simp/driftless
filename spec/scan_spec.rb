@@ -36,6 +36,13 @@ RSpec.describe Driftless::Scan do
     FileUtils.mkdir_p(File.join(dir, 'incoming'))
   end
 
+  # It's really annoying when PuppetDB reports stderr warnings show up in the
+  # middle of RSPec test results
+  def silence_driftless_logger
+    fake_logger = instance_double(Logger, debug: true, info: true, warn: true, error: true, fatal: true)
+    allow(Driftless).to receive(:logger).and_return(fake_logger)
+  end
+
   # Spot-check: confirm scan.rb actually calls Driftless.logger during a run.
   # A single canary test proves the wire between the log-emitter and the logger
   # is intact end-to-end; per-line coverage is deferred until it earns its keep.
@@ -141,6 +148,7 @@ RSpec.describe Driftless::Scan do
     end
 
     it 'passes nodes with nil environment through unconditionally' do
+      silence_driftless_logger
       scan     = filter_scan(environments: ['production'], allow_missing_envs: true)
       reported = make_reported([make_node(certname: 'legacy', environment: nil)])
       result   = scan.send(:apply_environment_filter, reported)
@@ -155,12 +163,14 @@ RSpec.describe Driftless::Scan do
     end
 
     it 'warns instead of raising when allow_missing_envs is true' do
+      silence_driftless_logger
       scan     = filter_scan(environments: ['production', 'staging'], allow_missing_envs: true)
       reported = make_reported([make_node(certname: 'web1', environment: 'production')])
       expect { scan.send(:apply_environment_filter, reported) }.not_to raise_error
     end
 
     it 'keeps MissingReport queries absent from the filtered result' do
+      silence_driftless_logger
       scan     = filter_scan(environments: ['production'], allow_missing_envs: true)
       reported = Driftless::Reported.new(data: {})
       result   = scan.send(:apply_environment_filter, reported)
@@ -180,6 +190,7 @@ RSpec.describe Driftless::Scan do
       end
 
       it 'warns and returns the (still-empty) reported when allow_missing_envs is true' do
+        silence_driftless_logger
         scan   = filter_scan(environments: ['production'], allow_missing_envs: true)
         result = scan.send(:apply_environment_filter, empty_reported)
         expect(result.missing?('all-active-nodes')).to be true
@@ -235,18 +246,21 @@ RSpec.describe Driftless::Scan do
     end
 
     it 'end-to-end: Scan#run emits repo-relative paths' do
+      silence_driftless_logger
       Dir.mktmpdir do |dir|
         minimal_repo(dir)
         # Plant an orphan data file so hierarchy:unreachable-data-files fires;
         # it's inventory-independent and reliably yields a path-carrying finding.
         File.write(File.join(dir, 'data', 'orphan.yaml'), "---\n{}\n")
         set_config('puppet' => { 'environments' => ['production'] })
+        findings = 'WRONG'
         findings = described_class.new(
           repo_dir:     dir,
           incoming_dir: File.join(dir, 'incoming'),
           environments: ['production'],
           allow_missing_envs: true,
         ).run
+
         paths = findings.map(&:path).compact
         expect(paths).to include('data/orphan.yaml')
         expect(paths.none? { |p| p.start_with?('/') }).to be(true), "expected all paths relative, got #{paths.inspect}"

@@ -161,7 +161,7 @@ module Driftless
       d
     end
 
-    # Times a block and emits a DEBUG line with elapsed ms
+    # Benchmarks a block's runtime and logs a DEBUG line with the elapsed ms
     def phase(name)
       t = Process.clock_gettime(Process::CLOCK_MONOTONIC)
       result = yield

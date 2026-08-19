@@ -8,7 +8,7 @@ module Driftless
       key      'data:codebase-missing-class'
       severity :error
       quality  :wrong
-      about 'Data key references class::param where the class is not defined in the control repo'
+      about 'Data key references class::param where the class is not defined in the codebase'
 
       def call
         findings   = []
@@ -28,8 +28,8 @@ module Driftless
             findings << build_finding(
               path:    df.path,
               line:    line,
-              message: "data key #{key.inspect} references class #{class_name.inspect} " \
-                       'which is not defined anywhere in the control repo',
+              message: "#{key.inspect} references class #{class_name.inspect} " \
+                       'which is not defined anywhere in the codebase',
               meta:    { class_name: class_name },
             )
           end

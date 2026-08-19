@@ -1,5 +1,5 @@
 require 'driftless/detectors/base'
-
+require 'driftless/legacy_facts'
 module Driftless
   module Detectors
     class HierarchyTiersInterpolatingUnreportedFacts < Base
@@ -16,9 +16,7 @@ module Driftless
         end
 
         nodes = Array(corpus.reported.report('factsets-for-all-active-nodes'))
-        # No active nodes → every var would look "unreported"; that's not a
-        # meaningful signal (it's an infrastructure question, not a hiera one).
-        # Level-2 detector also no-ops in this case; keep the two consistent.
+        # Prevent case w/no active nodes (every var would look "unreported")
         return [] if nodes.empty?
 
         exclude_tier_patterns = option(:exclude_tiers)
@@ -35,8 +33,9 @@ module Driftless
           end
           next if unreported.empty?
 
-          noun = 'top-scope legacy fact/variable'
-          noun = 'fact' if unreported.any? { |x| x =~ /^facts\,/ }
+          noun = 'legacy fact/variable'
+          noun = 'legacy fact' if unreported.any? { |x| LegacyFacts.match(x) }
+          noun = 'fact' if unreported.any? { |x| x =~ /\Afacts\./ }
           noun = 'trusted fact' if unreported.all? { |x| x =~ /^trusted\,/ }
           noun.gsub!(%r{/|$}, 's\0') if unreported.size > 1
 

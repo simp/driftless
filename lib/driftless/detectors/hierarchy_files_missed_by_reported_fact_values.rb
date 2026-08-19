@@ -28,7 +28,6 @@ module Driftless
 
         nodes = Array(corpus.reported.report('factsets-for-all-active-nodes'))
 
-        findings          = []
         reachable         = Set.new
         excluded_by_tiers = Set.new
 
@@ -50,14 +49,12 @@ module Driftless
         on_disk = files_on_disk(corpus.hiera_tiers)
         orphans = (on_disk - reachable - excluded_by_tiers).sort
 
-        orphans.each do |path|
-          findings << build_finding(
+        findings = orphans.map do |path|
+          build_finding(
             path:    path,
             message: 'no reported fact can resolve any hierarchy tier to this path',
           )
         end
-
-        findings
       end
 
       private

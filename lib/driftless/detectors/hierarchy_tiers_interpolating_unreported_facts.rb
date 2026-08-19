@@ -35,10 +35,16 @@ module Driftless
           end
           next if unreported.empty?
 
+          noun = 'top-scope legacy fact/variable'
+          noun = 'fact' if unreported.any?{|x| x =~ /^facts\,/ }
+          noun = 'trusted fact' if unreported.all?{|x| x =~ /^trusted\,/ }
+          noun.gsub!(%r{/|$},'s\0') if unreported.size > 1
+
+
           findings << build_finding(
             path:    hiera_yaml_path,
             line:    tier.source_line,
-            message: "tier #{tier.name.inspect} interpolates fact(s) " \
+            message: "tier #{tier.name.inspect} interpolates #{noun} " \
                      "not reported by any active node: " \
                      "#{unreported.map(&:inspect).join(', ')}",
             meta:    { tier: tier.name, unreported_facts: unreported },

@@ -50,7 +50,7 @@ module Driftless
           key:         key,
           file:        @file,
           line:        node.line,
-          has_default: has_default_arg?(node),
+          has_default: default_arg?(node),
         )
       end
       calls
@@ -69,11 +69,13 @@ module Driftless
       arg.value
     end
 
-    # True when the call supplies a default value: either a block form
-    # (`lookup('k') |$x| { ... }`) or a 4th positional arg
-    # (`lookup(name, type, merge, default)`). The 2- and 3-arg positional
-    # forms do not supply a default.
-    def has_default_arg?(node)
+    # True when the call supplies a default value:
+    #
+    # - either a block form (`lookup('k') |$x| { ... }`)
+    # - or a 4th positional arg (`lookup(name, type, merge, default)`)
+    #
+    # The 2- and 3-arg positional forms do not supply a default
+    def default_arg?(node)
       return true if node.respond_to?(:lambda) && !node.lambda.nil?
       Array(node.arguments).length >= 4
     end

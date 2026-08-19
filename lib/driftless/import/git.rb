@@ -117,7 +117,7 @@ module Driftless
         count = 0
         Dir.glob(File.join(src_root, '**', '*')).each do |src|
           next unless File.file?(src)
-          rel = src.sub(/\A#{Regexp.escape(src_root)}\/?/, '')
+          rel = src.sub(%r{\A#{Regexp.escape(src_root)}/?}, '')
           dst = File.join(dst_root, rel)
           if @dry_run
             Driftless.logger.info("import git: would copy #{rel}")

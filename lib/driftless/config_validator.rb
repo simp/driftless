@@ -35,11 +35,12 @@ module Driftless
 
       first = unknown.first
       msg   = "unknown top-level config key: #{first.inspect}"
-      if (sug = suggest(first, KNOWN_SUBSYSTEMS))
-        msg += " (did you mean #{sug.inspect}?)"
-      else
-        msg += " (known: #{KNOWN_SUBSYSTEMS.join(', ')})"
-      end
+      msg +=
+        if (sug = suggest(first, KNOWN_SUBSYSTEMS))
+          " (did you mean #{sug.inspect}?)"
+        else
+          " (known: #{KNOWN_SUBSYSTEMS.join(', ')})"
+        end
       raise ConfigValidationError, msg
     end
 
@@ -111,11 +112,12 @@ module Driftless
         next if KNOWN_PUPPET_KEYS.include?(key)
 
         msg = "unknown puppet config key: #{key.inspect}"
-        if (sug = suggest(key, KNOWN_PUPPET_KEYS))
-          msg += " (did you mean #{sug.inspect}?)"
-        else
-          msg += " (known: #{KNOWN_PUPPET_KEYS.join(', ')})"
-        end
+        msg +=
+          if (sug = suggest(key, KNOWN_PUPPET_KEYS))
+            " (did you mean #{sug.inspect}?)"
+          else
+            " (known: #{KNOWN_PUPPET_KEYS.join(', ')})"
+          end
         raise ConfigValidationError, msg
       end
     end

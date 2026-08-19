@@ -45,7 +45,7 @@ module Driftless
             path:    hiera_yaml_path,
             line:    tier.source_line,
             message: "tier #{tier.name.inspect} interpolates #{noun} " \
-                     "not reported by any active node: " \
+                     'not reported by any active node: ' \
                      "#{unreported.map(&:inspect).join(', ')}",
             meta:    { tier: tier.name, unreported_facts: unreported },
           )

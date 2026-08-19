@@ -244,12 +244,12 @@ module Driftless
         raise ScanError,
               "collector coverage gap: #{per_collector} " \
               "(run `driftless import cleanup` to garden #{@incoming_dir}, " \
-              "or pass --accept-partial-report-sessions)"
+              'or pass --accept-partial-report-sessions)'
       else
         gaps.each do |collector, missing|
           Driftless.logger.warn(
             "scan: collector #{collector} missing expected reports #{missing.inspect} " \
-            "(accepting partial session per --accept-partial-report-sessions)",
+            '(accepting partial session per --accept-partial-report-sessions)',
           )
         end
       end
@@ -262,7 +262,7 @@ module Driftless
       # "no reports" rather than as a puppet.environments misconfiguration.
       if Inputs::ReportLoader::QUERIES.all? { |q| reported.missing?(q) }
         msg = "no PuppetDB reports loaded from #{incoming_dir} " \
-              "(expected <query>/<collector>--<timestamp>.{json,ndjson} " \
+              '(expected <query>/<collector>--<timestamp>.{json,ndjson} ' \
               "files under at least one of: #{Inputs::ReportLoader::QUERIES.join(', ')})"
         if allow_missing_envs
           Driftless.logger.warn(msg)

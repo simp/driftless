@@ -64,7 +64,7 @@ module Driftless
         end
 
         unless @options[:environments]&.any?
-          warn "scan error: puppet.environments is required — set it in driftless.yaml or pass --environments"
+          warn 'scan error: puppet.environments is required — set it in driftless.yaml or pass --environments'
           print_help($stderr)
           exit 2
         end

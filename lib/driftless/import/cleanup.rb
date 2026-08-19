@@ -49,7 +49,7 @@ module Driftless
 
         Driftless.logger.info(
           "import cleanup: incoming=#{@incoming_dir} summary=#{@summary_dir}" \
-          "#{@dry_run ? ' (dry-run)' : ''}"
+          "#{@dry_run ? ' (dry-run)' : ''}",
         )
 
         live        = []
@@ -194,7 +194,7 @@ module Driftless
 
         if @dry_run
           Driftless.logger.info(
-            "import cleanup: would move #{session[:collector]}--#{session[:session_id]} -> #{dest_dir}"
+            "import cleanup: would move #{session[:collector]}--#{session[:session_id]} -> #{dest_dir}",
           )
           return [reports.size, summary ? 1 : 0]
         end
@@ -212,7 +212,7 @@ module Driftless
         end
         Driftless.logger.debug(
           "import cleanup: moved #{session[:collector]}--#{session[:session_id]} " \
-          "(#{reports_moved} report, #{summary_moved} summary) -> #{dest_dir}"
+          "(#{reports_moved} report, #{summary_moved} summary) -> #{dest_dir}",
         )
         [reports_moved, summary_moved]
       end

@@ -53,7 +53,7 @@ module Driftless
             Driftless.logger.info(
               "import git: #{verb} #{result.reports_copied} report file(s) " \
               "and #{result.summaries_copied} summary file(s) " \
-              "from #{result.branches_imported} branch(es)"
+              "from #{result.branches_imported} branch(es)",
             )
           rescue ::Driftless::Import::Error => e
             warn "import git: #{e.message}"

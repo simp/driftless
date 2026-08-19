@@ -48,11 +48,11 @@ module Driftless
         Driftless.logger.info(
           "#{caller_prefix}: #{verb}kept #{result.live.size} live, " \
           "#{verb}archived #{result.archived.size}, " \
-          "#{verb}quarantined #{result.quarantined.size}"
+          "#{verb}quarantined #{result.quarantined.size}",
         )
         result.quarantined.each do |q|
           Driftless.logger.warn(
-            "#{caller_prefix}: quarantined #{q.collector}--#{q.session_id} (#{q.reason})"
+            "#{caller_prefix}: quarantined #{q.collector}--#{q.session_id} (#{q.reason})",
           )
         end
         result

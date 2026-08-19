@@ -41,7 +41,7 @@ module Driftless
         Driftless.logger.info(
           "import git: target #{@incoming_dir}" \
           "#{@summary_dir ? " (summaries -> #{@summary_dir})" : ''}" \
-          "#{@dry_run ? ' (dry-run)' : ''}"
+          "#{@dry_run ? ' (dry-run)' : ''}",
         )
 
         branches_done   = 0

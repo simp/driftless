@@ -31,7 +31,7 @@ module Driftless
           extra = result.skipped_no_certname.zero? ? '' : " (#{result.skipped_no_certname} skipped, no certname)"
           Driftless.logger.info(
             "export factsets: wrote #{result.written} file(s) to " \
-            "#{@options[:output_dir]} [#{@options[:profile]}:#{@options[:serialization]}]#{extra}"
+            "#{@options[:output_dir]} [#{@options[:profile]}:#{@options[:serialization]}]#{extra}",
           )
           exit 0
         rescue ::Driftless::Export::Error => e

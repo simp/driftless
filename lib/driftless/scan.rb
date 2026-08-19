@@ -63,7 +63,7 @@ module Driftless
         end
       end
       Driftless.logger.info(
-        "Extracted #{puppet_classes.size} classes and #{code_lookup_calls.size} lookup calls from manifests"
+        "Extracted #{puppet_classes.size} classes and #{code_lookup_calls.size} lookup calls from manifests",
       )
 
       epp_paths = discover_epp_templates
@@ -249,7 +249,7 @@ module Driftless
         gaps.each do |collector, missing|
           Driftless.logger.warn(
             "scan: collector #{collector} missing expected reports #{missing.inspect} " \
-            "(accepting partial session per --accept-partial-report-sessions)"
+            "(accepting partial session per --accept-partial-report-sessions)",
           )
         end
       end

@@ -48,7 +48,7 @@ module Driftless
             verb = @options[:dry_run] ? 'would import' : 'imported'
             extra = result.skipped_missing.zero? ? '' : " (#{result.skipped_missing} source file(s) missing)"
             Driftless.logger.info(
-              "import local: #{verb} #{result.copied} report(s) for session #{result.session_id}#{extra}"
+              "import local: #{verb} #{result.copied} report(s) for session #{result.session_id}#{extra}",
             )
           rescue ::Driftless::Import::Error => e
             warn "import local: #{e.message}"

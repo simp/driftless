@@ -160,10 +160,10 @@ module Driftless
           end
           o.on('-q', '--quiet',   'Suppress non-error output') { @options[:quiet] = true }
           o.on('--[no-]color',    'Colorize terminal output (default: auto — on when stdout is a TTY)') { |v| @options[:color] = v }
-          o.on('-h', '--help',    'Show this help') {
+          o.on('-h', '--help',    'Show this help') do
             puts o
             exit 0
-          }
+          end
         end
       end
 

@@ -49,7 +49,7 @@ module Driftless
 
         Driftless.logger.info(
           "import cleanup: incoming=#{@incoming_dir} summary=#{@summary_dir}" \
-          "#{@dry_run ? ' (dry-run)' : ''}",
+          "#{' (dry-run)' if @dry_run}",
         )
 
         live        = []

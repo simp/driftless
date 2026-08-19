@@ -37,8 +37,8 @@ module Driftless
         Driftless.logger.info("import local: session #{session_id} collector #{collector}")
         Driftless.logger.info(
           "import local: target #{@incoming_dir}" \
-          "#{@summary_dir ? " (summary -> #{@summary_dir})" : ''}" \
-          "#{@dry_run ? ' (dry-run)' : ''}",
+          "#{" (summary -> #{@summary_dir})" if @summary_dir}" \
+          "#{' (dry-run)' if @dry_run}",
         )
 
         copied, missing = copy_reports(session_dir, summary, collector, session_id)

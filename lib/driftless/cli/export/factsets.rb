@@ -74,8 +74,7 @@ module Driftless
             exit 2
           end
           @options[:profile]       = profile
-          @options[:serialization] = serialization ||
-            ::Driftless::Export::Factsets::PROFILES.fetch(profile)[:default_serialization]
+          @options[:serialization] = serialization || ::Driftless::Export::Factsets::PROFILES.fetch(profile)[:default_serialization]
         end
 
         def require_output_dir!

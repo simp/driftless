@@ -91,8 +91,8 @@ module Driftless
         raise Error, "git for-each-ref failed: #{err.strip}" unless status.success?
 
         branches = out.lines.map(&:strip).reject(&:empty?)
-                       .map { |r| r.sub(%r{\Aorigin/}, '') }
-                       .reject { |b| b == 'HEAD' }
+          .map { |r| r.sub(%r{\Aorigin/}, '') }
+          .reject { |b| b == 'HEAD' }
         return branches unless @collector
         want = "#{@branch_prefix}/#{@collector}"
         branches.select { |b| b == want }

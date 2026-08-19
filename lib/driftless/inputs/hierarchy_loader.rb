@@ -66,10 +66,11 @@ module Driftless
 
           if entry.key?('lookup_key') || entry.key?('data_dig')
             findings << finding(
-              'hierarchy:unsupported-backend',
+              'hierarchy:unscannable-backend',
               "tier #{name.inspect} uses a lookup_key/data_dig backend " \
-              '(only data_hash tiers with a datadir are currently supported)',
+              '(driftless currently only scans data_hash tiers with a datadir)',
               line: line,
+              severity: :note,
             )
             next
           end
@@ -77,9 +78,10 @@ module Driftless
           backend = entry['data_hash'] || default_backend
           unless SUPPORTED_DATA_HASH_BACKENDS.include?(backend)
             findings << finding(
-              'hierarchy:unsupported-backend',
-              "tier #{name.inspect} uses unsupported data_hash: #{backend.inspect}",
+              'hierarchy:unscannable-backend',
+              "tier #{name.inspect} uses data_hashi: #{backend.inspect} (currently unscannable by driftless)",
               line: line,
+              severity: :note,
             )
             next
           end
@@ -90,6 +92,7 @@ module Driftless
               'hierarchy:tier-missing-path',
               "tier #{name.inspect} has neither path: nor paths:",
               line: line,
+              severity: :note,
             )
             next
           end
@@ -143,8 +146,8 @@ module Driftless
         template.to_s.scan(INTERPOLATION_RE).map { |m| m[0].strip }
       end
 
-      def finding(key, message, line: nil)
-        Finding.new(key: key, path: @hiera_yaml, line: line, message: message, meta: {})
+      def finding(key, message, line: nil, severity: nil)
+        Finding.new(key: key, path: @hiera_yaml, line: line, message: message, meta: {}, severity: severity)
       end
     end
   end

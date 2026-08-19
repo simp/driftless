@@ -49,7 +49,7 @@ module Driftless
         on_disk = files_on_disk(corpus.hiera_tiers)
         orphans = (on_disk - reachable - excluded_by_tiers).sort
 
-        findings = orphans.map do |path|
+        orphans.map do |path|
           build_finding(
             path:    path,
             message: 'no reported fact can resolve any hierarchy tier to this path',

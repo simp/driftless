@@ -158,7 +158,7 @@ module Driftless
               @options[:verbose] = true
             end
           end
-          o.on('-q', '--quiet',   'Suppress non-error output')             { @options[:quiet]   = true }
+          o.on('-q', '--quiet',   'Suppress non-error output')             { @options[:quiet] = true }
           o.on('--[no-]color',    'Colorize terminal output (default: auto — on when stdout is a TTY)') do |v|
             @options[:color] = v
           end

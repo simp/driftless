@@ -8,7 +8,7 @@ require 'driftless/models/node'
 module Driftless
   module Inputs
     class ReportLoader
-      QUERIES  = %w[all-active-nodes factsets-for-all-active-nodes].freeze
+      QUERIES = %w[all-active-nodes factsets-for-all-active-nodes].freeze
       NODE_REPORTS = %w[all-active-nodes factsets-for-all-active-nodes].freeze
 
       def self.load(incoming_dir)
@@ -43,7 +43,7 @@ module Driftless
         return [Reported::MissingReport, []] if files.empty?
 
         per_collector = newest_per_collector(files)
-        records, errs   = merge_per_certname(per_collector, query)
+        records, errs = merge_per_certname(per_collector, query)
         records = records.map { |r| build_node(r) } if NODE_REPORTS.include?(query)
         [records, errs]
       end

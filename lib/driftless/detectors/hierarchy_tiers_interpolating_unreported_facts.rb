@@ -36,9 +36,9 @@ module Driftless
           next if unreported.empty?
 
           noun = 'top-scope legacy fact/variable'
-          noun = 'fact' if unreported.any?{|x| x =~ /^facts\,/ }
-          noun = 'trusted fact' if unreported.all?{|x| x =~ /^trusted\,/ }
-          noun.gsub!(%r{/|$},'s\0') if unreported.size > 1
+          noun = 'fact' if unreported.any?{ |x| x =~ /^facts\,/ }
+          noun = 'trusted fact' if unreported.all?{ |x| x =~ /^trusted\,/ }
+          noun.gsub!(%r{/|$}, 's\0') if unreported.size > 1
 
 
           findings << build_finding(

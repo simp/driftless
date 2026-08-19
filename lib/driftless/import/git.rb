@@ -173,7 +173,7 @@ module Driftless
       ensure
         if agent_pid
           Process.kill('TERM', agent_pid) rescue nil
-          Process.wait(agent_pid)          rescue nil
+          Process.wait(agent_pid)         rescue nil
         end
       end
     end

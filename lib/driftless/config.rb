@@ -124,11 +124,11 @@ module Driftless
     end
 
     # Hash-like access.
-    def [](key);    @merged[key];     end
+    def [](key);    @merged[key];       end
     def dig(*keys); @merged.dig(*keys); end
+    def to_h;       @merged;            end
+    def empty?;     @merged.empty?;     end
     def fetch(key, *args, &block); @merged.fetch(key, *args, &block); end
-    def to_h;       @merged;          end
-    def empty?;     @merged.empty?;   end
 
     private
 

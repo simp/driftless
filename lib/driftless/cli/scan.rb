@@ -170,7 +170,7 @@ module Driftless
         out    = @options[:output_file] ? File.open(@options[:output_file], 'w') : $stdout
         case format
         when 'json' then Outputs::JsonWriter.write(findings, out)
-        else            Outputs::TextWriter.write(findings, out, color: resolve_color(out))
+        else             Outputs::TextWriter.write(findings, out, color: resolve_color(out))
         end
       ensure
         out.close if out && out != $stdout

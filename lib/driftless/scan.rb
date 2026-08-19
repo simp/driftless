@@ -268,8 +268,6 @@ module Driftless
           Driftless.logger.warn(msg)
           return reported
 
-
-
       end
 
       env_set   = Set.new(environments)
@@ -298,9 +296,6 @@ module Driftless
         msg = "environment #{env.inspect} listed in puppet.environments but has no reports in #{incoming_dir}"
         raise ScanError, msg unless allow_missing_envs
           Driftless.logger.warn(msg)
-
-
-
       end
 
       Reported.new(data: filtered_data)

@@ -150,7 +150,7 @@ module Driftless
 
       private
 
-      # Extracts config-derived defaults for this scan. 
+      # Extracts config-derived defaults for this scan.
       def config_defaults
         cfg = ::Driftless.config
         {

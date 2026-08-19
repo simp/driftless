@@ -42,7 +42,7 @@ module Driftless
           findings << build_finding(
             path:    file,
             message: 'no hierarchy tier can reach this',
-                     
+
           )
         end
         findings

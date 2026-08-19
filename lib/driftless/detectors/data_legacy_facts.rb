@@ -10,9 +10,9 @@ module Driftless
       about 'Hiera data files that interpolate legacy facts' \
             '(%{osfamily}, %{hostname}, etc.) instead of the modern structured equivalents'
 
-      # Line-by-line scan matches bare `%{...}` in value positions. Multi-line
-      # scalar values with legacy fact interpolations will still be caught, but
-      # the reported line points to whichever line contains the pattern.
+      # Line-by-line scan matches bare `%{...}` in value positions.
+      # Multi-line scalar values with legacy fact interpolations will still be
+      # caught, but the reported line points to whichever contained the pattern.
       INTERPOLATION_RE = /%\{\s*([^{}\s]+)\s*\}/.freeze
 
       def call
@@ -28,7 +28,7 @@ module Driftless
                 path:    df.path,
                 line:    lineno,
                 message: "interpolates legacy fact %{#{inner}} " \
-                         "(modern equivalent: %{facts.#{modern}} or %{#{modern}})",
+                         "(modern equivalent: %{facts.#{modern}})",
                 meta:    { legacy: legacy, modern: modern, interpolation: inner },
               )
             end

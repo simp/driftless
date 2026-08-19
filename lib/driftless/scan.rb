@@ -264,12 +264,12 @@ module Driftless
         msg = "no PuppetDB reports loaded from #{incoming_dir} " \
               '(expected <query>/<collector>--<timestamp>.{json,ndjson} ' \
               "files under at least one of: #{Inputs::ReportLoader::QUERIES.join(', ')})"
-        if allow_missing_envs
+        raise ScanError, msg unless allow_missing_envs
           Driftless.logger.warn(msg)
           return reported
-        else
-          raise ScanError, msg
-        end
+
+
+
       end
 
       env_set   = Set.new(environments)
@@ -296,11 +296,11 @@ module Driftless
 
       (env_set - seen_envs).each do |env|
         msg = "environment #{env.inspect} listed in puppet.environments but has no reports in #{incoming_dir}"
-        if allow_missing_envs
+        raise ScanError, msg unless allow_missing_envs
           Driftless.logger.warn(msg)
-        else
-          raise ScanError, msg
-        end
+
+
+
       end
 
       Reported.new(data: filtered_data)

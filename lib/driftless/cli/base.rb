@@ -88,9 +88,7 @@ module Driftless
 
         # ---- Command tree walking ----------------------------------------
 
-        def parent_command
-          @parent_command
-        end
+        attr_reader :parent_command
 
         def command_path
           (parent_command ? parent_command.command_path : []) + [canonical_name]

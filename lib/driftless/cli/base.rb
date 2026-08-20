@@ -179,6 +179,7 @@ module Driftless
 
       # Precedence: CLI flags (verbose/debug/quiet) win, then config-derived
       # @options[:log_level] (populated by Root from logging.level), then default WARN.
+      # rubocop:disable Lint/UselessConstantScoping -- public access intended
       LOG_LEVEL_NAMES = {
         'debug' => Logger::DEBUG,
         'info'  => Logger::INFO,
@@ -186,6 +187,7 @@ module Driftless
         'error' => Logger::ERROR,
         'fatal' => Logger::FATAL,
       }.freeze
+      # rubocop:enable Lint/UselessConstantScoping
 
       def apply_log_level
         ::Driftless.logger.level =

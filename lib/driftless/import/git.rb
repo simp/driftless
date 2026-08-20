@@ -171,10 +171,12 @@ module Driftless
 
         yield extra_env, config_args
       ensure
+        # rubocop:disable Style/RescueModifier -- concise + safe in this context
         if agent_pid
           Process.kill('TERM', agent_pid) rescue nil
           Process.wait(agent_pid)         rescue nil
         end
+        # rubocop:enable Style/RescueModifier
       end
     end
   end

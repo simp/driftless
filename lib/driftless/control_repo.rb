@@ -1,3 +1,5 @@
+require 'driftless/config_keys'
+
 module Driftless
   # The Puppet control repo environment under examination: where it is, and how
   # to recognize one.
@@ -6,6 +8,13 @@ module Driftless
   # naming a repo would follow the operator between control repos and silently
   # scan the wrong one, so it stays per-invocation (`--repo-dir`).
   class ControlRepo
+    extend ConfigKeys::DSL
+
+    withheld_key %w[scan.repo_dir reports.repo_dir puppet.repo_dir],
+                 because: 'the repo under examination is per-invocation — a user or system ' \
+                          'config naming one would follow you between control repos and ' \
+                          'silently scan the wrong one. Use --repo-dir.'
+
     # A directory is a control repo environment when it carries both of these.
     MARKERS = %w[hiera.yaml environment.conf].freeze
 

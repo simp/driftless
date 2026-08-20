@@ -1,3 +1,4 @@
+require 'driftless/config_keys'
 require 'json'
 
 require 'driftless/finding'
@@ -8,6 +9,11 @@ require 'driftless/models/node'
 module Driftless
   module Inputs
     class ReportLoader
+      extend ::Driftless::ConfigKeys::DSL
+
+      config_key 'reports.incoming_dir', type: :string, default: 'incoming',
+                 about: 'Raw-report landing tree, read by scan and other report consumers'
+
       QUERIES = %w[all-active-nodes factsets-for-all-active-nodes].freeze
       NODE_REPORTS = %w[all-active-nodes factsets-for-all-active-nodes].freeze
 

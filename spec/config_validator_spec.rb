@@ -5,6 +5,30 @@ require 'driftless/detectors/code_lookup_missing_hiera_keys'
 RSpec.describe Driftless::ConfigValidator do
   # Every key here is read somewhere in lib/; the validator has to let it through
   # or the setting is unreachable.
+  # Before the registry only puppet: keys were checked, so a typo under any
+  # other subsystem was silently ignored.
+  describe 'unknown keys in every subsystem' do
+    {
+      'output'  => 'tabularise',
+      'scan'    => 'fail_onn',
+      'logging' => 'levl',
+      'reports' => 'incoming_dirs',
+      'puppet'  => 'enviroments',
+    }.each do |subsystem, typo|
+      it "rejects #{subsystem}.#{typo}" do
+        cfg = Driftless::Config.new(merged: { subsystem => { typo => 'x' } })
+        expect { described_class.new(cfg).validate! }
+          .to raise_error(Driftless::ConfigValidationError, /unknown #{subsystem} config key.*#{typo}/)
+      end
+    end
+
+    it 'suggests the intended key when the typo is close' do
+      cfg = Driftless::Config.new(merged: { 'output' => { 'tabularise' => true } })
+      expect { described_class.new(cfg).validate! }
+        .to raise_error(Driftless::ConfigValidationError, /did you mean "tabularize"/)
+    end
+  end
+
   describe 'keys that moved between subsystems' do
     it 'rejects scan.incoming_dir with its new location' do
       cfg = Driftless::Config.new(merged: { 'scan' => { 'incoming_dir' => 'incoming' } })
@@ -135,9 +159,10 @@ RSpec.describe Driftless::ConfigValidator do
       }.not_to raise_error
     end
 
-    it 'rejects basemodulepath (source of truth is environment.conf, not config)' do
+    it 'rejects basemodulepath with the reason it is withheld' do
       expect { validate('puppet' => { 'basemodulepath' => '/a:/b' }) }
-        .to raise_error(Driftless::ConfigValidationError, /unknown puppet config key.*"basemodulepath"/)
+        .to raise_error(Driftless::ConfigValidationError,
+                        /puppet\.basemodulepath cannot be set in config.*environment\.conf/m)
     end
 
     it 'accepts an absent puppet section' do

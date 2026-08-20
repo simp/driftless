@@ -1,6 +1,7 @@
 require 'driftless/cli/base'
 require 'driftless/cli/root'
 require 'driftless/cli/import'
+require 'driftless/config_keys'
 require 'driftless/scan'
 require 'driftless/control_repo'
 require 'driftless/outputs'
@@ -8,7 +9,16 @@ require 'driftless/outputs'
 module Driftless
   module CLI
     class Scan < Base
+      extend ::Driftless::ConfigKeys::DSL
+
       register_command name: 'scan', subcommand_of: Root
+
+      config_key 'scan.fail_on', type: :string, default: 'any',
+                 about: 'Exit non-zero on findings: any or never'
+      config_key 'detectors.only', type: :array, default: nil,
+                 about: 'Run only these detector keys'
+      config_key 'detectors.skip', type: :array, default: nil,
+                 about: 'Skip these detector keys'
       desc 'Cross-reference control repo against PuppetDB reports'
 
       def initialize(parent_options: {})

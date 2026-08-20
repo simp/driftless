@@ -3,6 +3,7 @@ require 'pathname'
 require 'driftless/corpus'
 require 'driftless/logger'
 require 'driftless/reported'
+require 'driftless/config_keys'
 require 'driftless/detectors'
 require 'driftless/inputs/hierarchy_loader'
 require 'driftless/inputs/modulepath_loader'
@@ -12,6 +13,13 @@ require 'driftless/inputs/summary_index'
 
 module Driftless
   class Scan
+    extend ConfigKeys::DSL
+
+    config_key 'puppet.environments', type: :array, default: [],
+               about: 'Puppet environments to scan (required)'
+    config_key 'puppet.allow_missing_envs', type: :boolean, default: false,
+               about: 'Warn instead of erroring when a listed environment has no reports'
+
     attr_reader :repo_dir, :incoming_dir, :only, :skip, :basemodulepath,
                 :environments, :allow_missing_envs, :summary_dir,
                 :accept_partial_report_sessions

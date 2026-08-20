@@ -1,6 +1,7 @@
 require 'set'
 
 require 'driftless/config'
+require 'driftless/config_keys'
 require 'driftless/detectors'
 require 'driftless/detectors/base'
 
@@ -13,17 +14,15 @@ module Driftless
   # Called by {Driftless::CLI::Root#after_own_parse} after config load;
   # failures surface as `config error: ...` on stderr + exit 2.
   class ConfigValidator
-    KNOWN_SUBSYSTEMS   = %w[detectors puppet output reports scan logging].freeze
+    # Listed explicitly because its keys are detector names from the registry
+    # rather than declared config keys.
+    DETECTORS_SUBSYSTEM = 'detectors'.freeze
 
     # Keys that moved between subsystems. The old section does not validate its
     # own keys, so without this a stale key is silently ignored.
     MOVED_KEYS = {
       %w[scan incoming_dir] => 'reports.incoming_dir',
     }.freeze
-    KNOWN_PUPPET_KEYS  = %w[environments allow_missing_envs role_regex profile_regex].freeze
-
-    # Keys under `detectors:` that name something other than a detector.
-    DETECTOR_RESERVED_KEYS = %w[defaults only skip].freeze
 
     def initialize(config)
       @config = config
@@ -32,26 +31,62 @@ module Driftless
     def validate!
       check_top_level_keys
       check_moved_keys
+      check_withheld_keys
+      check_subsystem_keys
       check_detector_keys
       check_detector_options
-      check_puppet_keys
+    end
+
+    # Every subsystem some class has declared a key for, plus detectors.
+    def self.known_subsystems
+      (ConfigKeys.subsystems + [DETECTORS_SUBSYSTEM]).uniq.sort
     end
 
     private
 
     def check_top_level_keys
-      unknown = @config.to_h.keys - KNOWN_SUBSYSTEMS
+      known   = self.class.known_subsystems
+      unknown = @config.to_h.keys - known
       return if unknown.empty?
 
       first = unknown.first
       msg   = "unknown top-level config key: #{first.inspect}"
       msg +=
-        if (sug = suggest(first, KNOWN_SUBSYSTEMS))
+        if (sug = suggest(first, known))
           " (did you mean #{sug.inspect}?)"
         else
-          " (known: #{KNOWN_SUBSYSTEMS.join(', ')})"
+          " (known: #{known.join(', ')})"
         end
       raise ConfigValidationError, msg
+    end
+
+    def check_withheld_keys
+      ConfigKeys.withheld.each do |key|
+        next if @config.dig(key.subsystem, key.name).nil?
+        raise ConfigValidationError, "#{key.path} cannot be set in config: #{key.because}"
+      end
+    end
+
+    # Applies to every subsystem except detectors, whose keys are detector names.
+    def check_subsystem_keys
+      @config.to_h.each do |subsystem, body|
+        next if subsystem == DETECTORS_SUBSYSTEM
+        next unless body.is_a?(Hash)
+
+        known = ConfigKeys.settable(subsystem).map(&:name)
+        body.each_key do |key|
+          next if known.include?(key)
+
+          msg = "unknown #{subsystem} config key: #{key.inspect}"
+          msg +=
+            if (sug = suggest(key, known))
+              " (did you mean #{sug.inspect}?)"
+            else
+              " (known: #{known.join(', ')})"
+            end
+          raise ConfigValidationError, msg
+        end
+      end
     end
 
     def check_moved_keys
@@ -66,7 +101,7 @@ module Driftless
       detectors_section = @config['detectors']
       return unless detectors_section.is_a?(Hash)
 
-      known = Set.new(DETECTOR_RESERVED_KEYS)
+      known = Set.new(['defaults'] + ConfigKeys.settable(DETECTORS_SUBSYSTEM).map(&:name))
       Driftless::Detectors.registry.each { |k| known.add(k.key) }
 
       detectors_section.each_key do |section_key|
@@ -120,24 +155,6 @@ module Driftless
         k.config_options.each_key { |name| set << name.to_s }
       end
       set
-    end
-
-    def check_puppet_keys
-      puppet_section = @config['puppet']
-      return unless puppet_section.is_a?(Hash)
-
-      puppet_section.each_key do |key|
-        next if KNOWN_PUPPET_KEYS.include?(key)
-
-        msg = "unknown puppet config key: #{key.inspect}"
-        msg +=
-          if (sug = suggest(key, KNOWN_PUPPET_KEYS))
-            " (did you mean #{sug.inspect}?)"
-          else
-            " (known: #{KNOWN_PUPPET_KEYS.join(', ')})"
-          end
-        raise ConfigValidationError, msg
-      end
     end
 
     def suggest(input, candidates)

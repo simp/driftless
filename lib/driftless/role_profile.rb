@@ -1,3 +1,5 @@
+require 'driftless/config_keys'
+
 module Driftless
   # Codebase-wide role/profile class-name detection. Config keys
   # `puppet.role_regex` / `puppet.profile_regex` override the defaults.
@@ -10,8 +12,15 @@ module Driftless
   #     role_regex:    '\A(baseline::)?role::'
   #     profile_regex: '\A(baseline::)?profile::'
   module RoleProfile
+    extend ConfigKeys::DSL
+
     DEFAULT_ROLE_RE    = /(?:\A|::)role(?:::|\z)/.freeze
     DEFAULT_PROFILE_RE = /(?:\A|::)profile(?:::|\z)/.freeze
+
+    config_key 'puppet.role_regex', type: :regexp, default: '(?:\\A|::)role(?:::|\\z)',
+               about: 'Pattern identifying role classes'
+    config_key 'puppet.profile_regex', type: :regexp, default: '(?:\\A|::)profile(?:::|\\z)',
+               about: 'Pattern identifying profile classes'
 
     module_function
 

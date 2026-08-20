@@ -1,9 +1,17 @@
+require 'driftless/config_keys'
 require 'driftless/finding'
 require 'driftless/inputs/environment_conf'
 
 module Driftless
   module Inputs
     class ModulepathLoader
+      extend ::Driftless::ConfigKeys::DSL
+
+      withheld_key 'puppet.basemodulepath',
+                   because: 'the source of truth is the control repo\'s environment.conf ' \
+                            'modulepath (interpolated with $basemodulepath from puppet.conf). ' \
+                            'Use --basemodulepath for a one-off override.'
+
       DEFAULT_MODULEPATH_DIRS = %w[site-modules modules].freeze
       DEFAULT_BASEMODULEPATH  = %w[
         /etc/puppetlabs/code/modules

@@ -1,6 +1,10 @@
 require 'rspec'
 require 'rspec/its'
 require 'driftless'
+# Config-key declarations register at class-definition time, so the validator
+# only sees a complete set once every owner is loaded. bin/driftless loads the
+# CLI tree before validating; specs have to match or results vary by load order.
+require 'driftless/cli/root'
 
 RSpec.configure do |config|
   config.expect_with :rspec do |c|

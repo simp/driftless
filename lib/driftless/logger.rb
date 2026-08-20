@@ -1,6 +1,17 @@
 require 'logger'
 
+require 'driftless/config_keys'
+
 module Driftless
+  # Namespace for the logging subsystem's config. Level is applied by the CLI,
+  # which lets -v / -vv / -q override it.
+  module Logging
+    extend ConfigKeys::DSL
+
+    config_key 'logging.level', type: :string, default: 'warn',
+               about: 'debug, info, warn, error, or fatal'
+  end
+
   class << self
     attr_writer :logger
 

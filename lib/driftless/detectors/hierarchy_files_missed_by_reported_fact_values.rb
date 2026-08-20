@@ -36,10 +36,10 @@ module Driftless
 
           if tier.interpolation_vars.any? && tier_reachable.empty?
             # A tier whose interpolation vars are satisfied by NO active node's facts.
-            # This condition is reported at tier-scope by
-            # `hierarchy:tiers-interpolating-unreported-facts`. The exclusion below
-            # is not for reporting; it prevents this tier's datadir subset from being
-            # flood-reported at file-scope by the main pass here.
+
+            #  The exclusion below is not for reporting; it prevents this tier's
+            #  datadir subset from being flood-reported at file-scope by the
+            #  main pass here.
             excluded_by_tiers.merge(would_match_files(tier))
           else
             reachable.merge(tier_reachable)
@@ -52,7 +52,7 @@ module Driftless
         orphans.map do |path|
           build_finding(
             path:    path,
-            message: 'no reported fact resolves any hierarchy tier to this path',
+            message: 'no reported fact value resolves to this path',
           )
         end
       end
@@ -65,6 +65,20 @@ module Driftless
           if tier.interpolation_vars.empty?
             paths << File.join(tier.datadir, template)
           else
+            # naive approach: render every node against every var in every tier
+            # FIXME: only works with one var per tier needs to work for multi-variable sets of vars
+            # TODO: finish this work; it's not wired up yet
+            # better:
+            #   - find all unique sets of the interp vars,
+            #   - find one node for each unique set
+            #   - only render _those_ nodes
+            uniq_var_sets = tier.interpolation_vars.map do |var|
+              var_levels = var.split('.')
+              np =  nodes.map{ |n| n.dig(*var_levels) }
+              [var,np.uniq]
+            end.to_h
+
+
             nodes.each do |node|
               rendered = HierarchyInterpolator.new(node).render(template)
               next if HierarchyInterpolator.unresolved?(rendered)

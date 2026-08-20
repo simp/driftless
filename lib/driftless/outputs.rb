@@ -1,0 +1,44 @@
+require 'driftless/outputs/json_writer'
+require 'driftless/outputs/text_writer'
+
+module Driftless
+  # Owns the choice of output format: which formats exist, which writer renders
+  # each, and what to fall back to when the caller did not pick one.
+  module Outputs
+    WRITERS = {
+      'json' => JsonWriter,
+      'text' => TextWriter,
+    }.freeze
+
+    # Format chosen when nothing else decides. Text reads well to a person at a
+    # terminal; anything else is presumed to be feeding a program.
+    TTY_FORMAT     = 'text'.freeze
+    PIPED_FORMAT   = 'json'.freeze
+
+    module_function
+
+    def formats
+      WRITERS.keys
+    end
+
+    def format?(name)
+      WRITERS.key?(name.to_s)
+    end
+
+    def default_format(io)
+      (io.respond_to?(:tty?) && io.tty?) ? TTY_FORMAT : PIPED_FORMAT
+    end
+
+    # The format a destination filename implies, or nil when it implies nothing.
+    def format_for_filename(path)
+      'json' if path.to_s.match?(/\.json\z/i)
+    end
+
+    def write(findings, io, format:, color: nil, tabularize: true)
+      writer = WRITERS.fetch(format.to_s) do
+        raise ArgumentError, "unknown output format #{format.inspect} (known: #{formats.join(', ')})"
+      end
+      writer.write(findings, io, color: color, tabularize: tabularize)
+    end
+  end
+end

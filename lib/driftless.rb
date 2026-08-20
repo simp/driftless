@@ -2,6 +2,7 @@ require 'driftless/version'
 require 'driftless/logger'
 require 'driftless/config'
 require 'driftless/role_profile'
+require 'driftless/control_repo'
 
 require 'driftless/finding'
 require 'driftless/corpus'
@@ -39,8 +40,7 @@ require 'driftless/import/cleanup'
 
 require 'driftless/export/factsets'
 
-require 'driftless/outputs/json_writer'
-require 'driftless/outputs/text_writer'
+require 'driftless/outputs'
 
 module Driftless
 end

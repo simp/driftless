@@ -5,7 +5,9 @@ module Driftless
     module JsonWriter
       module_function
 
-      def write(findings, io)
+      # color: and tabularize: are accepted so every writer shares one signature;
+      # JSON has no rendering options.
+      def write(findings, io, color: nil, tabularize: nil)
         sorted = findings.sort_by { |f| [f.key, f.path.to_s, f.line || 0] }
         io.puts '['
         sorted.each_with_index do |f, i|

@@ -2,28 +2,14 @@ require 'driftless/cli/base'
 require 'driftless/cli/root'
 require 'driftless/cli/import'
 require 'driftless/scan'
-require 'driftless/outputs/json_writer'
-require 'driftless/outputs/text_writer'
+require 'driftless/control_repo'
+require 'driftless/outputs'
 
 module Driftless
   module CLI
     class Scan < Base
       register_command name: 'scan', subcommand_of: Root
       desc 'Cross-reference control repo against PuppetDB reports'
-
-      class << self
-        def default_repo_dir(cwd)
-          return cwd if File.exist?(File.join(cwd, 'hiera.yaml')) &&
-                        File.exist?(File.join(cwd, 'environment.conf'))
-          nil
-        end
-
-        def default_incoming_dir(repo_dir)
-          return nil unless repo_dir
-          candidate = File.join(repo_dir, 'incoming')
-          File.directory?(candidate) ? candidate : nil
-        end
-      end
 
       def initialize(parent_options: {})
         super
@@ -36,11 +22,10 @@ module Driftless
       end
 
       def execute(_argv)
-        @options[:repo_dir]     ||= self.class.default_repo_dir(Dir.pwd)
-        # Normalize path to absolute before auto-detecting incoming_dir
-        # to be consistent with `-d .`
-        @options[:repo_dir]       = File.expand_path(@options[:repo_dir]) if @options[:repo_dir]
-        @options[:incoming_dir] ||= self.class.default_incoming_dir(@options[:repo_dir])
+        repo = @options[:repo_dir] ? ::Driftless::ControlRepo.new(@options[:repo_dir])
+                                   : ::Driftless::ControlRepo.detect(Dir.pwd)
+        @options[:repo_dir]       = repo&.dir
+        @options[:incoming_dir] ||= repo&.default_incoming_dir
         @options[:incoming_dir]   = File.expand_path(@options[:incoming_dir]) if @options[:incoming_dir]
 
         unless @options[:repo_dir] && @options[:incoming_dir]
@@ -53,8 +38,8 @@ module Driftless
           exit 2
         end
 
-        unless File.directory?(@options[:repo_dir])
-          warn "repo-dir not readable: #{@options[:repo_dir]}"
+        unless repo.readable?
+          warn "repo-dir not readable: #{repo.dir}"
           exit 3
         end
 
@@ -121,12 +106,14 @@ module Driftless
 
         o.separator ''
         o.separator 'Output:'
-        o.on('-f', '--format=FMT', %w[json text],
-             'Output format: json or text (default: text on TTY, json otherwise)') { |v| @options[:format] = v }
+        o.on('-f', '--format=FMT', ::Driftless::Outputs.formats,
+             "Output format: #{::Driftless::Outputs.formats.join(' or ')} " \
+             '(default: text on TTY, json otherwise)') { |v| @options[:format] = v }
         o.on('-o', '--output-file=PATH',
              'Write output to this file instead of stdout') do |v|
           @options[:output_file] = v
-          @options[:format] = 'json' if v.match?(/\.json\Z/i)
+          implied = ::Driftless::Outputs.format_for_filename(v)
+          @options[:format] = implied if implied
         end
         o.on('--[no-]tabularize',
              'Align finding messages in a column (default: on)') { |v| @options[:tabularize] = v }
@@ -168,14 +155,13 @@ module Driftless
         }.compact
       end
 
+      # The default format follows $stdout even when -o redirects to a file, so
+      # that `-o findings.txt` from a terminal still renders as text.
       def emit(findings)
-        format = @options[:format] || ($stdout.tty? ? 'text' : 'json')
+        format = @options[:format] || ::Driftless::Outputs.default_format($stdout)
         out    = @options[:output_file] ? File.open(@options[:output_file], 'w') : $stdout
-        case format
-        when 'json' then Outputs::JsonWriter.write(findings, out)
-        else             Outputs::TextWriter.write(findings, out, color: resolve_color(out),
-                                                   tabularize: @options[:tabularize])
-        end
+        ::Driftless::Outputs.write(findings, out, format: format,
+                                   color: resolve_color(out), tabularize: @options[:tabularize])
       ensure
         out.close if out && out != $stdout
       end

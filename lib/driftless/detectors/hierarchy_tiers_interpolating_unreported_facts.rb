@@ -35,7 +35,7 @@ module Driftless
 
           noun = 'legacy fact/variable'
           noun = 'legacy fact' if unreported.any? { |x| LegacyFacts.match(x) }
-          noun = 'fact' if unreported.any? { |x| x =~ /\Afacts\./ }
+          noun = 'fact' if unreported.any? { |x| x.start_with?('facts.') }
           noun = 'trusted fact' if unreported.all? { |x| x =~ /^trusted\,/ }
           noun.gsub!(%r{/|$}, 's\0') if unreported.size > 1
 

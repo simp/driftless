@@ -8,7 +8,7 @@ module Driftless
       key      'data:missing-nodes'
       severity :warning
       quality  :stale
-      about 'Data under certnames/fqdns not present in report:all-active-nodes'
+      about 'Hiera files matching certnames not present in report:all-active-nodes'
       requires_reports 'all-active-nodes'
 
       NODE_CERTNAME_VARS = %w[trusted.certname facts.fqdn facts.hostname clientcert].freeze

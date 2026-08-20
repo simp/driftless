@@ -18,6 +18,11 @@ module Driftless
         def execute(_argv)
           path = @options[:path] || ::Driftless::Config.project_path
 
+          if path.match? /\A-+\Z/
+            puts render
+            exit 0
+          end
+
           if File.exist?(path) && !@options[:force]
             warn "#{path} already exists (pass --force to overwrite)"
             exit 3
@@ -32,17 +37,22 @@ module Driftless
 
         def configure_parser(o)
           o.on('-p', '--path=PATH',
-               'Write to PATH instead of ./driftless.yaml') { |v| @options[:path] = v }
+               'Write to PATH instead of ./driftless.yaml',
+               "('--' prints to STDOUT)") { |v| @options[:path] = v }
           o.on('--force', 'Overwrite an existing file') { @options[:force] = true }
         end
 
         private
 
-        # One commented-out line at `depth` levels of YAML nesting. Stripping a
-        # single leading "# " from every line of the file yields valid YAML, so
-        # prose lines carry "##" and stay comments through that transformation.
-        def comment(depth, text)
-          "# #{'  ' * depth}#{text}"
+        # Return commented-out line(s) at `depth` levels of YAML nesting
+        def comment(depth, text, cols = 80)
+          text_prefix = text.start_with?('# ') ? '# ' : ''
+          bare_text = text.sub(/\A#{text_prefix}/,'')
+          comment_prefix = "# #{'  ' * depth}"
+          return comment_prefix.strip if text.empty?
+          padding = comment_prefix.size
+          lines = wrap_text(bare_text,cols-comment_prefix.size).split("\n")
+          lines.map { |t| "#{comment_prefix}#{text_prefix}#{t}".strip }.join("\n")
         end
 
         # Renders key/value as YAML, then comments every line at `depth`. Multi-line
@@ -52,16 +62,33 @@ module Driftless
           body.lines.map { |l| comment(depth, l.chomp) }
         end
 
+        # Wrap at text at nearest whitespace to <col> characters
+        def wrap_text(txt, col = 80)
+          txt.gsub(
+            /(?:((?>.{1,#{col}}(?:(?<=[^\S\r\n])[^\S\r\n]?|(?=\r?\n)|$|[^\S\r\n]))|.{1,#{col}})(?:\r?\n)?|(?:\r?\n|$))/,
+            "\\1\n"
+          ).chomp
+        end
+
         def render
-          lines = ['## driftless configuration. Every key is listed commented out,',
-                   '## showing its default or an illustrative value.',
+          require 'time'
+          lines = ['## driftless configuration file',
+                   '## ' + '-'*77,
+                   "## Generated at #{Time.now} by `driftless config new`",
                    '##',
-                   '## Search order (later wins, arrays union):',
+                   '## Every key starts commented out, showing its default/an illustrative value.',
+                   '##',
+                   '## Config file search order:',
                    *::Driftless::Config.search_chain.map { |p| "##   #{p}" },
-                   '## `--config PATH` replaces that chain; `--no-config` skips it.']
+                   '## `--config PATH` replaces that chain; `--no-config` skips it.',
+                   '## ' + '-'*77,
+          ]
           subsystems.each { |name| lines.concat(subsystem_section(name)) }
           lines.concat(detectors_section)
-          lines.concat(withheld_section)
+          lines.concat([comment(0,'')])
+          # lines.concat(withheld_section)
+          lines = lines.map { |x| x.split(/\n/) }.flatten
+          lines.map! { |x| x.gsub(/\s+$/, '') }
           "#{lines.join("\n")}\n"
         end
 
@@ -75,7 +102,7 @@ module Driftless
             lines << comment(1, "# #{key.about}") if key.about
             lines.concat(yaml_lines(key.name, sample_value(key), 1))
           end
-          lines
+          lines << '#'
         end
 
         # Withheld keys are listed once at the end rather than in each section
@@ -118,8 +145,14 @@ module Driftless
         def detectors_section
           sample = ::Driftless::Detectors.registry.map(&:key).sort.first
           lines  = ['',
-                    '## `only` and `skip` select which detectors run; `defaults` applies to',
-                    '## every detector; a detector key overrides defaults for that one.',
+                    '#',
+                    '## ' + '-'*77,
+                    '##' + 'DETECTORS'.center(78),
+                    '## ' + '-'*77,
+                    '## - `only` and `skip` select which detectors run',
+                    '## = `defaults` applies to every detector',
+                    '## - A per-detector key overrides its defaults',
+                    '## ' + '-'*77,
                     comment(0, 'detectors:')]
           ::Driftless::ConfigKeys.settable('detectors').each do |key|
             lines << comment(1, "# #{key.about}") if key.about
@@ -132,7 +165,13 @@ module Driftless
             lines << '#'
             lines << comment(1, "# #{klass.about}")
             lines << comment(1, "#{klass.key}:")
-            klass.config_options.each_value { |opt| lines.concat(option_lines(opt, 2)) }
+            # FIXME: all base options are included for every detector,
+            #        even though not every detector uses them.  This is
+            #        misleading.
+            klass.config_options.each_value do |opt|
+              lines.concat(option_lines(opt, 2,
+                base_options.map { |x| x[:name]}))
+            end
           end
           lines
         end
@@ -141,9 +180,11 @@ module Driftless
           ::Driftless::Detectors::Base.config_options.values
         end
 
-        def option_lines(opt, depth)
+        def option_lines(opt, depth, exclude_comments=[])
           lines = []
-          lines << comment(depth, "# #{opt[:about]}") if opt[:about]
+          unless exclude_comments.include?(opt[:name])
+            lines << comment(depth, "# #{opt[:about]}") if opt[:about]
+          end
           lines.concat(yaml_lines(opt[:name], opt[:default], depth))
           lines
         end

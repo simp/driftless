@@ -9,8 +9,8 @@ module Driftless
       key      'hierarchy:files-missed-by-reported-fact-values'
       severity :warning
       quality  :stale
-      about 'Hiera data files that tiers could reach but don\'t ' \
-            'because no reported facts match the necessary value'
+      about 'Hiera data files that a tier *could* reach but won\'t, ' \
+            'because no reported value for the required fact matches'
       requires_reports 'factsets-for-all-active-nodes'
 
       BACKEND_EXT = {
@@ -52,7 +52,7 @@ module Driftless
         orphans.map do |path|
           build_finding(
             path:    path,
-            message: 'no reported fact can resolve any hierarchy tier to this path',
+            message: 'no reported fact resolves any hierarchy tier to this path',
           )
         end
       end

@@ -8,8 +8,8 @@ module Driftless
       key      'hierarchy:unreachable-data-files'
       severity :warning
       quality  :impossible
-      about 'Hiera data files that are unreachable by the Hiera hierarchy ' \
-            '(no tier template pattern could match, regardless of facts)'
+      about 'Hiera data files that are unreachable by every tier in the hierarchy ' \
+            '(regardless of facts)'
 
       BACKEND_EXT = {
         yaml_data:  '.yaml',

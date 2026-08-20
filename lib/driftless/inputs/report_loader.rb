@@ -12,7 +12,7 @@ module Driftless
       extend ::Driftless::ConfigKeys::DSL
 
       config_key 'reports.incoming_dir', type: :string, default: 'incoming',
-                 about: 'Raw-report landing tree, read by scan and other report consumers'
+        about: "Raw-report landing directory tree for PDB reports from all enclaves. \nPopulated by `driftless import`, read by `driftless scan` and others "
 
       QUERIES = %w[all-active-nodes factsets-for-all-active-nodes].freeze
       NODE_REPORTS = %w[all-active-nodes factsets-for-all-active-nodes].freeze

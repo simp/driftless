@@ -9,7 +9,7 @@ module Driftless
       key      'code:lookup-missing-hiera-keys'
       severity :error
       quality  :wrong
-      about 'Explicit lookup() calls searching for keys not defined anywhere in Hiera'
+      about '`lookup()` calls for keys not defined anywhere in Hiera'
 
       # Matches any file under a Puppet module directory (modules/ or
       # site-modules/), capturing the module name. Includes .pp AND .epp

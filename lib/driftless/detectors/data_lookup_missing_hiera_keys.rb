@@ -21,8 +21,8 @@ module Driftless
           findings << build_finding(
             path:    lc.file,
             line:    lc.line,
-            message: "hiera value interpolation for #{lc.key.inspect} but no top-level key " \
-                     'with that name is defined in any Hiera data file',
+            message: "lookup/alias for #{lc.key.inspect}, but that key " \
+                     'is not defined in any Hiera file',
             meta:    { lookup_key: lc.key },
           )
         end

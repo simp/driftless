@@ -16,7 +16,7 @@ module Driftless
     extend ConfigKeys::DSL
 
     config_key 'puppet.environments', type: :array, default: [],
-               about: 'Puppet environments to scan (required)'
+                about: 'Puppet environment(s) to scan.  Generally your main production environment; multiple values are accepted to acommodate multi-tenant/site variations'
     config_key 'puppet.allow_missing_envs', type: :boolean, default: false,
                about: 'Warn instead of erroring when a listed environment has no reports'
     config_key 'reports.accept_duplicate_certnames', type: :boolean, default: false,

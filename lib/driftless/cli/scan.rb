@@ -135,7 +135,7 @@ module Driftless
         o.separator ''
         o.separator 'Environment scoping:'
         o.on('--environments=ENVS', Array,
-             'Puppet environments to lint, comma-separated (required)') do |v|
+             'Puppet environment(s) to lint, comma-separated (required)') do |v|
           @options[:environments] = v
         end
         o.on('--accept-duplicate-certnames',

@@ -93,15 +93,13 @@ module Driftless
       # - :enabled — {Scan#run} skips detectors where option(:enabled) is false.
       # - :exclude_paths — findings whose path matches any pattern are dropped.
       config_option :enabled, type: :boolean, default: true,
-        about: 'Whether this detector runs during a scan'
+        about: 'Enables/disables detector during a scan'
       config_option :exclude_paths, type: :array, default: [],
-        about: 'Glob patterns; findings whose path matches any pattern are filtered out'
+        about: 'List (of glob patterns) to filter out any finding with a matching path'
       config_option :exclude_tiers, type: :array, default: [],
-        about: 'Glob patterns matched against Hiera tier names; ' \
-               'tier-iterating detectors skip any matching tier'
+        about: 'List (of glob patterns) used by tier-iterating detectors to filter out matching Hiera tiers'
       config_option :exclude_facts, type: :array, default: [],
-        about: 'Glob patterns matched against fact / interpolation-variable names; ' \
-               'fact-examining detectors treat any matching name as "not our concern"'
+        about: 'List (of glob patterns) to exclude fact/variable names'
 
       attr_reader :corpus
 

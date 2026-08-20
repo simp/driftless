@@ -9,8 +9,8 @@ module Driftless
       key      'hierarchy:tiers-interpolating-legacy-facts'
       severity :error
       quality  :wrong
-      about 'Hierarchy tiers that interpolate legacy facts ' \
-            '(osfamily, fqdn, etc.) instead of structured facts'
+      about 'Hierarchy tiers interpolating deprecated legacy facts ' \
+            '(osfamily, fqdn, etc.)'
 
       def call
         findings = []

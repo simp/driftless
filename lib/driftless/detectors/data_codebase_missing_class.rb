@@ -8,13 +8,13 @@ module Driftless
       key      'data:codebase-missing-class'
       severity :error
       quality  :wrong
-      about 'Data key references class::param where the class is not defined in the codebase'
+      about 'Hiera key references a class not defined in the codebase'
 
       def call
         findings   = []
-        # Explicit lookups (code OR data interpolation) exempt a namespace-shaped
-        # key from missing-class findings — someone is using it intentionally,
-        # even if it doesn't map to a class::param.
+        # Direct lookup() calls from Puppet or Hiera are exempt:
+        # Someone is looking for that key intentionally, even if it doesn't map
+        # to a real class - it might be a Hiera-only namespace.
         exemptions = (corpus.code_lookup_calls + corpus.data_lookup_calls).map(&:key).to_set
 
         corpus.data_files.each do |df|

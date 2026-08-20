@@ -79,7 +79,7 @@ module Driftless
           unless SUPPORTED_DATA_HASH_BACKENDS.include?(backend)
             findings << finding(
               'hierarchy:unscannable-backend',
-              "tier #{name.inspect} uses data_hashi: #{backend.inspect} (currently unscannable by driftless)",
+              "tier #{name.inspect} uses data_hash: #{backend.inspect} (currently unscannable by driftless)",
               line: line,
               severity: :note,
             )
@@ -146,7 +146,7 @@ module Driftless
         template.to_s.scan(INTERPOLATION_RE).map { |m| m[0].strip }
       end
 
-      def finding(key, message, line: nil, severity: nil)
+      def finding(key, message, line: nil, severity: :warning)
         Finding.new(key: key, path: @hiera_yaml, line: line, message: message, meta: {}, severity: severity)
       end
     end

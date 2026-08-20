@@ -237,6 +237,51 @@ RSpec.describe Driftless::CLI::Base do
     end
   end
 
+  describe '#run — -c/--config placement' do
+    let(:branch) { parent_class }
+    let!(:child) do
+      b = branch
+      Class.new(described_class) do
+        register_command name: 'child', subcommand_of: b
+        desc 'child leaf'
+        define_method(:execute) { |_argv| }
+      end
+    end
+
+    it 'exits 2 pointing at the root when -c follows the subcommand' do
+      expect { branch.new.run(['child', '-c', '/some/driftless.yaml']) }
+        .to raise_error(SystemExit) { |e| expect(e.status).to eq(2) }
+        .and output(%r{-c/--config must precede the subcommand}).to_stderr
+    end
+
+    it 'exits 2 when --config follows the subcommand' do
+      expect { branch.new.run(['child', '--config=/some/driftless.yaml']) }
+        .to raise_error(SystemExit) { |e| expect(e.status).to eq(2) }
+        .and output(%r{-c/--config must precede the subcommand}).to_stderr
+    end
+
+    it 'names the full subcommand path in the correction' do
+      expect { branch.new.run(['child', '-c', '/some/driftless.yaml']) }
+        .to raise_error(SystemExit)
+        .and output(/driftless -c PATH child \.\.\./).to_stderr
+    end
+
+    it 'does not let -c fall through to --color' do
+      seen = nil
+      child.define_method(:execute) { |_argv| seen = @options[:color] }
+      expect { branch.new.run(['child', '-c', '/some/driftless.yaml']) }
+        .to raise_error(SystemExit).and output.to_stderr
+      expect(seen).to be_nil
+    end
+
+    it 'leaves --no-color working' do
+      seen = nil
+      child.define_method(:execute) { |_argv| seen = @options[:color] }
+      branch.new.run(['child', '--no-color'])
+      expect(seen).to be(false)
+    end
+  end
+
   describe '#run — --help' do
     it 'prints help to stdout and exits 0' do
       leaf = Class.new(described_class) do

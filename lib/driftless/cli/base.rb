@@ -149,6 +149,7 @@ module Driftless
           o.separator ''
           o.separator 'Options:'
           configure_parser(o)
+          reserve_config_flag(o)
           o.on('-v', '--verbose', 'Verbose output (repeat for debug: -vv)') do
             if @options[:verbose]
               @options[:debug] = true
@@ -162,6 +163,17 @@ module Driftless
             puts o
             exit 0
           end
+        end
+      end
+
+      # Left undeclared, OptionParser completes a bare -c to --color and
+      # silently discards the path.
+      def reserve_config_flag(o)
+        return if self.class.parent_command.nil?
+        o.on('-c', '--config=PATH', 'Config file (must precede the subcommand)') do
+          sub = self.class.command_path.drop(1).join(' ')
+          warn "-c/--config must precede the subcommand: driftless -c PATH #{sub} ..."
+          exit 2
         end
       end
 

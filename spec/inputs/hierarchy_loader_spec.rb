@@ -101,8 +101,8 @@ RSpec.describe Driftless::Inputs::HierarchyLoader do
         expect(tiers.map(&:name)).to eq(['Default'])
       end
 
-      it 'emits one hierarchy:unsupported-backend finding' do
-        expect(findings.map(&:key)).to eq(['hierarchy:unsupported-backend'])
+      it 'emits one hierarchy:unscannable-backend finding' do
+        expect(findings.map(&:key)).to eq(['hierarchy:unscannable-backend'])
       end
     end
 

@@ -14,11 +14,9 @@ module Driftless
   # @!attribute [r] trusted
   #   @return [Hash] Trusted facts, as reported.
   # @!attribute [r] collector
-  #   @return [String, nil] Which collector's file this node was taken from,
-  #     parsed from `<collector>--<timestamp>` in the filename. When several
-  #     collectors report the same certname only the winner's name survives,
-  #     so this names the source of the data kept, not every source that saw
-  #     the node. nil for nodes not built from a report file.
+  #   @return [String, nil] Which collector reported this node, parsed from
+  #     `<collector>--<timestamp>` in the filename. nil for nodes not built
+  #     from a report file.
   Node = Struct.new(
     :certname, :environment, :facts, :trusted, :collector,
     keyword_init: true,

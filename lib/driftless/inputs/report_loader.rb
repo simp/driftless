@@ -26,37 +26,40 @@ module Driftless
       end
 
       def load
-        data     = {}
-        findings = []
+        data       = {}
+        findings   = []
+        duplicates = {}
         QUERIES.each do |query|
-          records, errs = load_query(query)
+          records, errs, dups = load_query(query)
           data[query] = records
           findings.concat(errs)
+          dups.each { |certname, collectors| (duplicates[certname] ||= []).concat(collectors) }
         end
-        [Reported.new(data: data), findings]
+        duplicates.each_value { |collectors| collectors.replace(collectors.uniq.sort) }
+        [Reported.new(data: data, duplicate_certnames: duplicates), findings]
       end
 
       private
 
       def load_query(query)
-        return [Reported::MissingReport, []] if query.start_with?('.')
+        return [Reported::MissingReport, [], {}] if query.start_with?('.')
 
         query_dir = File.join(@incoming_dir, query)
-        return [Reported::MissingReport, []] unless File.directory?(query_dir)
+        return [Reported::MissingReport, [], {}] unless File.directory?(query_dir)
 
         files = Dir[File.join(query_dir, '*.json'), File.join(query_dir, '*.ndjson')]
           .reject { |f| File.basename(f).start_with?('.') }
-        return [Reported::MissingReport, []] if files.empty?
+        return [Reported::MissingReport, [], {}] if files.empty?
 
-        per_collector = newest_per_collector(files)
-        winners, errs = merge_per_certname(per_collector, query)
+        per_collector       = newest_per_collector(files)
+        winners, errs, dups = merge_per_certname(per_collector, query)
         records =
           if NODE_REPORTS.include?(query)
             winners.map { |w| build_node(w[:record], w[:collector]) }
           else
             winners.map { |w| w[:record] }
           end
-        [records, errs]
+        [records, errs, dups]
       end
 
       def newest_per_collector(files)
@@ -74,6 +77,7 @@ module Driftless
 
       def merge_per_certname(per_collector, query)
         per_certname = {}
+        claimed_by   = Hash.new { |h, k| h[k] = [] }
         errs = []
         per_collector.each do |collector, info|
           records =
@@ -89,11 +93,16 @@ module Driftless
           Array(records).each do |record|
             certname = record['certname']
             next unless certname
+            claimed_by[certname] << collector
             candidate = { record: record, collector: collector }
             per_certname[certname] = pick_winner(per_certname[certname], candidate)
           end
         end
-        [per_certname.values, errs]
+        dups = claimed_by.each_with_object({}) do |(certname, collectors), acc|
+          uniq = collectors.uniq
+          acc[certname] = uniq.sort if uniq.length > 1
+        end
+        [per_certname.values, errs, dups]
       end
 
       def pick_winner(existing, candidate)
@@ -105,17 +114,6 @@ module Driftless
           elsif et > ct then existing
           else (candidate[:collector] < existing[:collector]) ? candidate : existing
           end
-
-        ee = existing[:record]['catalog_environment']  || existing[:record]['environment']
-        ce = candidate[:record]['catalog_environment'] || candidate[:record]['environment']
-        if ee && ce && ee != ce
-          certname    = winner[:record]['certname']
-          winning_env = winner.equal?(candidate) ? ce : ee
-          Driftless.logger.warn(
-            "certname #{certname.inspect} appears in multiple environments " \
-            "(#{ee.inspect} vs #{ce.inspect}); keeping #{winning_env.inspect}",
-          )
-        end
 
         winner
       end

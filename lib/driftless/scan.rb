@@ -19,14 +19,17 @@ module Driftless
                about: 'Puppet environments to scan (required)'
     config_key 'puppet.allow_missing_envs', type: :boolean, default: false,
                about: 'Warn instead of erroring when a listed environment has no reports'
+    config_key 'reports.accept_duplicate_certnames', type: :boolean, default: false,
+               about: 'Warn instead of erroring when one certname is reported by two collectors'
 
     attr_reader :repo_dir, :incoming_dir, :only, :skip, :basemodulepath,
                 :environments, :allow_missing_envs, :summary_dir,
-                :accept_partial_report_sessions
+                :accept_partial_report_sessions, :accept_duplicate_certnames
 
     def initialize(repo_dir:, incoming_dir:, only: nil, skip: nil, basemodulepath: nil,
                    environments: nil, allow_missing_envs: false,
-                   summary_dir: nil, accept_partial_report_sessions: nil)
+                   summary_dir: nil, accept_partial_report_sessions: nil,
+                   accept_duplicate_certnames: false)
       @repo_dir                       = repo_dir
       @incoming_dir                   = incoming_dir
       @only                           = only
@@ -36,6 +39,7 @@ module Driftless
       @allow_missing_envs             = allow_missing_envs
       @summary_dir                    = summary_dir
       @accept_partial_report_sessions = accept_partial_report_sessions
+      @accept_duplicate_certnames      = accept_duplicate_certnames
     end
 
     def run
@@ -90,6 +94,7 @@ module Driftless
       Driftless.logger.info("Loaded #{data_files.size} Hiera data files")
 
       reported, rl_findings = phase('report load') { Inputs::ReportLoader.load(incoming_dir) }
+      phase('duplicate certname check') { check_duplicate_certnames!(reported) }
       meta_findings.concat(rl_findings)
       Driftless.logger.info("Loaded PuppetDB reports from #{incoming_dir}")
 
@@ -260,6 +265,29 @@ module Driftless
             '(accepting partial session per --accept-partial-report-sessions)',
           )
         end
+      end
+    end
+
+    def check_duplicate_certnames!(reported)
+      dups = reported.duplicate_certnames
+      return if dups.nil? || dups.empty?
+
+      described = dups.map { |certname, collectors| "#{certname} (#{collectors.join(', ')})" }
+
+      unless @accept_duplicate_certnames
+        raise ScanError,
+              "certname reported by more than one collector: #{described.join('; ')} " \
+              '— an agent belongs to one PuppetDB ecosystem, so the report set is ' \
+              'inconsistent and findings drawn from it cannot be trusted. Investigate ' \
+              'the collectors, or pass --accept-duplicate-certnames to scan anyway.'
+      end
+
+      dups.each do |certname, collectors|
+        Driftless.logger.warn(
+          "certname #{certname.inspect} reported by #{collectors.length} collectors " \
+          "(#{collectors.join(', ')}); keeping the newest record " \
+          '(accepted per accept_duplicate_certnames)',
+        )
       end
     end
 

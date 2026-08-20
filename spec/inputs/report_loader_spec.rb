@@ -51,9 +51,7 @@ RSpec.describe Driftless::Inputs::ReportLoader do
         expect(nodes['b'].collector).to eq('beta')
       end
 
-      # Only the winning record survives the merge, so collector names the
-      # source of the data kept — not every collector that saw the certname.
-      it 'names the winning collector when several report the same certname' do
+      it 'keeps the newest record when two collectors report one certname' do
         dir = incoming(
           'alpha--2026-08-20T00:00:00Z.json' => [
             { 'certname' => 'shared', 'report_timestamp' => '2026-08-01T00:00:00Z' },
@@ -63,6 +61,43 @@ RSpec.describe Driftless::Inputs::ReportLoader do
           ],
         )
         expect(nodes_by_certname(dir)['shared'].collector).to eq('beta')
+      end
+    end
+
+    describe 'duplicate certnames' do
+      def incoming(files)
+        dir = Dir.mktmpdir
+        FileUtils.mkdir_p(File.join(dir, 'all-active-nodes'))
+        files.each do |name, records|
+          File.write(File.join(dir, 'all-active-nodes', name), JSON.generate(records))
+        end
+        dir
+      end
+
+      it 'reports the certname and every collector that claimed it' do
+        reported, = described_class.load(fixture('two_collectors'))
+        expect(reported.duplicate_certnames).to eq('alpha.example.com' => %w[east west])
+      end
+
+      it 'is empty when each collector reports a distinct set' do
+        dir = incoming(
+          'alpha--2026-08-20T00:00:00Z.json' => [{ 'certname' => 'a' }],
+          'beta--2026-08-20T00:00:00Z.json'  => [{ 'certname' => 'b' }],
+        )
+        expect(described_class.load(dir)[0].duplicate_certnames).to be_empty
+      end
+
+      # Two files from one collector are a normal supersession, not a conflict.
+      it 'ignores repeats within a single collector' do
+        dir = incoming(
+          'alpha--2026-08-19T00:00:00Z.json' => [{ 'certname' => 'a' }],
+          'alpha--2026-08-20T00:00:00Z.json' => [{ 'certname' => 'a' }],
+        )
+        expect(described_class.load(dir)[0].duplicate_certnames).to be_empty
+      end
+
+      it 'is empty for an incoming dir that does not exist' do
+        expect(described_class.load('/does/not/exist')[0].duplicate_certnames).to be_empty
       end
 
       it 'defaults to nil for a node not built from a report file' do

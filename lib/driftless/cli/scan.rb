@@ -80,6 +80,7 @@ module Driftless
             basemodulepath:                 @options[:basemodulepath],
             environments:                   @options[:environments],
             allow_missing_envs:             @options[:allow_missing_envs] || false,
+            accept_duplicate_certnames:     @options[:accept_duplicate_certnames] || false,
             summary_dir:                    summary_dir,
             accept_partial_report_sessions: @options[:accept_partial_report_sessions],
           ).run
@@ -134,6 +135,10 @@ module Driftless
              'Puppet environments to lint, comma-separated (required)') do |v|
           @options[:environments] = v
         end
+        o.on('--accept-duplicate-certnames',
+             'Warn instead of erroring when one certname is reported by two collectors') do
+          @options[:accept_duplicate_certnames] = true
+        end
         o.on('--allow-missing-envs',
              'Warn instead of error when a listed environment has no reports') do
           @options[:allow_missing_envs] = true
@@ -159,6 +164,7 @@ module Driftless
           tabularize:         cfg.dig('output',    'tabularize'),
           environments:       cfg.dig('puppet',    'environments'),
           allow_missing_envs: cfg.dig('puppet',    'allow_missing_envs'),
+          accept_duplicate_certnames: cfg.dig('reports', 'accept_duplicate_certnames'),
           only:               cfg.dig('detectors', 'only'),
           skip:               cfg.dig('detectors', 'skip'),
           incoming_dir:       cfg.dig('reports',   'incoming_dir'),

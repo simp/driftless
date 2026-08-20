@@ -309,6 +309,50 @@ RSpec.describe Driftless::Scan do
     end
   end
 
+  describe '#check_duplicate_certnames!' do
+    def scan_with(accept: false)
+      described_class.new(repo_dir: '/tmp/repo', incoming_dir: '/tmp/incoming',
+                          accept_duplicate_certnames: accept)
+    end
+
+    def reported_with(duplicates)
+      Driftless::Reported.new(data: {}, duplicate_certnames: duplicates)
+    end
+
+    it 'no-ops when no certname is claimed twice' do
+      expect { scan_with.send(:check_duplicate_certnames!, reported_with({})) }.not_to raise_error
+    end
+
+    it 'raises ScanError naming the certname and both collectors' do
+      expect { scan_with.send(:check_duplicate_certnames!, reported_with('a.example.com' => %w[east west])) }
+        .to raise_error(Driftless::ScanError, /a\.example\.com \(east, west\)/)
+    end
+
+    it 'points at the override rather than just failing' do
+      expect { scan_with.send(:check_duplicate_certnames!, reported_with('a' => %w[east west])) }
+        .to raise_error(Driftless::ScanError, /--accept-duplicate-certnames/)
+    end
+
+    it 'names every affected certname, not just the first' do
+      dups = { 'a' => %w[east west], 'b' => %w[east west] }
+      expect { scan_with.send(:check_duplicate_certnames!, reported_with(dups)) }
+        .to raise_error(Driftless::ScanError, /a \(east, west\).*b \(east, west\)/)
+    end
+
+    context 'with accept_duplicate_certnames' do
+      it 'warns once per certname instead of raising' do
+        expect(Driftless.logger).to receive(:warn).with(/a\.example\.com.*east, west/).once
+        expect { scan_with(accept: true).send(:check_duplicate_certnames!, reported_with('a.example.com' => %w[east west])) }
+          .not_to raise_error
+      end
+
+      it 'still warns for every affected certname' do
+        expect(Driftless.logger).to receive(:warn).twice
+        scan_with(accept: true).send(:check_duplicate_certnames!, reported_with('a' => %w[e w], 'b' => %w[e w]))
+      end
+    end
+  end
+
   describe '#check_summary_coverage!' do
     def scan_with(summary_dir:, override: nil, incoming: '/tmp/incoming')
       described_class.new(

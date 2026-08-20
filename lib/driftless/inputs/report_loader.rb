@@ -49,8 +49,13 @@ module Driftless
         return [Reported::MissingReport, []] if files.empty?
 
         per_collector = newest_per_collector(files)
-        records, errs = merge_per_certname(per_collector, query)
-        records = records.map { |r| build_node(r) } if NODE_REPORTS.include?(query)
+        winners, errs = merge_per_certname(per_collector, query)
+        records =
+          if NODE_REPORTS.include?(query)
+            winners.map { |w| build_node(w[:record], w[:collector]) }
+          else
+            winners.map { |w| w[:record] }
+          end
         [records, errs]
       end
 
@@ -88,7 +93,7 @@ module Driftless
             per_certname[certname] = pick_winner(per_certname[certname], candidate)
           end
         end
-        [per_certname.values.map { |v| v[:record] }, errs]
+        [per_certname.values, errs]
       end
 
       def pick_winner(existing, candidate)
@@ -127,10 +132,11 @@ module Driftless
         end
       end
 
-      def build_node(record)
+      def build_node(record, collector = nil)
         Node.new(
           certname:    record['certname'],
           environment: record['catalog_environment'] || record['environment'],
+          collector:   collector,
           facts:       record['facts']   || {},
           trusted:     record['trusted'] || {},
         )

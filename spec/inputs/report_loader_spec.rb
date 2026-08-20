@@ -27,6 +27,49 @@ RSpec.describe Driftless::Inputs::ReportLoader do
       end
     end
 
+    describe 'collector attribution' do
+      def incoming(files)
+        dir = Dir.mktmpdir
+        FileUtils.mkdir_p(File.join(dir, 'all-active-nodes'))
+        files.each do |name, records|
+          File.write(File.join(dir, 'all-active-nodes', name), JSON.generate(records))
+        end
+        dir
+      end
+
+      def nodes_by_certname(dir)
+        described_class.load(dir)[0].report('all-active-nodes').to_h { |n| [n.certname, n] }
+      end
+
+      it 'names the collector whose file the node came from' do
+        dir = incoming(
+          'alpha--2026-08-20T00:00:00Z.json' => [{ 'certname' => 'a', 'environment' => 'production' }],
+          'beta--2026-08-20T00:00:00Z.json'  => [{ 'certname' => 'b', 'environment' => 'production' }],
+        )
+        nodes = nodes_by_certname(dir)
+        expect(nodes['a'].collector).to eq('alpha')
+        expect(nodes['b'].collector).to eq('beta')
+      end
+
+      # Only the winning record survives the merge, so collector names the
+      # source of the data kept — not every collector that saw the certname.
+      it 'names the winning collector when several report the same certname' do
+        dir = incoming(
+          'alpha--2026-08-20T00:00:00Z.json' => [
+            { 'certname' => 'shared', 'report_timestamp' => '2026-08-01T00:00:00Z' },
+          ],
+          'beta--2026-08-20T00:00:00Z.json' => [
+            { 'certname' => 'shared', 'report_timestamp' => '2026-08-18T00:00:00Z' },
+          ],
+        )
+        expect(nodes_by_certname(dir)['shared'].collector).to eq('beta')
+      end
+
+      it 'defaults to nil for a node not built from a report file' do
+        expect(Driftless::Node.new(certname: 'x').collector).to be_nil
+      end
+    end
+
     context 'against a basic single-collector incoming dir' do
       let(:reported) { described_class.load(fixture('basic'))[0] }
       let(:nodes)    { reported.report('all-active-nodes') }

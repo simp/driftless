@@ -31,8 +31,8 @@ module Driftless
         #   1. CLI flags (parsed later, overwrite everything)
         #   2. parent_options (inherited from Root's own CLI flags — verbose, etc.)
         #   3. config-derived values (from driftless.yaml, mapped via config_defaults)
-        #   4. hardcoded defaults (fail_on: 'any')
-        @options = { fail_on: 'any' }.merge(config_defaults).merge(@options)
+        #   4. hardcoded defaults (fail_on: 'any', tabularize: true)
+        @options = { fail_on: 'any', tabularize: true }.merge(config_defaults).merge(@options)
       end
 
       def execute(_argv)
@@ -128,6 +128,8 @@ module Driftless
           @options[:output_file] = v
           @options[:format] = 'json' if v.match?(/\.json\Z/i)
         end
+        o.on('--[no-]tabularize',
+             'Align finding messages in a column (default: on)') { |v| @options[:tabularize] = v }
 
         o.separator ''
         o.separator 'Environment scoping:'
@@ -157,6 +159,7 @@ module Driftless
           fail_on:            cfg.dig('scan',      'fail_on'),
           format:             cfg.dig('output',    'format'),
           output_file:        cfg.dig('output',    'default_file'),
+          tabularize:         cfg.dig('output',    'tabularize'),
           environments:       cfg.dig('puppet',    'environments'),
           allow_missing_envs: cfg.dig('puppet',    'allow_missing_envs'),
           only:               cfg.dig('detectors', 'only'),
@@ -170,7 +173,8 @@ module Driftless
         out    = @options[:output_file] ? File.open(@options[:output_file], 'w') : $stdout
         case format
         when 'json' then Outputs::JsonWriter.write(findings, out)
-        else             Outputs::TextWriter.write(findings, out, color: resolve_color(out))
+        else             Outputs::TextWriter.write(findings, out, color: resolve_color(out),
+                                                   tabularize: @options[:tabularize])
         end
       ensure
         out.close if out && out != $stdout

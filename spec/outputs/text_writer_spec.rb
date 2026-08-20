@@ -43,6 +43,65 @@ RSpec.describe Driftless::Outputs::TextWriter do
       expect(lines[0]).not_to include('z:foo')
     end
 
+    def render(findings, **kwargs)
+      io = StringIO.new
+      described_class.write(findings, io, **kwargs)
+      io.string
+    end
+
+    # Messages are last on their line, so anchoring the match at end-of-line
+    # locates the column unambiguously.
+    def message_column(rendered, message)
+      at   = /#{Regexp.escape(message)}$/
+      line = rendered.gsub(/\e\[[0-9;]*m/, '').lines.grep(at).first
+      line.index(at)
+    end
+
+    let(:uneven_locations) do
+      [
+        finding(key: 'k', path: '/tmp/a',           line: 1,   message: 'short'),
+        finding(key: 'k', path: '/tmp/longer-path', line: 200, message: 'long'),
+      ]
+    end
+
+    it 'leaves each message at its own column when tabularize is off' do
+      out = render(uneven_locations, tabularize: false)
+      expect(message_column(out, 'short')).to be < message_column(out, 'long')
+    end
+
+    it 'aligns messages to a common column within a group by default' do
+      out = render(uneven_locations)
+      expect(message_column(out, 'short')).to eq(message_column(out, 'long'))
+    end
+
+    # A path-only location carries one ANSI wrap and a path:line location
+    # carries two, so byte length exceeds visible width by a different amount
+    # on each row.
+    let(:mixed_ansi_overhead) do
+      [
+        finding(key: 'k', path: '/tmp/a',    line: nil, message: 'one'),
+        finding(key: 'k', path: '/tmp/bbbb', line: 12,  message: 'two'),
+      ]
+    end
+
+    it 'aligns on visible width rather than ANSI byte length' do
+      colored = render(mixed_ansi_overhead, color: true)
+      plain   = render(mixed_ansi_overhead)
+      expect(message_column(colored, 'one')).to eq(message_column(plain, 'one'))
+      expect(message_column(colored, 'one')).to eq(message_column(colored, 'two'))
+    end
+
+    it 'measures each group independently, not across the whole report' do
+      findings = [
+        finding(key: 'a:one', path: '/x',                  line: 1, message: 'alpha'),
+        finding(key: 'b:two', path: '/a-much-longer-path', line: 1, message: 'beta'),
+      ]
+      tabbed = render(findings)
+      plain  = render(findings, tabularize: false)
+      expect(message_column(tabbed, 'alpha')).to eq(message_column(plain, 'alpha'))
+      expect(message_column(tabbed, 'beta')).to eq(message_column(plain, 'beta'))
+    end
+
     it 'formats location as path:line when both are present' do
       io = StringIO.new
       described_class.write([finding(key: 'k', path: '/tmp/x', line: 42, message: 'msg')], io)

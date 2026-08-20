@@ -30,7 +30,9 @@ module Driftless
 
       # `color:` nil means auto — on iff io.tty?. Callers may force true/false
       # to reflect --color / --no-color or NO_COLOR.
-      def write(findings, io, color: nil)
+      # `tabularize:` pads each group's locations to a common width so the
+      # messages line up.
+      def write(findings, io, color: nil, tabularize: true)
         color = io.respond_to?(:tty?) && io.tty? if color.nil?
         style = ->(str, *s) { color ? Ansi.wrap(str, *s) : str }
 
@@ -44,8 +46,11 @@ module Driftless
         grouped.each_with_index do |(key, group), i|
           io.puts if i > 0
           io.puts group_header(key, group, style)
-          group.sort_by { |f| [f.path.to_s, f.line || 0] }.each do |f|
-            io.puts "  #{format_location(f, style)}  #{style.call(f.message, *MESSAGE_STYLES)}"
+          items = group.sort_by { |f| [f.path.to_s, f.line || 0] }
+          width = tabularize ? items.map { |f| raw_location(f).length }.max : nil
+          items.each do |f|
+            pad = width ? ' ' * (width - raw_location(f).length) : ''
+            io.puts "  #{format_location(f, style)}#{pad}  #{style.call(f.message, *MESSAGE_STYLES)}"
           end
         end
       end
@@ -68,6 +73,14 @@ module Driftless
         return '-' unless f.path
         return style.call(f.path, *PATH_STYLES) unless f.line
         "#{style.call(f.path, *PATH_STYLES)}:#{style.call(f.line, *LINE_STYLES)}"
+      end
+
+      # Width source for tabularize — format_location's return may carry ANSI
+      # escapes, whose bytes don't occupy columns.
+      def raw_location(f)
+        return '-' unless f.path
+        return f.path.to_s unless f.line
+        "#{f.path}:#{f.line}"
       end
     end
   end

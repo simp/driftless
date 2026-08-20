@@ -10,7 +10,7 @@ module Driftless
         desc 'List all detector keys and their descriptions'
 
         def execute(_argv)
-          registry = ::Driftless::Detectors.registry
+          registry = ::Driftless::Detectors.registry.sort_by(&:key)
           width = registry.map { |k| k.key.size }.max
           registry.each do |klass|
             puts "#{klass.key.ljust(width)}   #{klass.about}"

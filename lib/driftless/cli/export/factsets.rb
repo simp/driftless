@@ -50,7 +50,7 @@ module Driftless
           o.on('-o', '--output-dir=DIR', 'Target directory for exported factsets (required)') { |v| @options[:output_dir] = v }
           o.on('-i', '--incoming-dir=DIR',
                'Ingest dir holding factsets-for-all-active-nodes/',
-               'Default: scan.incoming_dir from driftless.yaml') { |v| @options[:incoming_dir] = v }
+               'Default: reports.incoming_dir from driftless.yaml') { |v| @options[:incoming_dir] = v }
           o.on('--certname=GLOB',
                'Export only certnames matching GLOB (repeatable; File.fnmatch syntax)') do |v|
             @options[:certname_globs] << v
@@ -86,7 +86,7 @@ module Driftless
 
         def require_incoming_dir!
           return if @options[:incoming_dir]
-          warn 'export factsets: --incoming-dir required (or set scan.incoming_dir in driftless.yaml)'
+          warn 'export factsets: --incoming-dir required (or set reports.incoming_dir in driftless.yaml)'
           print_help($stderr)
           exit 2
         end
@@ -97,7 +97,7 @@ module Driftless
 
         def config_defaults
           cfg = ::Driftless.config
-          { incoming_dir: cfg.dig('scan', 'incoming_dir') }.compact
+          { incoming_dir: cfg.dig('reports', 'incoming_dir') }.compact
         end
       end
     end

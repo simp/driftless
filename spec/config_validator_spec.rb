@@ -5,6 +5,24 @@ require 'driftless/detectors/code_lookup_missing_hiera_keys'
 RSpec.describe Driftless::ConfigValidator do
   # Every key here is read somewhere in lib/; the validator has to let it through
   # or the setting is unreachable.
+  describe 'keys that moved between subsystems' do
+    it 'rejects scan.incoming_dir with its new location' do
+      cfg = Driftless::Config.new(merged: { 'scan' => { 'incoming_dir' => 'incoming' } })
+      expect { described_class.new(cfg).validate! }
+        .to raise_error(Driftless::ConfigValidationError, /scan\.incoming_dir has moved to reports\.incoming_dir/)
+    end
+
+    it 'accepts the new location' do
+      cfg = Driftless::Config.new(merged: { 'reports' => { 'incoming_dir' => 'incoming' } })
+      expect { described_class.new(cfg).validate! }.not_to raise_error
+    end
+
+    it 'leaves other scan keys alone' do
+      cfg = Driftless::Config.new(merged: { 'scan' => { 'fail_on' => 'never' } })
+      expect { described_class.new(cfg).validate! }.not_to raise_error
+    end
+  end
+
   describe 'keys that production code actually reads' do
     {
       %w[puppet role_regex]    => '^role::',

@@ -13,7 +13,13 @@ module Driftless
   # Called by {Driftless::CLI::Root#after_own_parse} after config load;
   # failures surface as `config error: ...` on stderr + exit 2.
   class ConfigValidator
-    KNOWN_SUBSYSTEMS   = %w[detectors puppet output scan logging].freeze
+    KNOWN_SUBSYSTEMS   = %w[detectors puppet output reports scan logging].freeze
+
+    # Keys that moved between subsystems. The old section does not validate its
+    # own keys, so without this a stale key is silently ignored.
+    MOVED_KEYS = {
+      %w[scan incoming_dir] => 'reports.incoming_dir',
+    }.freeze
     KNOWN_PUPPET_KEYS  = %w[environments allow_missing_envs role_regex profile_regex].freeze
 
     # Keys under `detectors:` that name something other than a detector.
@@ -25,6 +31,7 @@ module Driftless
 
     def validate!
       check_top_level_keys
+      check_moved_keys
       check_detector_keys
       check_detector_options
       check_puppet_keys
@@ -45,6 +52,14 @@ module Driftless
           " (known: #{KNOWN_SUBSYSTEMS.join(', ')})"
         end
       raise ConfigValidationError, msg
+    end
+
+    def check_moved_keys
+      MOVED_KEYS.each do |(section, key), destination|
+        next if @config.dig(section, key).nil?
+        raise ConfigValidationError,
+              "#{section}.#{key} has moved to #{destination}"
+      end
     end
 
     def check_detector_keys

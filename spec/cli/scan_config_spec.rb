@@ -44,8 +44,8 @@ RSpec.describe Driftless::CLI::Scan do
       expect(opts[:skip]).to eq(['c'])
     end
 
-    it 'reads scan.incoming_dir' do
-      set_config('scan' => { 'incoming_dir' => '/repo/raw_reports' })
+    it 'reads reports.incoming_dir' do
+      set_config('reports' => { 'incoming_dir' => '/repo/raw_reports' })
       expect(opts_after_construct[:incoming_dir]).to eq('/repo/raw_reports')
     end
 

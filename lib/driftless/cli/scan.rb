@@ -164,7 +164,7 @@ module Driftless
           allow_missing_envs: cfg.dig('puppet',    'allow_missing_envs'),
           only:               cfg.dig('detectors', 'only'),
           skip:               cfg.dig('detectors', 'skip'),
-          incoming_dir:       cfg.dig('scan',      'incoming_dir'),
+          incoming_dir:       cfg.dig('reports',   'incoming_dir'),
         }.compact
       end
 

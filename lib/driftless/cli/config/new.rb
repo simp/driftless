@@ -19,9 +19,11 @@ module Driftless
             ['default_file', 'findings.json',  'Write output here instead of stdout; a .json name also forces format: json'],
             ['tabularize',   true,             'Align finding messages in a column'],
           ],
+          'reports' => [
+            ['incoming_dir', 'incoming',       'Raw-report landing tree read by scan and other report consumers'],
+          ],
           'scan' => [
             ['fail_on',      'any',            'Exit non-zero on findings: any or never'],
-            ['incoming_dir', 'incoming',       'Path to the incoming PuppetDB report tree'],
           ],
           'logging' => [
             ['level',        'warn',           'debug, info, warn, error, or fatal; -v / -vv / -q override it'],

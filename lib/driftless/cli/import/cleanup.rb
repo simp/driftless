@@ -23,7 +23,7 @@ module Driftless
 
           @options[:incoming_dir] = File.expand_path(@options[:incoming_dir]) if @options[:incoming_dir]
           unless @options[:incoming_dir]
-            warn 'import cleanup: --incoming-dir required (or set scan.incoming_dir in driftless.yaml)'
+            warn 'import cleanup: --incoming-dir required (or set reports.incoming_dir in driftless.yaml)'
             print_help($stderr)
             exit 2
           end
@@ -53,7 +53,7 @@ module Driftless
         def configure_parser(o)
           o.on('-i', '--incoming-dir=DIR',
                'Ingest dir to garden',
-               'Default: scan.incoming_dir from driftless.yaml') { |v| @options[:incoming_dir] = v }
+               'Default: reports.incoming_dir from driftless.yaml') { |v| @options[:incoming_dir] = v }
           o.on('-s', '--summary-dir=DIR',
                'Summary dir to garden',
                'Default: sibling summary/ of --incoming-dir') { |v| @options[:summary_dir] = v }
@@ -66,7 +66,7 @@ module Driftless
 
         def config_defaults
           cfg = ::Driftless.config
-          { incoming_dir: cfg.dig('scan', 'incoming_dir') }.compact
+          { incoming_dir: cfg.dig('reports', 'incoming_dir') }.compact
         end
       end
     end

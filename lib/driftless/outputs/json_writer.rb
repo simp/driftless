@@ -7,6 +7,7 @@ module Driftless
 
       # color: and tabularize: are accepted so every writer shares one signature;
       # JSON has no rendering options.
+      # rubocop:disable Lint/UnusedMethodArgument -- intentional; see comment
       def write(findings, io, color: nil, tabularize: nil)
         sorted = findings.sort_by { |f| [f.key, f.path.to_s, f.line || 0] }
         io.puts '['
@@ -16,6 +17,7 @@ module Driftless
         end
         io.puts ']'
       end
+      # rubocop:enable Lint/UnusedMethodArgument
 
       def finding_to_h(f)
         {

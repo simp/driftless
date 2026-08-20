@@ -32,8 +32,11 @@ module Driftless
       end
 
       def execute(_argv)
-        repo = @options[:repo_dir] ? ::Driftless::ControlRepo.new(@options[:repo_dir])
-                                   : ::Driftless::ControlRepo.detect(Dir.pwd)
+        repo = if @options[:repo_dir]
+                 ::Driftless::ControlRepo.new(@options[:repo_dir])
+               else
+                 ::Driftless::ControlRepo.detect(Dir.pwd)
+               end
         @options[:repo_dir]       = repo&.dir
         @options[:incoming_dir] ||= repo&.default_incoming_dir
         @options[:incoming_dir]   = File.expand_path(@options[:incoming_dir]) if @options[:incoming_dir]

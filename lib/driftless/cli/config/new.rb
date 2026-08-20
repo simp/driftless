@@ -13,7 +13,7 @@ module Driftless
         desc 'Write a driftless.yaml listing every known key, commented out'
 
         # detectors last: it is by far the longest section.
-        SUBSYSTEM_ORDER = ->(name) { [name == 'detectors' ? 1 : 0, name] }
+        SUBSYSTEM_ORDER = ->(name) { [(name == 'detectors') ? 1 : 0, name] }
 
         def execute(_argv)
           path = @options[:path] || ::Driftless::Config.project_path
@@ -93,12 +93,14 @@ module Driftless
         end
 
         def wrap(text, prefix, width: 78)
+          # rubocop:disable Style/MultilineBlockChain -- succint
           text.split.each_with_object(['']) { |word, acc|
-            if acc.last.empty?           then acc[-1] = word
+            if acc.last.empty? then acc[-1] = word
             elsif acc.last.length + 1 + word.length <= width - prefix.length then acc[-1] += " #{word}"
             else acc << word
             end
           }.map { |line| "#{prefix}#{line}" }
+          # rubocop:enable Style/MultilineBlockChain
         end
 
         # Falls back to a type-shaped placeholder when a key declares neither a

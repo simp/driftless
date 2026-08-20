@@ -39,7 +39,7 @@ module Driftless
       @allow_missing_envs             = allow_missing_envs
       @summary_dir                    = summary_dir
       @accept_partial_report_sessions = accept_partial_report_sessions
-      @accept_duplicate_certnames      = accept_duplicate_certnames
+      @accept_duplicate_certnames     = accept_duplicate_certnames
     end
 
     def run

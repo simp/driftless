@@ -3,6 +3,21 @@ require 'driftless/config_validator'
 require 'driftless/detectors/code_lookup_missing_hiera_keys'
 
 RSpec.describe Driftless::ConfigValidator do
+  # Every key here is read somewhere in lib/; the validator has to let it through
+  # or the setting is unreachable.
+  describe 'keys that production code actually reads' do
+    {
+      %w[puppet role_regex]    => '^role::',
+      %w[puppet profile_regex] => '^profile::',
+      %w[detectors only]       => ['data:legacy-facts'],
+      %w[detectors skip]       => ['data:legacy-facts'],
+    }.each do |(section, key), value|
+      it "accepts #{section}.#{key}" do
+        cfg = Driftless::Config.new(merged: { section => { key => value } })
+        expect { described_class.new(cfg).validate! }.not_to raise_error
+      end
+    end
+  end
   def validate(hash)
     described_class.new(Driftless::Config.new(merged: hash)).validate!
   end

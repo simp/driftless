@@ -14,7 +14,10 @@ module Driftless
   # failures surface as `config error: ...` on stderr + exit 2.
   class ConfigValidator
     KNOWN_SUBSYSTEMS   = %w[detectors puppet output scan logging].freeze
-    KNOWN_PUPPET_KEYS  = %w[environments allow_missing_envs].freeze
+    KNOWN_PUPPET_KEYS  = %w[environments allow_missing_envs role_regex profile_regex].freeze
+
+    # Keys under `detectors:` that name something other than a detector.
+    DETECTOR_RESERVED_KEYS = %w[defaults only skip].freeze
 
     def initialize(config)
       @config = config
@@ -48,7 +51,7 @@ module Driftless
       detectors_section = @config['detectors']
       return unless detectors_section.is_a?(Hash)
 
-      known = Set.new(['defaults'])
+      known = Set.new(DETECTOR_RESERVED_KEYS)
       Driftless::Detectors.registry.each { |k| known.add(k.key) }
 
       detectors_section.each_key do |section_key|

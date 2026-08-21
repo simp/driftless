@@ -52,7 +52,7 @@ module Driftless
         orphans.map do |path|
           build_finding(
             path:    path,
-            message: 'no reported fact value resolves to this path',
+            message: 'no reported fact resolves to this path',
           )
         end
       end

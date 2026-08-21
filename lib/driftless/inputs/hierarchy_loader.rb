@@ -66,7 +66,7 @@ module Driftless
 
           if entry.key?('lookup_key') || entry.key?('data_dig')
             findings << finding(
-              'hierarchy:unscannable-backend',
+              'hierarchy:unscannable-by-driftless-backend',
               "tier #{name.inspect} uses a lookup_key/data_dig backend " \
               '(driftless currently only scans data_hash tiers with a datadir)',
               line: line,

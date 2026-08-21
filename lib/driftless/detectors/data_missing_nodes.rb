@@ -5,7 +5,7 @@ require 'driftless/detectors/base'
 module Driftless
   module Detectors
     class DataMissingNodes < Base
-      key      'data:missing-nodes'
+      key      'data:paths-for-unreported-nodes'
       severity :warning
       quality  :stale
       about 'Hiera files matching certnames not present in report:all-active-nodes'
@@ -35,8 +35,7 @@ module Driftless
 
               findings << build_finding(
                 path:    file,
-                message: "data file for certname #{certname.inspect} but no such node " \
-                         'in report:all-active-nodes',
+                message: "#{certname.inspect} was not reported as an active node",
                 meta:    { certname: certname, tier: tier.name },
               )
             end

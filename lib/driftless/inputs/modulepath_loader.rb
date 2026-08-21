@@ -42,7 +42,7 @@ module Driftless
               findings << finding(
                 'controlrepo:missing-modulepaths-from-envconf',
                 entry[:path],
-                "modulepath component not present: #{entry[:path]}",
+                "\"#{entry[:path]}\" is in $modulepath, but not on disk",
                 quality: :weird,
               )
             end

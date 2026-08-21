@@ -8,7 +8,7 @@ module Driftless
       key      'data:codebase-missing-class'
       severity :error
       quality  :wrong
-      about 'Hiera key references a class not defined in the codebase'
+      about 'Hiera key references a class not defined in modulepath codebase'
 
       def call
         findings   = []
@@ -28,8 +28,8 @@ module Driftless
             findings << build_finding(
               path:    df.path,
               line:    line,
-              message: "#{key.inspect} references class #{class_name.inspect} " \
-                       'which is not defined anywhere in the codebase',
+              message: "class #{class_name.inspect} not found in codebase",
+              #message: "#{key.inspect} references undefined class #{class_name.inspect}",
               meta:    { class_name: class_name },
             )
           end

@@ -37,8 +37,8 @@ module Driftless
           findings << build_finding(
             path:    lc.file,
             line:    lc.line,
-            message: "lookup call for #{lc.key.inspect} but no top-level key with " \
-                     'that name is defined in any Hiera data file',
+            message: "#{lc.key.inspect} is " \
+                     'not defined in any Hiera file',
             meta:    { lookup_key: lc.key, has_default: lc.has_default },
           )
         end

@@ -8,7 +8,7 @@ module Driftless
       key      'hierarchy:unreachable-data-files'
       severity :warning
       quality  :impossible
-      about 'Hiera data files that are unreachable by every tier in the hierarchy ' \
+      about 'Hiera data files that are unreachable by every hierarchy tiers\' paths' \
             '(regardless of facts)'
 
       BACKEND_EXT = {
@@ -41,7 +41,7 @@ module Driftless
 
           findings << build_finding(
             path:    file,
-            message: 'no tier can reach this path',
+            message: "no tier's paths can reach this",
 
           )
         end

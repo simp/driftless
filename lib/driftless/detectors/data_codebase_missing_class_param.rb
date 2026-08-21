@@ -8,7 +8,7 @@ module Driftless
       key      'data:codebase-missing-class-param'
       severity :error
       quality  :wrong
-      about 'Hiera key refers to non-existent param for a real class from the codebase'
+      about 'Hiera key refers to non-existent param of a real class'
 
       config_option :allow_role_profile_keys, type: :boolean, default: false,
         about: 'Permit Hiera-only keys under a role or profile namespace'
@@ -33,7 +33,7 @@ module Driftless
               path:    df.path,
               line:    line,
               message: "param #{param_name.inspect} " \
-                       "is not defined in class #{class_name.inspect}",
+                       "not defined in class #{class_name.inspect}",
               meta:    { class_name: class_name, param_name: param_name, valid_params: valid_params },
             )
           end

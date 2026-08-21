@@ -31,7 +31,7 @@ module Driftless
             findings << build_finding(
               path:    hiera_yaml_path,
               line:    tier.source_line,
-              message: "hierarchy tier #{tier.name.inspect} interpolates bare variable #{var.inspect} ",
+              message: "#{tier.name.inspect} interpolates bare variable #{var.inspect} ",
               meta:    { tier: tier.name, interpolation: var },
             )
           end

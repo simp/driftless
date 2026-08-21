@@ -9,11 +9,6 @@ module Driftless
         register_command name: 'factsets', subcommand_of: Export
         desc 'Export reported factsets for onceover or puppet-lookup'
 
-        def initialize(parent_options: {})
-          super
-          @options = { certname_globs: [] }.merge(config_defaults).merge(@options)
-        end
-
         def execute(_argv)
           parse_format!
           require_output_dir!
@@ -41,6 +36,10 @@ module Driftless
 
         protected
 
+        def option_defaults
+          { certname_globs: [] }
+        end
+
         def configure_parser(o)
           o.on('-f', '--format=PROFILE[:SER]',
                'Consumer profile and serialization',
@@ -53,7 +52,7 @@ module Driftless
                'Default: reports.incoming_dir from driftless.yaml') { |v| @options[:incoming_dir] = v }
           o.on('--certname=GLOB',
                'Export only certnames matching GLOB (repeatable; File.fnmatch syntax)') do |v|
-            @options[:certname_globs] << v
+            (@options[:certname_globs] ||= []) << v
           end
           o.on('--limit=N', Integer, 'Cap emitted files (after filter, sorted by certname)') { |v| @options[:limit] = v }
         end

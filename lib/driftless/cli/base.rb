@@ -1,6 +1,8 @@
 require 'logger'
 require 'optparse'
 
+require 'driftless/config'
+require 'driftless/config_validator'
 require 'driftless/logger'
 
 module Driftless
@@ -107,6 +109,7 @@ module Driftless
       # then its own parse writes to @options. Child mutations don't bubble up.
       def initialize(parent_options: {})
         @options = parent_options.dup
+        @inherited_config_selection = config_selection
       end
 
       def run(argv)
@@ -121,10 +124,17 @@ module Driftless
         end
       end
 
-      # Hook fired after this command's own options are parsed but before
-      # the log-level derivation and dispatch/execute step. Default no-op;
-      # {Root} overrides to load the process-wide config from disk.
-      def after_own_parse; end
+      # Hook fired after this command's own options are parsed but before the
+      # log-level derivation and dispatch/execute step.
+      def after_own_parse
+        if config_selection != @inherited_config_selection
+          # :log_level is inherited by value, so the parent's would otherwise
+          # outlive the file it came from.
+          @options.delete(:log_level)
+          load_config!
+        end
+        apply_config_defaults
+      end
 
       def print_help(io = $stdout)
         io.puts build_parser
@@ -140,6 +150,16 @@ module Driftless
       # Subclasses override to add their own options to the parser.
       def configure_parser(_parser); end
 
+      # Hardcoded fallbacks for this command, below anything the config sets.
+      def option_defaults
+        {}
+      end
+
+      # Values this command reads out of driftless.yaml.
+      def config_defaults
+        {}
+      end
+
       private
 
       def build_parser
@@ -149,7 +169,7 @@ module Driftless
           o.separator ''
           o.separator 'Options:'
           configure_parser(o)
-          reserve_config_flag(o)
+          add_config_flags(o)
           o.on('-v', '--verbose', 'Verbose output (repeat for debug: -vv)') do
             if @options[:verbose]
               @options[:debug] = true
@@ -168,13 +188,43 @@ module Driftless
 
       # Left undeclared, OptionParser completes a bare -c to --color and
       # silently discards the path.
-      def reserve_config_flag(o)
-        return if self.class.parent_command.nil?
-        o.on('-c', '--config=PATH', 'Config file (must precede the subcommand)') do
-          sub = self.class.command_path.drop(1).join(' ')
-          warn "-c/--config must precede the subcommand: driftless -c PATH #{sub} ..."
-          exit 2
+      def add_config_flags(o)
+        o.on('-c', '--config=PATH',
+             'Use only PATH as the config file (replaces the search chain)') do |v|
+          @options[:config_path] = v
         end
+        o.on('--no-config',
+             'Skip all config files (ignore system, user, and project driftless.yaml)') do
+          @options[:no_config] = true
+        end
+      end
+
+      # Which config file the command line asks for.
+      def config_selection
+        [@options[:config_path], @options[:no_config]]
+      end
+
+      def load_config!
+        ::Driftless.config = ::Driftless::Config.load(
+          config_path: @options[:config_path],
+          no_config:   @options[:no_config],
+        )
+        # Validation needs all detector classes loaded (so their config_options
+        # are declared). lib/driftless.rb requires each detector at load time.
+        require 'driftless'
+        ::Driftless::ConfigValidator.new(::Driftless.config).validate!
+        @options[:log_level] ||= ::Driftless.config.dig('logging', 'level')
+        @inherited_config_selection = config_selection
+      rescue ::Driftless::ConfigLoadError, ::Driftless::ConfigValidationError => e
+        warn "config error: #{e.message}"
+        exit 2
+      end
+
+      # Lowest to highest: hardcoded defaults, config file, then whatever is
+      # already in @options — inherited from the parent or set by this
+      # command's own flags.
+      def apply_config_defaults
+        @options = option_defaults.merge(config_defaults).merge(@options)
       end
 
       # Precedence: CLI flags (verbose/debug/quiet) win, then config-derived

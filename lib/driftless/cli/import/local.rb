@@ -10,11 +10,6 @@ module Driftless
         desc 'Import a collector session from a local directory'
         positional '<source>'
 
-        def initialize(parent_options: {})
-          super
-          @options = config_defaults.merge(@options)
-        end
-
         def execute(argv)
           source = argv.shift
           unless source

@@ -1,9 +1,11 @@
 require 'spec_helper'
+require 'tmpdir'
+
 require 'driftless/cli/base'
 
 RSpec.describe Driftless::CLI::Base do
   # Save/restore process-global logger level around every example.
-  around do |example|
+  around(:each) do |example|
     original_level = Driftless.logger.level
     example.run
   ensure
@@ -237,7 +239,14 @@ RSpec.describe Driftless::CLI::Base do
     end
   end
 
-  describe '#run — -c/--config placement' do
+  describe '#run — -c/--config at any position' do
+    around(:each) do |ex|
+      original = Driftless.instance_variable_get(:@config)
+      ex.run
+    ensure
+      Driftless.instance_variable_set(:@config, original)
+    end
+
     let(:branch) { parent_class }
     let!(:child) do
       b = branch
@@ -248,22 +257,43 @@ RSpec.describe Driftless::CLI::Base do
       end
     end
 
-    it 'exits 2 pointing at the root when -c follows the subcommand' do
-      expect { branch.new.run(['child', '-c', '/some/driftless.yaml']) }
-        .to raise_error(SystemExit) { |e| expect(e.status).to eq(2) }
-        .and output(%r{-c/--config must precede the subcommand}).to_stderr
+    def with_config(body)
+      Dir.mktmpdir do |dir|
+        path = File.join(dir, 'driftless.yaml')
+        File.write(path, body)
+        yield path
+      end
     end
 
-    it 'exits 2 when --config follows the subcommand' do
-      expect { branch.new.run(['child', '--config=/some/driftless.yaml']) }
-        .to raise_error(SystemExit) { |e| expect(e.status).to eq(2) }
-        .and output(%r{-c/--config must precede the subcommand}).to_stderr
+    it 'loads the file when -c follows the subcommand' do
+      with_config("logging:\n  level: info\n") do |path|
+        branch.new.run(['child', '-c', path])
+        expect(Driftless.config.sources).to eq([path])
+      end
     end
 
-    it 'names the full subcommand path in the correction' do
-      expect { branch.new.run(['child', '-c', '/some/driftless.yaml']) }
-        .to raise_error(SystemExit)
-        .and output(/driftless -c PATH child \.\.\./).to_stderr
+    it 'loads the file when --config follows the subcommand' do
+      with_config("logging:\n  level: info\n") do |path|
+        branch.new.run(['child', "--config=#{path}"])
+        expect(Driftless.config.sources).to eq([path])
+      end
+    end
+
+    it 'lets a subcommand -c override the one the parent already loaded' do
+      with_config("logging:\n  level: error\n") do |parent_path|
+        with_config("logging:\n  level: debug\n") do |child_path|
+          branch.new.run(['-c', parent_path, 'child', '-c', child_path])
+          expect(Driftless.config.sources).to eq([child_path])
+          expect(Driftless.logger.level).to eq(Logger::DEBUG)
+        end
+      end
+    end
+
+    it 'reports a bad path from the subcommand position the same way as from the root' do
+      expect {
+        expect { branch.new.run(['child', '-c', '/no/such/driftless.yaml']) }
+          .to raise_error(SystemExit) { |e| expect(e.status).to eq(2) }
+      }.to output(/config error:.*file not found/).to_stderr
     end
 
     it 'does not let -c fall through to --color' do

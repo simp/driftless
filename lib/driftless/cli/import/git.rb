@@ -10,11 +10,6 @@ module Driftless
         desc 'Import collector sessions from a git remote (populated by driftless-store-reports-in-git)'
         positional '<repo-url>'
 
-        def initialize(parent_options: {})
-          super
-          @options = { branch_prefix: 'collector' }.merge(config_defaults).merge(@options)
-        end
-
         def execute(argv)
           repo_url = argv.shift
           unless repo_url
@@ -81,6 +76,10 @@ module Driftless
         end
 
         protected
+
+        def option_defaults
+          { branch_prefix: 'collector' }
+        end
 
         def configure_parser(o)
           o.on('-i', '--incoming-dir=DIR',

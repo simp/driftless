@@ -9,11 +9,6 @@ module Driftless
         register_command name: 'cleanup', subcommand_of: Import
         desc 'Archive superseded sessions and quarantine incomplete ones'
 
-        def initialize(parent_options: {})
-          super
-          @options = config_defaults.merge(@options)
-        end
-
         def execute(argv)
           unless argv.empty?
             warn "import cleanup: unexpected arguments: #{argv.inspect}"

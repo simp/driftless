@@ -21,16 +21,6 @@ module Driftless
                  about: 'Skip these detector keys'
       desc 'Cross-reference control repo against PuppetDB reports'
 
-      def initialize(parent_options: {})
-        super
-        # Precedence (highest → lowest, in @options):
-        #   1. CLI flags (parsed later, overwrite everything)
-        #   2. parent_options (inherited from Root's own CLI flags — verbose, etc.)
-        #   3. config-derived values (from driftless.yaml, mapped via config_defaults)
-        #   4. hardcoded defaults (fail_on: 'any', tabularize: true)
-        @options = { fail_on: 'any', tabularize: true }.merge(config_defaults).merge(@options)
-      end
-
       def execute(_argv)
         repo = if @options[:repo_dir]
                  ::Driftless::ControlRepo.new(@options[:repo_dir])
@@ -99,6 +89,10 @@ module Driftless
       end
 
       protected
+
+      def option_defaults
+        { fail_on: 'any', tabularize: true }
+      end
 
       def configure_parser(o)
         o.separator ''

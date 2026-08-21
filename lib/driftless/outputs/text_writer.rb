@@ -21,10 +21,9 @@ module Driftless
       LINE_STYLES    = [:blue].freeze
       MESSAGE_STYLES = [:cyan].freeze
 
-      # Column widths sized to the longest known label. Pad the RAW string
-      # then wrap — ljust on an ANSI-wrapped string miscounts escape bytes.
-      SEVERITY_WIDTH = 7   # "warning"
-      QUALITY_WIDTH  = 10  # "impossible"
+      # Column widths sized to the longest known label
+      SEVERITY_WIDTH = SEVERITY_STYLES.keys.max_by(&:size).size
+      QUALITY_WIDTH  = QUALITY_STYLES.keys.max_by(&:size).size
 
       module_function
 

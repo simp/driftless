@@ -28,7 +28,7 @@ module Driftless
 
       module_function
 
-      # `color:` nil means auto — on iff io.tty?. Callers may force true/false
+      # `color:` nil means auto — on if io.tty?. Callers may force true/false
       # to reflect --color / --no-color or NO_COLOR.
       # `tabularize:` pads each group's locations to a common width so the
       # messages line up.

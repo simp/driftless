@@ -65,7 +65,24 @@ RSpec.describe Driftless::Detectors::DataCodebaseMissingClassParam do
       end
     end
 
-    context 'exemption via explicit lookup() call' do
+    context 'a namespace-only key under a class that exists' do
+      around do |ex|
+        original = Driftless.instance_variable_get(:@config)
+        ex.run
+      ensure
+        Driftless.instance_variable_set(:@config, original)
+      end
+
+      def set_config(hash)
+        Driftless.config = Driftless::Config.new(merged: hash)
+      end
+
+      def allow_role_profile_keys
+        set_config('detectors' => {
+          'data:codebase-missing-class-param' => { 'allow_role_profile_keys' => true },
+        })
+      end
+
       let(:df) do
         Driftless::HieraDataFileInfo.new(
           path: '/tmp/default.yaml',
@@ -82,8 +99,46 @@ RSpec.describe Driftless::Detectors::DataCodebaseMissingClassParam do
         hand_corpus(data_files: [df], puppet_classes: { 'profile::web' => web_class }, code_lookup_calls: [lookup])
       end
 
-      it 'exempts the key from missing-param findings' do
+      it 'reports it by default, even though an explicit lookup() fetches it' do
+        set_config({})
+        findings = described_class.new(corpus).call
+        expect(findings.length).to eq(1)
+        expect(findings.first.meta[:param_name]).to eq('not_a_param_but_ns')
+      end
+
+      it 'allows it under allow_role_profile_keys' do
+        allow_role_profile_keys
         expect(described_class.new(corpus).call).to be_empty
+      end
+
+      it 'still reports a misspelled param under a profile, which no lookup() fetches' do
+        allow_role_profile_keys
+        typo = Driftless::HieraDataFileInfo.new(
+          path: '/tmp/default.yaml',
+          top_level_keys: { 'profile::web::vhsot' => 6 },
+        )
+        c = hand_corpus(data_files: [typo], puppet_classes: { 'profile::web' => web_class },
+                        code_lookup_calls: [lookup])
+        expect(described_class.new(c).call.map { |f| f.meta[:param_name] }).to eq(['vhsot'])
+      end
+
+      it 'does not allow it for a class that is neither a role nor a profile' do
+        allow_role_profile_keys
+        module_class = Driftless::PuppetClass.new(
+          fqname: 'apache', file: 'apache.pp',
+          params: [Driftless::ClassParameter.new(name: 'port', default_expr: nil, type_expr: nil)],
+          role: false, profile: false,
+        )
+        upstream = Driftless::HieraDataFileInfo.new(
+          path: '/tmp/default.yaml',
+          top_level_keys: { 'apache::not_a_param_but_ns' => 7 },
+        )
+        c = hand_corpus(
+          data_files: [upstream], puppet_classes: { 'apache' => module_class },
+          code_lookup_calls: [Driftless::LookupCall.new(key: 'apache::not_a_param_but_ns',
+                                                        file: 'x.pp', line: 1, has_default: false)],
+        )
+        expect(described_class.new(c).call.map { |f| f.meta[:param_name] }).to eq(['not_a_param_but_ns'])
       end
     end
 

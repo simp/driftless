@@ -10,13 +10,15 @@ module Driftless
       quality  :wrong
       about 'Hiera key refers to non-existent param for a real class from the codebase'
 
+      config_option :allow_role_profile_keys, type: :boolean, default: false,
+        about: 'Permit Hiera-only keys under a role or profile namespace, when an explicit lookup() fetches them'
+
       def call
-        findings   = []
+        findings = []
 
         corpus.data_files.each do |df|
           df.top_level_keys.each do |key, line|
             next unless key.include?('::')
-            #next if exemptions.include?(key)
 
             class_name   = key.rpartition('::')[0]
             param_name   = key.rpartition('::')[2]
@@ -25,6 +27,7 @@ module Driftless
 
             valid_params = puppet_class.params.map(&:name)
             next if valid_params.include?(param_name)
+            next if allowed_role_profile_key?(puppet_class, key)
 
             findings << build_finding(
               path:    df.path,
@@ -36,6 +39,21 @@ module Driftless
           end
         end
         findings
+      end
+
+      private
+
+      # Requires the explicit lookup() as evidence of intent — without it a
+      # misspelled param under a profile would be waved through too.
+      def allowed_role_profile_key?(puppet_class, key)
+        return false unless option(:allow_role_profile_keys)
+        return false unless puppet_class.role? || puppet_class.profile?
+        explicit_lookups.include?(key)
+      end
+
+      def explicit_lookups
+        @explicit_lookups ||=
+          (corpus.code_lookup_calls + corpus.data_lookup_calls).map(&:key).to_set
       end
     end
   end

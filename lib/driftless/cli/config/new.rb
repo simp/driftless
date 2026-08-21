@@ -165,9 +165,6 @@ module Driftless
             lines << '#'
             lines << comment(1, "# #{klass.about}")
             lines << comment(1, "#{klass.key}:")
-            # FIXME: all base options are included for every detector,
-            #        even though not every detector uses them.  This is
-            #        misleading.
             klass.config_options.each_value do |opt|
               lines.concat(option_lines(opt, 2,
                 base_options.map { |x| x[:name]}))

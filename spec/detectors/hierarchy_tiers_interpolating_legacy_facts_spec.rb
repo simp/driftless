@@ -96,4 +96,61 @@ RSpec.describe Driftless::Detectors::HierarchyTiersInterpolatingLegacyFacts do
       expect(findings.first.line).to be_nil
     end
   end
+
+  describe 'exclusions' do
+    around(:each) do |ex|
+      original = Driftless.instance_variable_get(:@config)
+      ex.run
+    ensure
+      Driftless.instance_variable_set(:@config, original)
+    end
+
+    def set_options(hash)
+      Driftless.config = Driftless::Config.new(
+        merged: { 'detectors' => { described_class.key => hash } },
+      )
+    end
+
+    let(:tiers) do
+      [
+        tier(name: 'per-os',     interpolation_vars: ['osfamily']),
+        tier(name: 'per-domain', interpolation_vars: ['facts.domain']),
+      ]
+    end
+
+    def flagged
+      described_class.new(hand_corpus(hiera_tiers: tiers)).call.map { |f| f.meta[:tier] }
+    end
+
+    it 'flags both tiers when no exclusions are set' do
+      set_options({})
+      expect(flagged).to contain_exactly('per-os', 'per-domain')
+    end
+
+    it 'drops a tier named by exclude_tiers' do
+      set_options('exclude_tiers' => ['per-os'])
+      expect(flagged).to eq(['per-domain'])
+    end
+
+    it 'matches exclude_tiers as a glob, not a literal' do
+      set_options('exclude_tiers' => ['per-*'])
+      expect(flagged).to be_empty
+    end
+
+    it 'drops a fact named by exclude_facts' do
+      set_options('exclude_facts' => ['osfamily'])
+      expect(flagged).to eq(['per-domain'])
+    end
+
+    it 'matches exclude_facts against the resolved fact, not just the interpolation' do
+      # The tier interpolates `facts.domain`, which resolves to legacy fact `domain`.
+      set_options('exclude_facts' => ['domain'])
+      expect(flagged).to eq(['per-os'])
+    end
+
+    it 'matches exclude_facts against the interpolation as written' do
+      set_options('exclude_facts' => ['facts.domain'])
+      expect(flagged).to eq(['per-os'])
+    end
+  end
 end

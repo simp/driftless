@@ -1,8 +1,12 @@
 require 'driftless/detectors/base'
+require 'driftless/detectors/exclusions'
 require 'driftless/legacy_facts'
 module Driftless
   module Detectors
     class HierarchyTiersInterpolatingUnreportedFacts < Base
+      include Exclusions::Tiers
+      include Exclusions::Facts
+
       key      'hierarchy:tiers-interpolating-unreported-facts'
       severity :warning
       quality  :stale
@@ -19,17 +23,13 @@ module Driftless
         # Prevent case w/no active nodes (every var would look "unreported")
         return [] if nodes.empty?
 
-        exclude_tier_patterns = option(:exclude_tiers)
-        exclude_fact_patterns = option(:exclude_facts)
-
         findings = []
         corpus.hiera_tiers.each do |tier|
           next if tier.interpolation_vars.empty?
-          next if exclude_tier_patterns.any? { |pat| File.fnmatch(pat, tier.name.to_s) }
+          next if excluded_tier?(tier)
 
           unreported = tier.interpolation_vars.reject do |var|
-            exclude_fact_patterns.any? { |pat| File.fnmatch(pat, var) } ||
-              nodes.any? { |node| !node.fact(var).nil? }
+            excluded_fact?(var) || nodes.any? { |node| !node.fact(var).nil? }
           end
           next if unreported.empty?
 

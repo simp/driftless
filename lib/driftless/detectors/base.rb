@@ -88,18 +88,13 @@ module Driftless
         end
       end
 
-      # Universal detector controls, declared once on Base and inherited by
-      # every subclass.
+      # Universal detector controls: {Scan#run} applies both to every detector.
       # - :enabled — {Scan#run} skips detectors where option(:enabled) is false.
       # - :exclude_paths — findings whose path matches any pattern are dropped.
       config_option :enabled, type: :boolean, default: true,
         about: 'Enables/disables detector during a scan'
       config_option :exclude_paths, type: :array, default: [],
         about: 'List (of glob patterns) to filter out any finding with a matching path'
-      config_option :exclude_tiers, type: :array, default: [],
-        about: 'List (of glob patterns) used by tier-iterating detectors to filter out matching Hiera tiers'
-      config_option :exclude_facts, type: :array, default: [],
-        about: 'List (of glob patterns) to exclude fact/variable names'
 
       attr_reader :corpus
 

@@ -1,11 +1,15 @@
 require 'set'
 
 require 'driftless/detectors/base'
+require 'driftless/detectors/exclusions'
 require 'driftless/legacy_facts'
 
 module Driftless
   module Detectors
     class HierarchyTiersInterpolatingLegacyFacts < Base
+      include Exclusions::Tiers
+      include Exclusions::Facts
+
       key      'hierarchy:tiers-interpolating-legacy-facts'
       severity :error
       quality  :wrong
@@ -15,10 +19,13 @@ module Driftless
       def call
         findings = []
         corpus.hiera_tiers.each do |tier|
+          next if excluded_tier?(tier)
+
           seen = Set.new
           tier.interpolation_vars.each do |var|
             legacy = LegacyFacts.match(var)
             next unless legacy
+            next if excluded_fact?(var, legacy)
             next unless seen.add?(legacy)
 
             modern = LegacyFacts::MAP[legacy]

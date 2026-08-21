@@ -4,7 +4,6 @@ module Driftless
     #
     # Derived from https://www.puppet.com/docs/puppet/latest/core_facts.html
     #
-    # - 1-deep structured facts (`facts.kernel`) are already correct
     # - Absent on purpose, because no direct equivalent could be found:
     #   - blockdevices (string)      vs disks (map)
     #   - dhcp_servers (per-IF hash) vs networking.dhcp (default interface only)

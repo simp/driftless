@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+
+
+### Fixed:
+
+- Bugs in design legacy fact vs bare var vs top-scope detection
+
 ## [0.2.0] - 2026-08-20
 
 ### Added 

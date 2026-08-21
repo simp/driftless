@@ -26,8 +26,7 @@ module Driftless
               findings << build_finding(
                 path:    df.path,
                 line:    lineno,
-                message: "interpolates %{#{inner}} unqualified " \
-                         "(use %{::#{inner}} for a top-scope variable)",
+                message: "interpolates bare variable %{#{inner}}",
                 meta:    { interpolation: inner },
               )
             end

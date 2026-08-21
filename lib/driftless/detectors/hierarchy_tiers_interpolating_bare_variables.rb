@@ -14,7 +14,7 @@ module Driftless
       key      'hierarchy:tiers-interpolating-bare-variables'
       severity :warning
       quality  :weird
-      about 'Hierarchy tiers interpolating an unqualified variable, which can ' \
+      about 'Hierarchy tiers that interpolate bare variables, which can ' \
             'resolve to a local variable instead of the intended value'
 
       def call
@@ -31,8 +31,7 @@ module Driftless
             findings << build_finding(
               path:    hiera_yaml_path,
               line:    tier.source_line,
-              message: "hierarchy tier #{tier.name.inspect} interpolates #{var.inspect} " \
-                       "unqualified (use %{::#{var}} for a top-scope variable)",
+              message: "hierarchy tier #{tier.name.inspect} interpolates bare variable #{var.inspect} ",
               meta:    { tier: tier.name, interpolation: var },
             )
           end

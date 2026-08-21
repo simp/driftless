@@ -1,11 +1,13 @@
 require 'set'
 
 require 'driftless/detectors/base'
+require 'driftless/detectors/bare_variable_reference'
 require 'driftless/detectors/exclusions'
 
 module Driftless
   module Detectors
     class HierarchyTiersInterpolatingBareVariables < Base
+      include BareVariableReference
       include Exclusions::Tiers
       include Exclusions::Facts
 
@@ -14,13 +16,6 @@ module Driftless
       quality  :weird
       about 'Hierarchy tiers interpolating an unqualified variable, which can ' \
             'resolve to a local variable instead of the intended value'
-
-      # `facts.` and `trusted.` index a global structure, so they resolve
-      # deterministically.
-      STRUCTURED_PREFIXES = %w[facts. trusted.].freeze
-
-      # `%{lookup('x')}` and friends are Hiera function calls, not variables.
-      FUNCTION_CALL = /\(/.freeze
 
       def call
         findings = []
@@ -46,14 +41,6 @@ module Driftless
       end
 
       private
-
-      # Any `::` qualifies the name — leading for top scope, embedded for a
-      # class namespace — and either way it is not a local variable.
-      def bare?(var)
-        return false if var.match?(FUNCTION_CALL)
-        return false if var.include?('::')
-        STRUCTURED_PREFIXES.none? { |p| var.start_with?(p) }
-      end
 
       def hiera_yaml_path
         corpus.repo_dir && File.join(corpus.repo_dir, 'hiera.yaml')

@@ -34,12 +34,12 @@ RSpec.describe Driftless::Detectors::HierarchyTiersInterpolatingLegacyFacts do
     expect(findings).to be_empty
   end
 
-  it 'flags bare legacy fact names' do
-    tiers    = [tier(name: 'per-os', interpolation_vars: ['osfamily'])]
+  it 'flags top-scope legacy fact names' do
+    tiers    = [tier(name: 'per-os', interpolation_vars: ['::osfamily'])]
     findings = described_class.new(hand_corpus(hiera_tiers: tiers)).call
     expect(findings.size).to eq(1)
     expect(findings.first.meta).to include(
-      tier: 'per-os', legacy: 'osfamily', modern: 'os.family', interpolation: 'osfamily'
+      tier: 'per-os', legacy: 'osfamily', modern: 'os.family', interpolation: '::osfamily'
     )
   end
 
@@ -60,21 +60,21 @@ RSpec.describe Driftless::Detectors::HierarchyTiersInterpolatingLegacyFacts do
   end
 
   it 'emits one finding per unique legacy fact per tier' do
-    tiers    = [tier(name: 'per-node', interpolation_vars: %w[hostname fqdn osfamily])]
+    tiers    = [tier(name: 'per-node', interpolation_vars: %w[::hostname ::fqdn ::osfamily])]
     findings = described_class.new(hand_corpus(hiera_tiers: tiers)).call
     expect(findings.map { |f| f.meta[:legacy] }).to contain_exactly('hostname', 'fqdn', 'osfamily')
   end
 
-  it 'dedupes when the same legacy fact appears via both bare and top-scope form in one tier' do
-    tiers    = [tier(name: 't', interpolation_vars: %w[osfamily ::osfamily])]
+  it 'dedupes when the same legacy fact appears twice in one tier' do
+    tiers    = [tier(name: 't', interpolation_vars: %w[::osfamily ::osfamily])]
     findings = described_class.new(hand_corpus(hiera_tiers: tiers)).call
     expect(findings.size).to eq(1)
   end
 
   it 'reports findings independently across multiple tiers' do
     tiers    = [
-      tier(name: 't1', interpolation_vars: ['osfamily']),
-      tier(name: 't2', interpolation_vars: ['osfamily']),
+      tier(name: 't1', interpolation_vars: ['::osfamily']),
+      tier(name: 't2', interpolation_vars: ['::osfamily']),
     ]
     findings = described_class.new(hand_corpus(hiera_tiers: tiers)).call
     expect(findings.size).to eq(2)
@@ -83,7 +83,7 @@ RSpec.describe Driftless::Detectors::HierarchyTiersInterpolatingLegacyFacts do
 
   describe 'path and line attribution' do
     it 'attaches findings to hiera.yaml with the tier\'s source_line when both are available' do
-      tiers    = [tier(name: 'per-os', interpolation_vars: ['osfamily'], source_line: 12)]
+      tiers    = [tier(name: 'per-os', interpolation_vars: ['::osfamily'], source_line: 12)]
       corpus   = hand_corpus(hiera_tiers: tiers, repo_dir: '/tmp/repo')
       findings = described_class.new(corpus).call
       expect(findings.first.path).to eq('/tmp/repo/hiera.yaml')
@@ -91,14 +91,14 @@ RSpec.describe Driftless::Detectors::HierarchyTiersInterpolatingLegacyFacts do
     end
 
     it 'leaves path nil when the corpus has no repo_dir' do
-      tiers    = [tier(name: 'per-os', interpolation_vars: ['osfamily'], source_line: 12)]
+      tiers    = [tier(name: 'per-os', interpolation_vars: ['::osfamily'], source_line: 12)]
       findings = described_class.new(hand_corpus(hiera_tiers: tiers)).call
       expect(findings.first.path).to be_nil
       expect(findings.first.line).to eq(12)
     end
 
     it 'leaves line nil when the tier has no source_line' do
-      tiers    = [tier(name: 'per-os', interpolation_vars: ['osfamily'])]
+      tiers    = [tier(name: 'per-os', interpolation_vars: ['::osfamily'])]
       findings = described_class.new(hand_corpus(hiera_tiers: tiers, repo_dir: '/tmp/repo')).call
       expect(findings.first.line).to be_nil
     end
@@ -120,7 +120,7 @@ RSpec.describe Driftless::Detectors::HierarchyTiersInterpolatingLegacyFacts do
 
     let(:tiers) do
       [
-        tier(name: 'per-os',     interpolation_vars: ['osfamily']),
+        tier(name: 'per-os',     interpolation_vars: ['::osfamily']),
         tier(name: 'per-domain', interpolation_vars: ['::domain']),
       ]
     end

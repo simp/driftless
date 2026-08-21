@@ -29,16 +29,16 @@ RSpec.describe Driftless::Detectors::DataLegacyFacts do
     expect(described_class.new(hand_corpus(data_files: [df])).call).to be_empty
   end
 
-  it 'flags bare legacy fact interpolations' do
+  it 'flags top-scope legacy fact interpolations in a value' do
     df = file_info(source: <<~YAML)
-      profile::base::os: "%{osfamily}"
+      profile::base::os: "%{::osfamily}"
     YAML
     findings = described_class.new(hand_corpus(data_files: [df])).call
     expect(findings.size).to eq(1)
     expect(findings.first.path).to eq('/tmp/x.yaml')
     expect(findings.first.line).to eq(1)
     expect(findings.first.meta).to include(
-      legacy: 'osfamily', modern: 'os.family', interpolation: 'osfamily'
+      legacy: 'osfamily', modern: 'os.family', interpolation: '::osfamily'
     )
   end
 
@@ -55,7 +55,7 @@ RSpec.describe Driftless::Detectors::DataLegacyFacts do
       # comment on line 1
       a: literal
       b: "another literal"
-      c: "%{osfamily}"
+      c: "%{::osfamily}"
     YAML
     findings = described_class.new(hand_corpus(data_files: [df])).call
     expect(findings.first.line).to eq(4)
@@ -63,7 +63,7 @@ RSpec.describe Driftless::Detectors::DataLegacyFacts do
 
   it 'emits multiple findings when multiple legacy facts appear on one line' do
     df = file_info(source: <<~YAML)
-      composite: "%{osfamily}-%{hostname}"
+      composite: "%{::osfamily}-%{::hostname}"
     YAML
     findings = described_class.new(hand_corpus(data_files: [df])).call
     expect(findings.map { |f| f.meta[:legacy] }).to contain_exactly('osfamily', 'hostname')
@@ -78,7 +78,7 @@ RSpec.describe Driftless::Detectors::DataLegacyFacts do
   end
 
   it 'aggregates findings across multiple data files' do
-    df1 = file_info(path: '/tmp/a.yaml', source: %(k: "%{osfamily}"\n))
+    df1 = file_info(path: '/tmp/a.yaml', source: %(k: "%{::osfamily}"\n))
     df2 = file_info(path: '/tmp/b.yaml', source: %(k: "%{::fqdn}"\n))
     findings = described_class.new(hand_corpus(data_files: [df1, df2])).call
     expect(findings.map(&:path)).to contain_exactly('/tmp/a.yaml', '/tmp/b.yaml')

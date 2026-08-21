@@ -6,12 +6,12 @@ module Driftless
     # legacy fact in an interpolation. LegacyFacts itself is a plain lookup, so
     # the prefix policy lives here.
     module LegacyFactReference
-      # `facts.` and `trusted.` are structured accessors, so whatever follows
-      # is a structured fact by construction and never a legacy one.
-      STRUCTURED_PREFIXES = %w[facts. trusted.].freeze
-
+      # A legacy fact is a top-scope name, so only the `::` form is a legacy
+      # fact reference. A bare name is reported as bare instead — unqualified
+      # resolution is the larger defect, and it would be reported twice
+      # otherwise.
       def legacy_fact_for(var)
-        return nil if STRUCTURED_PREFIXES.any? { |p| var.start_with?(p) }
+        return nil unless var.start_with?('::')
         ::Driftless::LegacyFacts.match(var.delete_prefix('::'))
       end
     end

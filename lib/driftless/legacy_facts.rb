@@ -1,15 +1,17 @@
 module Driftless
   module LegacyFacts
-    # Map of legacy (flat) Facter fact names to their modern (structured)
-    # dotted-path equivalents. Curated from the well-known Facter 3→4 renames.
-    # Facts still valid in modern Facter (kernel, puppetversion, virtual, etc.)
-    # are intentionally omitted.
+    # Mapping from legacy Facter facts to modern structured facts paths
     #
-    # Source: https://www.puppet.com/docs/puppet/latest/core_facts.html
+    # Derived from https://www.puppet.com/docs/puppet/latest/core_facts.html
     #
-    # Coverage note: this is a high-confidence subset, not exhaustive. Dynamic
-    # per-interface facts (ipaddress_eth0, macaddress_eth0, mtu_eth0) are
-    # excluded because they can't be enumerated statically.
+    # - 1-deep structured facts (`facts.kernel`) are already correct
+    # - Absent on purpose, because no direct equivalent could be found:
+    #   - blockdevices (string)      vs disks (map)
+    #   - dhcp_servers (per-IF hash) vs networking.dhcp (default interface only)
+    #   - zones (count)              vs solaris_zones.zones (map)
+    # - Also absent: custom facts, and dynamic per-instance facts
+    #   (ipaddress_<interface>, blockdevice_<devicename>_model), which can't be
+    #   determined statically.
     MAP = {
       # OS family
       'osfamily'                  => 'os.family',
@@ -24,6 +26,27 @@ module Driftless
       'lsbdistrelease'            => 'os.distro.release.full',
       'lsbmajdistrelease'         => 'os.distro.release.major',
       'lsbminordistrelease'       => 'os.distro.release.minor',
+      'lsbrelease'                => 'os.distro.specification',
+      # macOS
+      'macosx_buildversion'        => 'os.macosx.build',
+      'macosx_productname'         => 'os.macosx.product',
+      'macosx_productversion'      => 'os.macosx.version.full',
+      'macosx_productversion_major' => 'os.macosx.version.major',
+      'macosx_productversion_minor' => 'os.macosx.version.minor',
+      'macosx_productversion_patch' => 'os.macosx.version.patch',
+      # Windows
+      'windows_edition_id'        => 'os.windows.edition_id',
+      'windows_installation_type' => 'os.windows.installation_type',
+      'windows_product_name'      => 'os.windows.product_name',
+      'windows_release_id'        => 'os.windows.release_id',
+      'system32'                  => 'os.windows.system32',
+      # SELinux
+      'selinux'                   => 'os.selinux.enabled',
+      'selinux_config_mode'       => 'os.selinux.config_mode',
+      'selinux_config_policy'     => 'os.selinux.config_policy',
+      'selinux_current_mode'      => 'os.selinux.current_mode',
+      'selinux_enforced'          => 'os.selinux.enforced',
+      'selinux_policyversion'     => 'os.selinux.policy_version',
       # Networking
       'fqdn'                      => 'networking.fqdn',
       'hostname'                  => 'networking.hostname',
@@ -36,14 +59,21 @@ module Driftless
       'network'                   => 'networking.network',
       'network6'                  => 'networking.network6',
       'interfaces'                => 'networking.interfaces',
+      'scope6'                    => 'networking.scope6',
       # Processors
       'processorcount'            => 'processors.count',
       'physicalprocessorcount'    => 'processors.physicalcount',
+      'hardwareisa'               => 'processors.isa',
       # Memory
       'memorysize'                => 'memory.system.total',
       'memoryfree'                => 'memory.system.available',
       'swapsize'                  => 'memory.swap.total',
       'swapfree'                  => 'memory.swap.available',
+      'memorysize_mb'             => 'memory.system.total_bytes',
+      'memoryfree_mb'             => 'memory.system.available_bytes',
+      'swapsize_mb'               => 'memory.swap.total_bytes',
+      'swapfree_mb'               => 'memory.swap.available_bytes',
+      'swapencrypted'             => 'memory.swap.encrypted',
       # Uptime
       'uptime'                    => 'system_uptime.uptime',
       'uptime_days'               => 'system_uptime.days',
@@ -61,6 +91,8 @@ module Driftless
       'boardproductname'          => 'dmi.board.product',
       'boardserialnumber'         => 'dmi.board.serial_number',
       'chassistype'               => 'dmi.chassis.type',
+      'boardassettag'             => 'dmi.board.asset_tag',
+      'chassisassettag'           => 'dmi.chassis.asset_tag',
       'manufacturer'              => 'dmi.manufacturer',
       'productname'               => 'dmi.product.name',
       'serialnumber'              => 'dmi.product.serial_number',
@@ -73,14 +105,16 @@ module Driftless
       # Identity
       'id'                        => 'identity.user',
       'gid'                       => 'identity.group',
+      # Solaris zones / Xen / Augeas
+      'zonename'                  => 'solaris_zones.current',
+      'xendomains'                => 'xen.domains',
+      'augeasversion'             => 'augeas.version',
     }.freeze
 
-    # Given a bare or facts.-prefixed interpolation variable name, returns
-    # the legacy name if it's a legacy fact, otherwise nil. Handles both
-    # `%{osfamily}` and `%{facts.osfamily}` forms.
-    def self.match(interpolation_var)
-      candidate = interpolation_var.sub(/\Afacts\./, '')
-      MAP.key?(candidate) ? candidate : nil
+    # Whether `name` is a legacy fact. Takes a bare name: callers strip any
+    # scope prefix first, and decide which prefixes are worth inspecting.
+    def self.match(name)
+      MAP.key?(name) ? name : nil
     end
   end
 end

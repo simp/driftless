@@ -43,12 +43,19 @@ RSpec.describe Driftless::Detectors::HierarchyTiersInterpolatingLegacyFacts do
     )
   end
 
-  it 'flags facts.-prefixed legacy fact names' do
-    tiers    = [tier(name: 'per-node', interpolation_vars: ['facts.hostname'])]
+  # facts. and trusted. are structured accessors, so what follows is a
+  # structured fact by construction, never a legacy one.
+  it 'ignores structured accessor forms' do
+    tiers = [tier(name: 'per-node', interpolation_vars: %w[facts.hostname trusted.hostname])]
+    expect(described_class.new(hand_corpus(hiera_tiers: tiers)).call).to be_empty
+  end
+
+  it 'flags the top-scope form' do
+    tiers    = [tier(name: 'per-node', interpolation_vars: ['::hostname'])]
     findings = described_class.new(hand_corpus(hiera_tiers: tiers)).call
     expect(findings.size).to eq(1)
     expect(findings.first.meta).to include(
-      legacy: 'hostname', modern: 'networking.hostname', interpolation: 'facts.hostname'
+      legacy: 'hostname', modern: 'networking.hostname', interpolation: '::hostname'
     )
   end
 
@@ -58,8 +65,8 @@ RSpec.describe Driftless::Detectors::HierarchyTiersInterpolatingLegacyFacts do
     expect(findings.map { |f| f.meta[:legacy] }).to contain_exactly('hostname', 'fqdn', 'osfamily')
   end
 
-  it 'dedupes when the same legacy fact appears via both bare and facts.- form in one tier' do
-    tiers    = [tier(name: 't', interpolation_vars: %w[osfamily facts.osfamily])]
+  it 'dedupes when the same legacy fact appears via both bare and top-scope form in one tier' do
+    tiers    = [tier(name: 't', interpolation_vars: %w[osfamily ::osfamily])]
     findings = described_class.new(hand_corpus(hiera_tiers: tiers)).call
     expect(findings.size).to eq(1)
   end
@@ -114,7 +121,7 @@ RSpec.describe Driftless::Detectors::HierarchyTiersInterpolatingLegacyFacts do
     let(:tiers) do
       [
         tier(name: 'per-os',     interpolation_vars: ['osfamily']),
-        tier(name: 'per-domain', interpolation_vars: ['facts.domain']),
+        tier(name: 'per-domain', interpolation_vars: ['::domain']),
       ]
     end
 
@@ -143,14 +150,33 @@ RSpec.describe Driftless::Detectors::HierarchyTiersInterpolatingLegacyFacts do
     end
 
     it 'matches exclude_facts against the resolved fact, not just the interpolation' do
-      # The tier interpolates `facts.domain`, which resolves to legacy fact `domain`.
+      # The tier interpolates `::domain`, which names legacy fact `domain`.
       set_options('exclude_facts' => ['domain'])
       expect(flagged).to eq(['per-os'])
     end
 
     it 'matches exclude_facts against the interpolation as written' do
-      set_options('exclude_facts' => ['facts.domain'])
+      set_options('exclude_facts' => ['::domain'])
       expect(flagged).to eq(['per-os'])
     end
   end
+  it 'flags top-scope legacy fact names' do
+    tiers    = [tier(name: 'per-os', interpolation_vars: ['::osfamily'])]
+    findings = described_class.new(hand_corpus(hiera_tiers: tiers)).call
+    expect(findings.size).to eq(1)
+    expect(findings.first.meta).to include(
+      legacy: 'osfamily', modern: 'os.family', interpolation: '::osfamily',
+    )
+  end
+
+  it 'ignores a top-scope variable that is not a legacy fact' do
+    tiers = [tier(name: 'per-site', interpolation_vars: ['::my_site_var'])]
+    expect(described_class.new(hand_corpus(hiera_tiers: tiers)).call).to be_empty
+  end
+
+  it 'dedupes a legacy fact reached via bare and top-scope form in one tier' do
+    tiers = [tier(name: 't', interpolation_vars: %w[osfamily ::osfamily])]
+    expect(described_class.new(hand_corpus(hiera_tiers: tiers)).call.size).to eq(1)
+  end
+
 end

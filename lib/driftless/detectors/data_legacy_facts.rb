@@ -1,9 +1,12 @@
 require 'driftless/detectors/base'
+require 'driftless/detectors/legacy_fact_reference'
 require 'driftless/legacy_facts'
 
 module Driftless
   module Detectors
     class DataLegacyFacts < Base
+      include LegacyFactReference
+
       key      'data:legacy-facts'
       severity :error
       quality  :wrong
@@ -20,7 +23,7 @@ module Driftless
         corpus.data_files.each do |df|
           df.source.each_line.with_index(1) do |line, lineno|
             line.scan(INTERPOLATION_RE).each do |(inner)|
-              legacy = LegacyFacts.match(inner)
+              legacy = legacy_fact_for(inner)
               next unless legacy
 
               modern = LegacyFacts::MAP[legacy]

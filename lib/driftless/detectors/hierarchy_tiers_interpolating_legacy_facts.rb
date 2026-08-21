@@ -2,12 +2,14 @@ require 'set'
 
 require 'driftless/detectors/base'
 require 'driftless/detectors/exclusions'
+require 'driftless/detectors/legacy_fact_reference'
 require 'driftless/legacy_facts'
 
 module Driftless
   module Detectors
     class HierarchyTiersInterpolatingLegacyFacts < Base
       include Exclusions::Tiers
+      include LegacyFactReference
       include Exclusions::Facts
 
       key      'hierarchy:tiers-interpolating-legacy-facts'
@@ -23,7 +25,7 @@ module Driftless
 
           seen = Set.new
           tier.interpolation_vars.each do |var|
-            legacy = LegacyFacts.match(var)
+            legacy = legacy_fact_for(var)
             next unless legacy
             next if excluded_fact?(var, legacy)
             next unless seen.add?(legacy)
@@ -33,7 +35,7 @@ module Driftless
               path:    hiera_yaml_path,
               line:    tier.source_line,
               message: "hierarchy tier #{tier.name.inspect} interpolates legacy fact " \
-                       "#{legacy.inspect} (modern equivalent: #{modern.inspect})",
+                       "#{legacy.inspect} (modern equivalent: %{facts.#{modern}})",
               meta:    { tier: tier.name, legacy: legacy, modern: modern, interpolation: var },
             )
           end

@@ -42,15 +42,12 @@ RSpec.describe Driftless::Detectors::DataLegacyFacts do
     )
   end
 
-  it 'flags facts.-prefixed legacy fact interpolations' do
+  it 'ignores structured accessor forms' do
     df = file_info(source: <<~YAML)
-      key: "prefix-%{facts.hostname}"
+      a: "prefix-%{facts.hostname}"
+      b: "prefix-%{trusted.hostname}"
     YAML
-    findings = described_class.new(hand_corpus(data_files: [df])).call
-    expect(findings.size).to eq(1)
-    expect(findings.first.meta).to include(
-      legacy: 'hostname', modern: 'networking.hostname', interpolation: 'facts.hostname'
-    )
+    expect(described_class.new(hand_corpus(data_files: [df])).call).to be_empty
   end
 
   it 'reports correct line numbers across a multi-line file' do
@@ -82,8 +79,25 @@ RSpec.describe Driftless::Detectors::DataLegacyFacts do
 
   it 'aggregates findings across multiple data files' do
     df1 = file_info(path: '/tmp/a.yaml', source: %(k: "%{osfamily}"\n))
-    df2 = file_info(path: '/tmp/b.yaml', source: %(k: "%{facts.fqdn}"\n))
+    df2 = file_info(path: '/tmp/b.yaml', source: %(k: "%{::fqdn}"\n))
     findings = described_class.new(hand_corpus(data_files: [df1, df2])).call
     expect(findings.map(&:path)).to contain_exactly('/tmp/a.yaml', '/tmp/b.yaml')
   end
+  it 'flags top-scope legacy fact interpolations' do
+    df = file_info(source: <<~YAML)
+      profile::base::os:   "%{::osfamily}"
+      profile::base::name: "%{::fqdn}"
+    YAML
+    findings = described_class.new(hand_corpus(data_files: [df])).call
+    expect(findings.map { |f| f.meta[:legacy] }).to contain_exactly('osfamily', 'fqdn')
+    expect(findings.map { |f| f.meta[:interpolation] }).to contain_exactly('::osfamily', '::fqdn')
+  end
+
+  it 'ignores a top-scope variable that is not a legacy fact' do
+    df = file_info(source: <<~YAML)
+      profile::base::site: "%{::my_site_var}"
+    YAML
+    expect(described_class.new(hand_corpus(data_files: [df])).call).to be_empty
+  end
+
 end

@@ -11,7 +11,7 @@ module Driftless
       about 'Hiera key refers to non-existent param for a real class from the codebase'
 
       config_option :allow_role_profile_keys, type: :boolean, default: false,
-        about: 'Permit Hiera-only keys under a role or profile namespace, when an explicit lookup() fetches them'
+        about: 'Permit Hiera-only keys under a role or profile namespace'
 
       def call
         findings = []

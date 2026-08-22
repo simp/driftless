@@ -84,7 +84,7 @@ RSpec.describe Driftless::Inputs::ModulepathLoader do
           File.write(File.join(repo, 'environment.conf'), "modulepath = site\n")
           _, findings = described_class.load(repo, basemodulepath: [])
           expect(findings.map(&:key)).to eq(['controlrepo:missing-modulepaths-from-envconf'])
-          expect(findings.first.message).to match(%r{modulepath component not present.*/site$})
+          expect(findings.first.message).to match(%r{/site" is in \$modulepath, but not on disk})
         end
       end
 

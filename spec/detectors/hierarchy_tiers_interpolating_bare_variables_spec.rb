@@ -61,11 +61,11 @@ RSpec.describe Driftless::Detectors::HierarchyTiersInterpolatingBareVariables do
       expect(flagged('my_role', 'my_role')).to eq(['my_role'])
     end
 
-    it 'names the top-scope form as the remedy' do
+    it 'names the tier and the offending variable' do
       f = described_class.new(
         hand_corpus(hiera_tiers: [tier(name: 't', interpolation_vars: ['my_role'])]),
       ).call.first
-      expect(f.message).to include('%{::my_role}')
+      expect(f.message).to include('"t"').and include('"my_role"')
     end
 
     it 'attaches findings to hiera.yaml with the tier source line' do

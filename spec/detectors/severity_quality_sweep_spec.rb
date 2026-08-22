@@ -13,7 +13,7 @@ RSpec.describe 'detector severity/quality declarations' do
     'data:codebase-missing-class-param'             => { severity: :error,   quality: :wrong },
     'data:legacy-facts'                             => { severity: :error,   quality: :wrong },
     'data:lookup-missing-hiera-keys'                => { severity: :error,   quality: :wrong },
-    'data:missing-nodes'                            => { severity: :warning, quality: :stale },
+    'data:paths-for-unreported-nodes'                            => { severity: :warning, quality: :stale },
     'hierarchy:files-missed-by-reported-fact-values' => { severity: :warning, quality: :stale },
     'hierarchy:tiers-interpolating-legacy-facts'    => { severity: :error,   quality: :wrong },
     'hierarchy:tiers-interpolating-unreported-facts' => { severity: :warning, quality: :stale },

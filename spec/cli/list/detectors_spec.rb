@@ -4,6 +4,10 @@ require 'spec_helper'
 require 'driftless/cli/list/detectors'
 
 RSpec.describe Driftless::CLI::List::Detectors do
+  def strip_ansi(str)
+    str.gsub(/\e\[[0-9;]*m/, '')
+  end
+
   def listed_keys
     out      = StringIO.new
     original = $stdout
@@ -15,7 +19,7 @@ RSpec.describe Driftless::CLI::List::Detectors do
     ensure
       $stdout = original
     end
-    out.string.lines.map { |l| l.split(/\s{2,}/).first }
+    out.string.lines.map { |l| strip_ansi(l).split(/\s{2,}/).first }
   end
 
   it 'lists every registered detector' do

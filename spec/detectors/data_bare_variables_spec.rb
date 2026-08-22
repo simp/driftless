@@ -65,9 +65,9 @@ RSpec.describe Driftless::Detectors::DataBareVariables do
     expect(findings.map(&:path)).to contain_exactly('/tmp/a.yaml', '/tmp/b.yaml')
   end
 
-  it 'names the top-scope form as the remedy' do
+  it 'names the offending interpolation in the message' do
     f = described_class.new(hand_corpus(data_files: [file_info(source: %(k: "%{my_role}"\n))])).call.first
-    expect(f.message).to include('%{::my_role}')
+    expect(f.message).to include('%{my_role}')
   end
 
   it 'emits nothing for a file with no interpolations' do

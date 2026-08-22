@@ -51,12 +51,16 @@ RSpec.describe Driftless::LegacyFacts do
       expect(map.keys.grep(/\./)).to be_empty
     end
 
-    it 'values are dotted structured paths' do
-      expect(map.values.reject { |v| v.include?('.') }).to be_empty
+    # A value is either the path the data moved to, or the key itself for a
+    # legacy fact whose name carried over unchanged. An undotted value that
+    # differs from its key is neither, so it is a typo.
+    it 'values are a dotted path or the key itself' do
+      odd = map.reject { |k, v| v.include?('.') || v == k }
+      expect(odd).to be_empty
     end
 
-    it 'never maps a name to itself' do
-      expect(map.select { |k, v| k == v }).to be_empty
+    it 'includes legacy facts whose name carried over, mapped to themselves' do
+      expect(map.select { |k, v| k == v }.keys).to include('kernel', 'virtual', 'timezone')
     end
 
     # Placeholders mark facts that can only be enumerated per instance; they

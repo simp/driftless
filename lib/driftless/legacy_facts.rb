@@ -3,11 +3,14 @@ module Driftless
     # Mapping from legacy Facter facts to modern structured facts paths
     #
     # Derived from https://www.puppet.com/docs/puppet/latest/core_facts.html
+    # and historical core factsets from FacterDB
     #
     # - Absent on purpose, because no direct equivalent could be found:
     #   - blockdevices (string)      vs disks (map)
     #   - dhcp_servers (per-IF hash) vs networking.dhcp (default interface only)
     #   - zones (count)              vs solaris_zones.zones (map)
+    #   - sshfp_<algo> (SSHFP lines) vs ssh.<algo>.fingerprints (map)
+    #   - uniqueid, ps, gem_version:  no modern counterpart
     # - Also absent: custom facts, and dynamic per-instance facts
     #   (ipaddress_<interface>, blockdevice_<devicename>_model), which can't be
     #   determined statically.
@@ -65,6 +68,7 @@ module Driftless
       'hardwareisa'               => 'processors.isa',
       # Memory
       'memorysize'                => 'memory.system.total',
+      'memorytotal'               => 'memory.system.total',
       'memoryfree'                => 'memory.system.available',
       'swapsize'                  => 'memory.swap.total',
       'swapfree'                  => 'memory.swap.available',
@@ -90,6 +94,7 @@ module Driftless
       'boardproductname'          => 'dmi.board.product',
       'boardserialnumber'         => 'dmi.board.serial_number',
       'chassistype'               => 'dmi.chassis.type',
+      'type'                      => 'dmi.chassis.type',
       'boardassettag'             => 'dmi.board.asset_tag',
       'chassisassettag'           => 'dmi.chassis.asset_tag',
       'manufacturer'              => 'dmi.manufacturer',
@@ -104,6 +109,17 @@ module Driftless
       # Identity
       'id'                        => 'identity.user',
       'gid'                       => 'identity.group',
+      # Name unchanged
+      'facterversion'             => 'facterversion',
+      'filesystems'               => 'filesystems',
+      'is_virtual'                => 'is_virtual',
+      'kernel'                    => 'kernel',
+      'kernelmajversion'          => 'kernelmajversion',
+      'kernelrelease'             => 'kernelrelease',
+      'kernelversion'             => 'kernelversion',
+      'path'                      => 'path',
+      'timezone'                  => 'timezone',
+      'virtual'                   => 'virtual',
       # Solaris zones / Xen / Augeas
       'zonename'                  => 'solaris_zones.current',
       'xendomains'                => 'xen.domains',

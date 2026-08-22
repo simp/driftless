@@ -28,7 +28,7 @@ RSpec.describe Driftless::Detectors::DataMissingNodes do
     context 'with no reports/all-active-nodes' do
       it 'emits a single skipped meta finding, not per-file false positives' do
         findings = described_class.new(corpus_for('missing_nodes', nodes: nil)).call
-        expect(findings.map(&:key)).to eq(['skipped:data:missing-nodes'])
+        expect(findings.map(&:key)).to eq(['skipped:data:paths-for-unreported-nodes'])
       end
     end
 

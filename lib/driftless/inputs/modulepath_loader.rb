@@ -42,7 +42,7 @@ module Driftless
               findings << finding(
                 'controlrepo:missing-modulepaths-from-envconf',
                 entry[:path],
-                "\"#{entry[:path]}\" is in $modulepath, but not on disk",
+                "\"#{entry[:declared]}\" is in $modulepath, but not on disk",
                 quality: :weird,
               )
             end
@@ -59,31 +59,33 @@ module Driftless
 
       private
 
-      # Returns [{path:, source:}, ...] in modulepath order. `source` is
-      # :explicit (declared in env.conf or user-supplied basemodulepath) or
-      # :convention (driftless/Puppet defaults).
+      # Returns [{path:, declared:, source:}, ...] in modulepath order.
+      # `declared` is the entry as environment.conf spelled it, which is how a
+      # reader will recognize it; `path` is the resolved absolute form.
+      # `source` is :explicit (declared in env.conf or user-supplied
+      # basemodulepath) or :convention (driftless/Puppet defaults).
       def modulepath_entries(env_conf)
         if env_conf.modulepath
           env_conf.modulepath.flat_map { |e| entries_for(e, source: :explicit) }
         elsif env_conf.exists?
           # env.conf present but no modulepath= line → Puppet's default.
           entries_for('./modules', source: :convention) +
-            @basemodulepath.map { |p| { path: p, source: :explicit } }
+            @basemodulepath.map { |p| { path: p, declared: p, source: :explicit } }
         else
           # No env.conf → driftless legacy fallback (site-modules is an r10k
           # convention, not a Puppet default).
           DEFAULT_MODULEPATH_DIRS.flat_map { |d| entries_for(d, source: :convention) } +
-            @basemodulepath.map { |p| { path: p, source: :explicit } }
+            @basemodulepath.map { |p| { path: p, declared: p, source: :explicit } }
         end
       end
 
       def entries_for(token, source:)
         if token == '$basemodulepath'
-          @basemodulepath.map { |p| { path: p, source: source } }
+          @basemodulepath.map { |p| { path: p, declared: p, source: source } }
         elsif token.start_with?('/')
-          [{ path: token, source: source }]
+          [{ path: token, declared: token, source: source }]
         else
-          [{ path: File.expand_path(token, @repo_dir), source: source }]
+          [{ path: File.expand_path(token, @repo_dir), declared: token, source: source }]
         end
       end
 

@@ -84,7 +84,31 @@ RSpec.describe Driftless::Inputs::ModulepathLoader do
           File.write(File.join(repo, 'environment.conf'), "modulepath = site\n")
           _, findings = described_class.load(repo, basemodulepath: [])
           expect(findings.map(&:key)).to eq(['controlrepo:missing-modulepaths-from-envconf'])
-          expect(findings.first.message).to match(%r{/site" is in \$modulepath, but not on disk})
+          expect(findings.first.message).to eq('"site" is in $modulepath, but not on disk')
+        end
+      end
+
+      it 'names a nested relative entry the way env.conf declared it' do
+        Dir.mktmpdir do |repo|
+          File.write(File.join(repo, 'environment.conf'), "modulepath = vendored/mods\n")
+          _, findings = described_class.load(repo, basemodulepath: [])
+          expect(findings.first.message).to eq('"vendored/mods" is in $modulepath, but not on disk')
+        end
+      end
+
+      it 'leaves an absolute entry absolute, since that is how it was declared' do
+        Dir.mktmpdir do |repo|
+          File.write(File.join(repo, 'environment.conf'), "modulepath = /opt/absent/mods\n")
+          _, findings = described_class.load(repo, basemodulepath: [])
+          expect(findings.first.message).to eq('"/opt/absent/mods" is in $modulepath, but not on disk')
+        end
+      end
+
+      it 'keeps the resolved absolute path on the finding' do
+        Dir.mktmpdir do |repo|
+          File.write(File.join(repo, 'environment.conf'), "modulepath = vendored/mods\n")
+          _, findings = described_class.load(repo, basemodulepath: [])
+          expect(findings.first.path).to eq(File.join(repo, 'vendored/mods'))
         end
       end
 

@@ -37,7 +37,7 @@ RSpec.describe Driftless::Ansi do
     let(:tty)  { instance_double(IO, tty?: true) }
     let(:pipe) { instance_double(IO, tty?: false) }
 
-    around do |example|
+    around(:each) do |example|
       original = ENV.fetch('NO_COLOR', nil)
       example.run
     ensure
@@ -58,6 +58,29 @@ RSpec.describe Driftless::Ansi do
     it 'ignores an empty NO_COLOR, per the convention' do
       ENV['NO_COLOR'] = ''
       expect(described_class.enabled?(tty)).to be(true)
+    end
+
+    it 'falls back to output.color before consulting the stream' do
+      ENV.delete('NO_COLOR')
+      described_class.configured = true
+      expect(described_class.enabled?(pipe)).to be(true)
+      described_class.configured = false
+      expect(described_class.enabled?(tty)).to be(false)
+    end
+
+    # A driftless.yaml committed to a repo must not force color on someone who
+    # opted out globally.
+    it 'lets NO_COLOR override output.color' do
+      ENV['NO_COLOR'] = '1'
+      described_class.configured = true
+      expect(described_class.enabled?(tty)).to be(false)
+    end
+
+    it 'lets the flag override output.color and NO_COLOR together' do
+      ENV['NO_COLOR'] = '1'
+      described_class.configured = false
+      described_class.preference = true
+      expect(described_class.enabled?(pipe)).to be(true)
     end
 
     it 'lets an explicit preference override NO_COLOR and the stream' do

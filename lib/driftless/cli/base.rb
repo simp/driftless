@@ -223,6 +223,7 @@ module Driftless
         require 'driftless'
         ::Driftless::ConfigValidator.new(::Driftless.config).validate!
         @options[:log_level] ||= ::Driftless.config.dig('logging', 'level')
+        ::Driftless::Ansi.configured = ::Driftless.config.dig('output', 'color')
         @inherited_config_selection = config_selection
       rescue ::Driftless::ConfigLoadError, ::Driftless::ConfigValidationError => e
         fatal!("config error: #{e.message}")

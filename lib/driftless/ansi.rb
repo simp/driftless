@@ -18,15 +18,18 @@ module Driftless
     }.freeze
 
     class << self
-      # What --color / --no-color asked for: true, false, or nil for auto.
-      # Set once by the CLI; every stream's decision reads it.
-      attr_accessor :preference
+      # What --color / --no-color asked for, and what output.color asked for:
+      # true, false, or nil for unset. Both set by the CLI; every stream's
+      # decision reads them.
+      attr_accessor :preference, :configured
 
-      # Whether to colorize output bound for io. An explicit --color/--no-color
-      # wins over NO_COLOR, which wins over whether io is a terminal.
+      # Whether to colorize output bound for io. The flag is the most local
+      # act, so it wins outright. NO_COLOR comes next: a config file committed
+      # to a repo must not force color on someone who opted out globally.
       def enabled?(io)
         return preference unless preference.nil?
         return false unless ENV['NO_COLOR'].to_s.empty?
+        return configured unless configured.nil?
         io.respond_to?(:tty?) && io.tty?
       end
 

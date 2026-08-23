@@ -15,9 +15,12 @@ RSpec.configure do |config|
   end
   config.disable_monkey_patching!
 
-  # Ansi.preference is process-global and set by CLI::Base#run from --color.
-  # Reset it so one example's flag can't tint the next one's output.
-  config.before(:each) { Driftless::Ansi.preference = nil }
+  # Ansi.preference and .configured are process-global, set by CLI::Base from
+  # --color and output.color. Reset both so one example can't tint the next.
+  config.before(:each) do
+    Driftless::Ansi.preference = nil
+    Driftless::Ansi.configured = nil
+  end
 end
 
 # Capture what Driftless logs while the block runs, and return it as a string.

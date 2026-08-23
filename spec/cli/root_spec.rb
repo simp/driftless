@@ -36,6 +36,15 @@ RSpec.describe Driftless::CLI::Root do
       end
     end
 
+    it 'hands output.color to Ansi, since no @options entry carries it' do
+      Dir.mktmpdir do |dir|
+        override = File.join(dir, 'ci.yaml')
+        File.write(override, "output:\n  color: false\n")
+        root_with_options(config_path: override).after_own_parse
+        expect(Driftless::Ansi.configured).to be(false)
+      end
+    end
+
     it 'exits 2 with a clean error when --config path does not exist' do
       log = capture_log do
         expect { root_with_options(config_path: '/no/such/file.yaml').after_own_parse }

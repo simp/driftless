@@ -24,6 +24,9 @@ module Driftless
                about: 'Write output here instead of stdout; a .json name also selects json'
     config_key 'output.tabularize', type: :boolean, default: true,
                about: 'Align finding messages in a column'
+    config_key 'output.color', type: :boolean, default: nil, example: true,
+               about: 'Colorize output (default: on when the destination is a TTY). ' \
+                      'NO_COLOR overrides this; --color / --no-color override both'
 
     module_function
 

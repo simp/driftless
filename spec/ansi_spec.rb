@@ -17,12 +17,59 @@ RSpec.describe Driftless::Ansi do
       expect(out).to end_with("hi\e[0m")
     end
 
+    # A code carrying its own reset cancels a background set before it, so
+    # order in the output is not the order of the arguments.
+    it 'emits a reset-carrying code ahead of an additive one' do
+      expect(described_class.wrap('hi', :on_red, :white))
+        .to eq("\e[0;37m\e[41mhi\e[0m")
+    end
+
     it 'raises KeyError on an unknown style' do
       expect { described_class.wrap('hi', :chartreuse) }.to raise_error(KeyError)
     end
 
     it 'coerces non-string input via to_s' do
       expect(described_class.wrap(42, :cyan)).to eq("\e[0;36m42\e[0m")
+    end
+  end
+
+  describe '.enabled?' do
+    let(:tty)  { instance_double(IO, tty?: true) }
+    let(:pipe) { instance_double(IO, tty?: false) }
+
+    around do |example|
+      original = ENV.fetch('NO_COLOR', nil)
+      example.run
+    ensure
+      original.nil? ? ENV.delete('NO_COLOR') : ENV['NO_COLOR'] = original
+    end
+
+    it 'follows the stream when no preference and no NO_COLOR' do
+      ENV.delete('NO_COLOR')
+      expect(described_class.enabled?(tty)).to be(true)
+      expect(described_class.enabled?(pipe)).to be(false)
+    end
+
+    it 'is off for any stream when NO_COLOR is set' do
+      ENV['NO_COLOR'] = '1'
+      expect(described_class.enabled?(tty)).to be(false)
+    end
+
+    it 'ignores an empty NO_COLOR, per the convention' do
+      ENV['NO_COLOR'] = ''
+      expect(described_class.enabled?(tty)).to be(true)
+    end
+
+    it 'lets an explicit preference override NO_COLOR and the stream' do
+      ENV['NO_COLOR'] = '1'
+      described_class.preference = true
+      expect(described_class.enabled?(pipe)).to be(true)
+      described_class.preference = false
+      expect(described_class.enabled?(tty)).to be(false)
+    end
+
+    it 'treats a non-IO destination as not a terminal' do
+      expect(described_class.enabled?(StringIO.new)).to be(false)
     end
   end
 end

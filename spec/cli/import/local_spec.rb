@@ -77,8 +77,8 @@ RSpec.describe Driftless::CLI::Import::Local do
     allow(Driftless::CLI::Import).to receive(:run_cleanup)
       .and_raise(Driftless::Import::Error, 'permission denied on .archive')
     exit_status = nil
-    expect { exit_status = run_with(['-i', '/tmp/incoming', '/tmp/source']) }
-      .to output(/cleanup failed: permission denied/).to_stderr
+    log = capture_log { exit_status = run_with(['-i', '/tmp/incoming', '/tmp/source']) }
+    expect(log).to match(/cleanup failed: permission denied/)
     expect(exit_status).to eq(2)
   end
 

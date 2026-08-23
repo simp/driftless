@@ -21,9 +21,11 @@ RSpec.describe Driftless::CLI::Scan do
           incoming_dir: '/nonexistent/incoming',
           environments: ['production'],
         )
-        expect { s.execute([]) }
-          .to raise_error(SystemExit) { |e| expect(e.status).to eq(3) }
-          .and output(/incoming-dir not readable/).to_stderr
+        log = capture_log do
+          expect { s.execute([]) }
+            .to raise_error(SystemExit) { |e| expect(e.status).to eq(3) }
+        end
+        expect(log).to match(/incoming-dir not readable/)
       end
     end
 
@@ -36,9 +38,9 @@ RSpec.describe Driftless::CLI::Scan do
           incoming_dir: '/nonexistent/incoming',
           environments: ['production'],
         )
-        expect { s.execute([]) }.to raise_error(SystemExit)
-          .and output(a_string_matching(/incoming-dir not readable/)
-                     .and(a_string_matching(/#{Regexp.escape('/nonexistent/incoming')}/))).to_stderr
+        log = capture_log { expect { s.execute([]) }.to raise_error(SystemExit) }
+        expect(log).to match(/incoming-dir not readable/)
+        expect(log).to include('/nonexistent/incoming')
       end
     end
   end

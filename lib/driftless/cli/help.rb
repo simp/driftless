@@ -24,13 +24,13 @@ module Driftless
             begin
               cursor.find_subcommand(sub_name)
             rescue Base::AmbiguousSubcommand => e
-              warn e.message
+              ::Driftless.logger.fatal(e.message)
               Root.new.print_help($stderr)
               exit 2
             end
 
           unless child
-            warn "unknown command: #{(path + [sub_name]).join(' ')}"
+            ::Driftless.logger.fatal("unknown command: #{(path + [sub_name]).join(' ')}")
             Root.new.print_help($stderr)
             exit 2
           end

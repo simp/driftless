@@ -24,8 +24,7 @@ module Driftless
           end
 
           if File.exist?(path) && !@options[:force]
-            warn "#{path} already exists (pass --force to overwrite)"
-            exit 3
+            fatal!("#{path} already exists (pass --force to overwrite)", 3)
           end
 
           File.write(path, render)

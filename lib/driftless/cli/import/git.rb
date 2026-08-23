@@ -13,16 +13,12 @@ module Driftless
         def execute(argv)
           repo_url = argv.shift
           unless repo_url
-            warn 'import git: repo URL required'
-            print_help($stderr)
-            exit 2
+            fatal!('import git: repo URL required', help: true)
           end
 
           @options[:incoming_dir] = File.expand_path(@options[:incoming_dir]) if @options[:incoming_dir]
           unless @options[:incoming_dir]
-            warn 'import git: --incoming-dir required (or set reports.incoming_dir in driftless.yaml)'
-            print_help($stderr)
-            exit 2
+            fatal!('import git: --incoming-dir required (or set reports.incoming_dir in driftless.yaml)', help: true)
           end
 
           summary_dir =
@@ -51,8 +47,7 @@ module Driftless
               "from #{result.branches_imported} branch(es)",
             )
           rescue ::Driftless::Import::Error => e
-            warn "import git: #{e.message}"
-            exit 2
+            fatal!("import git: #{e.message}")
           end
 
           if summary_dir
@@ -65,8 +60,7 @@ module Driftless
                 override:     @options[:accept_partial_report_sessions],
               )
             rescue ::Driftless::Import::Error => e
-              warn "import git: cleanup failed: #{e.message}"
-              exit 2
+              fatal!("import git: cleanup failed: #{e.message}")
             end
           else
             Driftless.logger.info('import git: cleanup skipped (--no-summaries)')

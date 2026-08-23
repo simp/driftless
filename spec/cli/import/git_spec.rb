@@ -73,8 +73,8 @@ RSpec.describe Driftless::CLI::Import::Git do
     allow(Driftless::CLI::Import).to receive(:run_cleanup)
       .and_raise(Driftless::Import::Error, 'archive dir not writable')
     exit_status = nil
-    expect { exit_status = run_with(['-i', '/tmp/incoming', 'https://example/repo.git']) }
-      .to output(/cleanup failed: archive dir not writable/).to_stderr
+    log = capture_log { exit_status = run_with(['-i', '/tmp/incoming', 'https://example/repo.git']) }
+    expect(log).to match(/cleanup failed: archive dir not writable/)
     expect(exit_status).to eq(2)
   end
 

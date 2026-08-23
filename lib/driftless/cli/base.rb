@@ -115,6 +115,7 @@ module Driftless
       def run(argv)
         argv = argv.dup
         parse_own_options!(argv)
+        ::Driftless::Ansi.preference = @options[:color]
         after_own_parse
         apply_log_level
         if self.class.subcommands.empty?
@@ -146,6 +147,14 @@ module Driftless
       end
 
       protected
+
+      # Report a condition the command cannot continue past, and stop.
+      # message names the command, since the severity label does not.
+      def fatal!(message, exit_code = 2, help: false)
+        ::Driftless.logger.fatal(message)
+        print_help($stderr) if help
+        exit exit_code
+      end
 
       # Subclasses override to add their own options to the parser.
       def configure_parser(_parser); end
@@ -216,8 +225,7 @@ module Driftless
         @options[:log_level] ||= ::Driftless.config.dig('logging', 'level')
         @inherited_config_selection = config_selection
       rescue ::Driftless::ConfigLoadError, ::Driftless::ConfigValidationError => e
-        warn "config error: #{e.message}"
-        exit 2
+        fatal!("config error: #{e.message}")
       end
 
       # Lowest to highest: hardcoded defaults, config file, then whatever is
@@ -276,9 +284,7 @@ module Driftless
           parser.order!(argv)
         end
       rescue OptionParser::ParseError => e
-        warn e.message
-        print_help($stderr)
-        exit 2
+        fatal!(e.message, help: true)
       end
 
       def dispatch(argv)
@@ -292,15 +298,11 @@ module Driftless
           begin
             self.class.find_subcommand(sub_name)
           rescue AmbiguousSubcommand => e
-            warn e.message
-            print_help($stderr)
-            exit 2
+            fatal!(e.message, help: true)
           end
 
         unless child
-          warn "unknown subcommand: #{sub_name}"
-          print_help($stderr)
-          exit 2
+          fatal!("unknown subcommand: #{sub_name}", help: true)
         end
 
         child.new(parent_options: @options).run(argv)

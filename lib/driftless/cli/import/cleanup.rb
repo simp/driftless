@@ -11,16 +11,12 @@ module Driftless
 
         def execute(argv)
           unless argv.empty?
-            warn "import cleanup: unexpected arguments: #{argv.inspect}"
-            print_help($stderr)
-            exit 2
+            fatal!("import cleanup: unexpected arguments: #{argv.inspect}", help: true)
           end
 
           @options[:incoming_dir] = File.expand_path(@options[:incoming_dir]) if @options[:incoming_dir]
           unless @options[:incoming_dir]
-            warn 'import cleanup: --incoming-dir required (or set reports.incoming_dir in driftless.yaml)'
-            print_help($stderr)
-            exit 2
+            fatal!('import cleanup: --incoming-dir required (or set reports.incoming_dir in driftless.yaml)', help: true)
           end
 
           summary_dir =
@@ -39,8 +35,7 @@ module Driftless
           )
           exit 0
         rescue ::Driftless::Import::Error => e
-          warn "import cleanup: #{e.message}"
-          exit 2
+          fatal!("import cleanup: #{e.message}")
         end
 
         protected

@@ -1,5 +1,6 @@
 require 'logger'
 
+require 'driftless/ansi'
 require 'driftless/config_keys'
 
 module Driftless
@@ -10,6 +11,31 @@ module Driftless
 
     config_key 'logging.level', type: :string, default: 'warn',
                about: 'debug, info, warn, error, or fatal'
+
+    # Styling for the severity label. Debug is absent: the whole line dims.
+    SEVERITY_STYLES = {
+      'fatal' => %i[on_red white bold],
+      'error' => %i[red bold],
+      'warn'  => %i[yellow],
+    }.freeze
+
+    # The formatter every Driftless logger uses. Public so a substituted
+    # logger can keep the same output shape.
+    def self.formatter
+      proc { |severity, _time, _progname, message| format_line(severity, message) }
+    end
+
+    def self.format_line(severity, message)
+      severity = severity.downcase
+      # Uppercased with or without color: fatal is the one severity that means
+      # the command stopped.
+      label = (severity == 'fatal') ? 'FATAL' : severity
+      return "#{label}: #{message}\n" unless Ansi.enabled?($stderr)
+      return "#{Ansi.wrap("#{label}: #{message}", :dim)}\n" if severity == 'debug'
+
+      styles = SEVERITY_STYLES[severity]
+      styles ? "#{Ansi.wrap("#{label}:", *styles)} #{message}\n" : "#{label}: #{message}\n"
+    end
   end
 
   class << self
@@ -24,7 +50,7 @@ module Driftless
     def build_default_logger
       Logger.new($stderr).tap do |l|
         l.level     = Logger::WARN
-        l.formatter = proc { |sev, _time, _prog, msg| "#{sev.downcase}: #{msg}\n" }
+        l.formatter = Logging.formatter
       end
     end
   end

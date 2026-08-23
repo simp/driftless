@@ -1,9 +1,6 @@
 module Driftless
   # ANSI text styling helpers.
   #
-  # Codes only — enablement is the caller's job. TextWriter gates on
-  # io.tty? plus --[no-]color / NO_COLOR; nothing here mutates global state.
-  #
   # Shape follows Puppet::Util::Colors (raw escape constants, no gem).
   module Ansi
     CODES = {
@@ -14,15 +11,34 @@ module Driftless
       magenta: "\e[0;35m",
       cyan:    "\e[0;36m",
       white:   "\e[0;37m",
+      on_red:  "\e[41m",
       bold:    "\e[1m",
       dim:     "\e[2m",
       reset:   "\e[0m",
     }.freeze
 
-    def self.wrap(str, *styles)
-      return str.to_s if styles.empty?
-      prefix = styles.map { |s| CODES.fetch(s) }.join
-      "#{prefix}#{str}#{CODES[:reset]}"
+    class << self
+      # What --color / --no-color asked for: true, false, or nil for auto.
+      # Set once by the CLI; every stream's decision reads it.
+      attr_accessor :preference
+
+      # Whether to colorize output bound for io. An explicit --color/--no-color
+      # wins over NO_COLOR, which wins over whether io is a terminal.
+      def enabled?(io)
+        return preference unless preference.nil?
+        return false unless ENV['NO_COLOR'].to_s.empty?
+        io.respond_to?(:tty?) && io.tty?
+      end
+
+      # Codes beginning with a reset (`\e[0;...`) clear everything set before
+      # them, so they are emitted first: `on_red, :white` would otherwise
+      # render as plain white.
+      def wrap(str, *styles)
+        return str.to_s if styles.empty?
+        codes = styles.map { |s| CODES.fetch(s) }
+        resetting, additive = codes.partition { |c| c.start_with?("\e[0;") }
+        "#{resetting.join}#{additive.join}#{str}#{CODES[:reset]}"
+      end
     end
   end
 end

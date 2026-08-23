@@ -233,9 +233,60 @@ RSpec.describe Driftless::CLI::Base do
     end
 
     it 'exits 2 on an unknown subcommand' do
-      expect { branch.new.run(['nope']) }
-        .to raise_error(SystemExit) { |e| expect(e.status).to eq(2) }
-        .and output(/unknown subcommand/).to_stderr
+      log = nil
+      expect {
+        log = capture_log do
+          expect { branch.new.run(['nope']) }
+            .to raise_error(SystemExit) { |e| expect(e.status).to eq(2) }
+        end
+      }.to output(/Usage:/).to_stderr
+      expect(log).to match(/unknown subcommand/)
+    end
+  end
+
+  describe '#fatal!' do
+    def leaf_raising(**kwargs)
+      Class.new(described_class) do
+        register_command name: 'leaf'
+        desc 'leaf command'
+        define_method(:execute) { |_argv| fatal!('it broke', *kwargs[:args].to_a, **kwargs.fetch(:opts, {})) }
+      end
+    end
+
+    it 'logs the message at fatal severity' do
+      log = capture_log do
+        expect { leaf_raising.new.run([]) }.to raise_error(SystemExit)
+      end
+      expect(log).to eq("FATAL: it broke\n")
+    end
+
+    it 'exits 2 by default' do
+      capture_log do
+        expect { leaf_raising.new.run([]) }
+          .to raise_error(SystemExit) { |e| expect(e.status).to eq(2) }
+      end
+    end
+
+    it 'exits with an explicit code when given one' do
+      capture_log do
+        expect { leaf_raising(args: [3]).new.run([]) }
+          .to raise_error(SystemExit) { |e| expect(e.status).to eq(3) }
+      end
+    end
+
+    it 'writes no help unless asked' do
+      expect {
+        capture_log { expect { leaf_raising.new.run([]) }.to raise_error(SystemExit) }
+      }.not_to output.to_stderr
+    end
+
+    it 'writes help to stderr with help: true' do
+      expect {
+        capture_log do
+          expect { leaf_raising(opts: { help: true }).new.run([]) }
+            .to raise_error(SystemExit)
+        end
+      }.to output(/Usage: leaf/).to_stderr
     end
   end
 
@@ -290,17 +341,20 @@ RSpec.describe Driftless::CLI::Base do
     end
 
     it 'reports a bad path from the subcommand position the same way as from the root' do
-      expect {
+      log = capture_log do
         expect { branch.new.run(['child', '-c', '/no/such/driftless.yaml']) }
           .to raise_error(SystemExit) { |e| expect(e.status).to eq(2) }
-      }.to output(/config error:.*file not found/).to_stderr
+      end
+      expect(log).to match(/config error:.*file not found/)
     end
 
     it 'does not let -c fall through to --color' do
       seen = nil
       child.define_method(:execute) { |_argv| seen = @options[:color] }
-      expect { branch.new.run(['child', '-c', '/some/driftless.yaml']) }
-        .to raise_error(SystemExit).and output.to_stderr
+      capture_log do
+        expect { branch.new.run(['child', '-c', '/some/driftless.yaml']) }
+          .to raise_error(SystemExit)
+      end
       expect(seen).to be_nil
     end
 

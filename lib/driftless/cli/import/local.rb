@@ -13,16 +13,12 @@ module Driftless
         def execute(argv)
           source = argv.shift
           unless source
-            warn 'import local: source path required (session dir or reports root)'
-            print_help($stderr)
-            exit 2
+            fatal!('import local: source path required (session dir or reports root)', help: true)
           end
 
           @options[:incoming_dir] = File.expand_path(@options[:incoming_dir]) if @options[:incoming_dir]
           unless @options[:incoming_dir]
-            warn 'import local: --incoming-dir required (or set reports.incoming_dir in driftless.yaml)'
-            print_help($stderr)
-            exit 2
+            fatal!('import local: --incoming-dir required (or set reports.incoming_dir in driftless.yaml)', help: true)
           end
 
           summary_dir =
@@ -46,8 +42,7 @@ module Driftless
               "import local: #{verb} #{result.copied} report(s) for session #{result.session_id}#{extra}",
             )
           rescue ::Driftless::Import::Error => e
-            warn "import local: #{e.message}"
-            exit 2
+            fatal!("import local: #{e.message}")
           end
 
           begin
@@ -59,8 +54,7 @@ module Driftless
               override:     @options[:accept_partial_report_sessions],
             )
           rescue ::Driftless::Import::Error => e
-            warn "import local: cleanup failed: #{e.message}"
-            exit 2
+            fatal!("import local: cleanup failed: #{e.message}")
           end
 
           exit 0

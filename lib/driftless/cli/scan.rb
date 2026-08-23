@@ -5,6 +5,7 @@ require 'driftless/config_keys'
 require 'driftless/scan'
 require 'driftless/control_repo'
 require 'driftless/outputs'
+require 'driftless/ansi'
 
 module Driftless
   module CLI
@@ -36,25 +37,19 @@ module Driftless
           missing << '--repo-dir'     unless @options[:repo_dir]
           missing << '--incoming-dir' unless @options[:incoming_dir]
           pronoun = (missing.length > 1) ? 'them' : 'it'
-          warn "scan requires #{missing.join(' and ')} (auto-detection did not supply #{pronoun})"
-          print_help($stderr)
-          exit 2
+          fatal!("scan requires #{missing.join(' and ')} (auto-detection did not supply #{pronoun})", help: true)
         end
 
         unless repo.readable?
-          warn "repo-dir not readable: #{repo.dir}"
-          exit 3
+          fatal!("repo-dir not readable: #{repo.dir}", 3)
         end
 
         unless File.directory?(@options[:incoming_dir])
-          warn "incoming-dir not readable: #{@options[:incoming_dir]}"
-          exit 3
+          fatal!("incoming-dir not readable: #{@options[:incoming_dir]}", 3)
         end
 
         unless @options[:environments]&.any?
-          warn 'scan error: puppet.environments is required — set it in driftless.yaml or pass --environments'
-          print_help($stderr)
-          exit 2
+          fatal!('scan error: puppet.environments is required — set it in driftless.yaml or pass --environments', help: true)
         end
 
         summary_dir =
@@ -78,8 +73,7 @@ module Driftless
             accept_partial_report_sessions: @options[:accept_partial_report_sessions],
           ).run
         rescue ::Driftless::ScanError => e
-          warn "scan error: #{e.message}"
-          exit 2
+          fatal!("scan error: #{e.message}")
         end
 
         emit(findings)
@@ -174,17 +168,9 @@ module Driftless
         format = @options[:format] || ::Driftless::Outputs.default_format($stdout)
         out    = @options[:output_file] ? File.open(@options[:output_file], 'w') : $stdout
         ::Driftless::Outputs.write(findings, out, format: format,
-                                   color: resolve_color(out), tabularize: @options[:tabularize])
+                                   color: ::Driftless::Ansi.enabled?(out), tabularize: @options[:tabularize])
       ensure
         out.close if out && out != $stdout
-      end
-
-      # Explicit --color / --no-color wins over NO_COLOR env; both win over
-      # the writer's auto-on-TTY default (returned as nil).
-      def resolve_color(_io)
-        return @options[:color] unless @options[:color].nil?
-        return false if ENV.key?('NO_COLOR') && !ENV['NO_COLOR'].empty?
-        nil
       end
     end
   end

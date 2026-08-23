@@ -30,8 +30,7 @@ module Driftless
           )
           exit 0
         rescue ::Driftless::Export::Error => e
-          warn "export factsets: #{e.message}"
-          exit 2
+          fatal!("export factsets: #{e.message}")
         end
 
         protected
@@ -64,13 +63,11 @@ module Driftless
           profile, serialization = fmt.split(':', 2)
           unless ::Driftless::Export::Factsets::PROFILES.key?(profile)
             known = ::Driftless::Export::Factsets::PROFILES.keys.join(', ')
-            warn "export factsets: unknown --format profile #{profile.inspect} (known: #{known})"
-            exit 2
+            fatal!("export factsets: unknown --format profile #{profile.inspect} (known: #{known})")
           end
           if serialization && !::Driftless::Export::Factsets::SERIALIZATIONS.include?(serialization)
             known = ::Driftless::Export::Factsets::SERIALIZATIONS.join(', ')
-            warn "export factsets: unknown --format serialization #{serialization.inspect} (known: #{known})"
-            exit 2
+            fatal!("export factsets: unknown --format serialization #{serialization.inspect} (known: #{known})")
           end
           @options[:profile]       = profile
           @options[:serialization] = serialization || ::Driftless::Export::Factsets::PROFILES.fetch(profile)[:default_serialization]
@@ -78,16 +75,12 @@ module Driftless
 
         def require_output_dir!
           return if @options[:output_dir]
-          warn 'export factsets: --output-dir required'
-          print_help($stderr)
-          exit 2
+          fatal!('export factsets: --output-dir required', help: true)
         end
 
         def require_incoming_dir!
           return if @options[:incoming_dir]
-          warn 'export factsets: --incoming-dir required (or set reports.incoming_dir in driftless.yaml)'
-          print_help($stderr)
-          exit 2
+          fatal!('export factsets: --incoming-dir required (or set reports.incoming_dir in driftless.yaml)', help: true)
         end
 
         def profile_default(name)

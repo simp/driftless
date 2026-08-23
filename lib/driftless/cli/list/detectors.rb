@@ -18,7 +18,7 @@ module Driftless
           registry.each do |klass|
             title_column = klass.key.ljust(width)
             about_column = klass.about
-            if @options.fetch(:color,true)
+            if ::Driftless::Ansi.enabled?($stdout)
               title_column = Ansi.wrap(title_column, :bold)
               about_column = Ansi.wrap(about_column, :cyan)
             end

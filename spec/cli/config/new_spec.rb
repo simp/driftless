@@ -80,9 +80,11 @@ RSpec.describe Driftless::CLI::Config::New do
       File.write(path, "puppet:\n  environments: [production]\n")
       cli = described_class.new
       cli.instance_variable_set(:@options, { path: path })
-      expect { capture_stdout { cli.execute([]) } }
-        .to raise_error(SystemExit) { |e| expect(e.status).to eq(3) }
-        .and output(/already exists/).to_stderr
+      log = capture_log do
+        expect { capture_stdout { cli.execute([]) } }
+          .to raise_error(SystemExit) { |e| expect(e.status).to eq(3) }
+      end
+      expect(log).to match(/already exists/)
       expect(File.read(path)).to include('production')
     end
   end

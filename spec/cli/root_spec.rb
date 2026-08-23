@@ -37,10 +37,11 @@ RSpec.describe Driftless::CLI::Root do
     end
 
     it 'exits 2 with a clean error when --config path does not exist' do
-      expect {
+      log = capture_log do
         expect { root_with_options(config_path: '/no/such/file.yaml').after_own_parse }
           .to raise_error(SystemExit) { |e| expect(e.status).to eq(2) }
-      }.to output(/config error:.*file not found/).to_stderr
+      end
+      expect(log).to match(/config error:.*file not found/)
     end
   end
 

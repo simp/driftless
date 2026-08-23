@@ -8,7 +8,7 @@ RSpec.describe Driftless::CLI::List::Detectors do
     str.gsub(/\e\[[0-9;]*m/, '')
   end
 
-  def listed_keys
+  def raw_output
     out      = StringIO.new
     original = $stdout
     $stdout  = out
@@ -19,7 +19,11 @@ RSpec.describe Driftless::CLI::List::Detectors do
     ensure
       $stdout = original
     end
-    out.string.lines.map { |l| strip_ansi(l).split(/\s{2,}/).first }
+    out.string
+  end
+
+  def listed_keys
+    raw_output.lines.map { |l| strip_ansi(l).split(/\s{2,}/).first }
   end
 
   it 'lists every registered detector' do
@@ -28,5 +32,14 @@ RSpec.describe Driftless::CLI::List::Detectors do
 
   it 'orders keys alphabetically, matching scan output' do
     expect(listed_keys).to eq(Driftless::Detectors.registry.map(&:key).sort)
+  end
+
+  it 'emits no escapes when the destination is not a terminal' do
+    expect(raw_output).not_to include("\e[")
+  end
+
+  it 'colorizes when --color forces it on' do
+    Driftless::Ansi.preference = true
+    expect(raw_output).to include("\e[")
   end
 end

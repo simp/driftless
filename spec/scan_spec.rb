@@ -51,7 +51,7 @@ RSpec.describe Driftless::Scan do
       captured        = StringIO.new
       original_logger = Driftless.logger
       Driftless.logger = Logger.new(captured, level: Logger::INFO)
-      Driftless.logger.formatter = proc { |sev, _t, _p, msg| "#{sev.downcase}: #{msg}\n" }
+      Driftless.logger.formatter = Driftless::Logging.formatter
       @captured = captured
       example.run
     ensure
@@ -88,7 +88,7 @@ RSpec.describe Driftless::Scan do
       captured        = StringIO.new
       original_logger = Driftless.logger
       Driftless.logger = Logger.new(captured, level: Logger::INFO)
-      Driftless.logger.formatter = proc { |sev, _t, _p, msg| "#{sev.downcase}: #{msg}\n" }
+      Driftless.logger.formatter = Driftless::Logging.formatter
       @captured = captured
       ex.run
     ensure

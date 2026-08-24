@@ -10,27 +10,35 @@ module Driftless
     class CodeParseError < Registration
       key   'code:parse-error'
       about 'Puppet manifests and EPP templates driftless could not parse'
+      quality :wrong
+      severity :warning
     end
 
     class ControlrepoMissingModulepathsFromEnvconf < Registration
       key     'controlrepo:missing-modulepaths-from-envconf'
       about   'environment.conf declares a $modulepath entry that is not on disk'
       quality :weird
+      severity :warning
     end
 
     class DataJsonParseError < Registration
       key   'data:json-parse-error'
       about 'PuppetDB report files driftless could not parse as JSON'
+      quality :wrong
+      severity :warning
     end
 
     class DataYamlParseError < Registration
       key   'data:yaml-parse-error'
       about 'hiera.yaml and Hiera data files driftless could not parse as YAML'
+      quality :wrong
+      severity :warning
     end
 
     class HierarchyHieraYamlMissing < Registration
       key      'hierarchy:hiera-yaml-missing'
       about    'the control repo has no hiera.yaml, so there is no hierarchy to scan (stops a scan)'
+      quality :impossible
       severity :error
     end
 
@@ -55,6 +63,7 @@ module Driftless
     class HierarchyUnsupportedVersion < Registration
       key   'hierarchy:unsupported-version'
       about 'hiera.yaml is not a Hash with version: 5, so no tier is scanned'
+      severity :error
     end
   end
 end

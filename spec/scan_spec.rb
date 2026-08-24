@@ -125,6 +125,36 @@ RSpec.describe Driftless::Scan do
     end
   end
 
+  # A repo with no hiera.yaml has no hierarchy to lint, so every detector would
+  # run against zero tiers and the scan would report nothing.
+  describe 'a control repo with no hiera.yaml' do
+    def repo_without_hiera_yaml
+      dir = Dir.mktmpdir
+      FileUtils.mkdir_p(File.join(dir, 'incoming'))
+      File.write(File.join(dir, 'environment.conf'), "modulepath = modules\n")
+      dir
+    end
+
+    before { silence_driftless_logger }
+
+    it 'stops the scan instead of reporting nothing' do
+      dir = repo_without_hiera_yaml
+      expect { described_class.new(repo_dir: dir, incoming_dir: File.join(dir, 'incoming')).run }
+        .to raise_error(Driftless::ScanError, /no hiera\.yaml at/)
+    ensure
+      FileUtils.remove_entry(dir)
+    end
+
+    it 'does not stop when the key is disabled' do
+      dir = repo_without_hiera_yaml
+      set_config('detectors' => { 'hierarchy:hiera-yaml-missing' => { 'enabled' => false } })
+      findings = described_class.new(repo_dir: dir, incoming_dir: File.join(dir, 'incoming')).run
+      expect(findings.map(&:key)).not_to include('hierarchy:hiera-yaml-missing')
+    ensure
+      FileUtils.remove_entry(dir)
+    end
+  end
+
   # Findings raised while the corpus is built are registered under their own
   # keys, so a config file reaches them the same way it reaches a detector's.
   describe 'config applied to registrations raised by the inputs' do

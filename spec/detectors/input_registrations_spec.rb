@@ -2,14 +2,16 @@ require 'spec_helper'
 require 'driftless'
 
 RSpec.describe 'input registrations' do
-  # Key => severity each emit site passed to Finding.new before the key was
-  # registered. Declaring a severity must not regrade an existing finding.
+  # Key => the severity its findings are graded at. Every entry but one matches
+  # what the emit site passed to Finding.new before the key was registered:
+  # declaring a severity must not silently regrade an existing finding.
+  # hierarchy:hiera-yaml-missing is the deliberate exception — it stops a scan.
   severities_at_emit_sites = {
     'code:parse-error' => :warning,
     'controlrepo:missing-modulepaths-from-envconf' => :warning,
     'data:json-parse-error' => :warning,
     'data:yaml-parse-error' => :warning,
-    'hierarchy:hiera-yaml-missing' => :warning,
+    'hierarchy:hiera-yaml-missing' => :error,
     'hierarchy:tier-missing-path' => :note,
     'hierarchy:unscannable-backend' => :note,
     'hierarchy:unscannable-by-driftless-backend' => :note,
@@ -32,7 +34,7 @@ RSpec.describe 'input registrations' do
         expect(registration.about).to be_a(String).and(satisfy { |s| !s.empty? })
       end
 
-      it "grades its findings #{severity}, as the emit sites did" do
+      it "grades its findings #{severity}" do
         expect(registration.severity).to eq(severity)
       end
 

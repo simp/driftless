@@ -29,8 +29,9 @@ module Driftless
     end
 
     class HierarchyHieraYamlMissing < Registration
-      key   'hierarchy:hiera-yaml-missing'
-      about 'the control repo has no hiera.yaml, so no tier is scanned'
+      key      'hierarchy:hiera-yaml-missing'
+      about    'the control repo has no hiera.yaml, so there is no hierarchy to scan (stops a scan)'
+      severity :error
     end
 
     class HierarchyTierMissingPath < Registration

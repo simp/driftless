@@ -53,6 +53,7 @@ module Driftless
 
       hiera_tiers, hl_findings = phase('hierarchy load') { Inputs::HierarchyLoader.load(repo_dir) }
       meta_findings.concat(hl_findings)
+      halt_without_hiera_yaml!(hl_findings)
       Driftless.logger.info("Loaded #{hiera_tiers.size} hierarchy tiers")
 
       manifest_files, mpl_findings = phase('manifest discovery') { load_manifest_files }
@@ -165,6 +166,18 @@ module Driftless
         next [] unless File.directory?(dir)
         Dir[File.join(dir, '*/templates/**/*.epp')]
       end
+    end
+
+    # Without hiera.yaml there is no hierarchy to lint: every detector runs
+    # against zero tiers, so the scan reports nothing and reads as a clean
+    # repo. Stop instead. Disabling the key opts out of stopping, since the
+    # finding it would have been reported as is dropped either way.
+    def halt_without_hiera_yaml!(findings)
+      registration = Detectors::HierarchyHieraYamlMissing
+      finding      = findings.find { |f| f.key == registration.key }
+      return if finding.nil? || !registration.new.option(:enabled)
+
+      raise ScanError, finding.message
     end
 
     # Applies :enabled and :exclude_paths to the findings raised under each

@@ -2,23 +2,22 @@ require 'spec_helper'
 require 'driftless'
 
 RSpec.describe 'input registrations' do
-  # Key => the severity its findings are graded at. Every entry but one matches
-  # what the emit site passed to Finding.new before the key was registered:
-  # declaring a severity must not silently regrade an existing finding.
-  # hierarchy:hiera-yaml-missing is the deliberate exception — it stops a scan.
-  severities_at_emit_sites = {
-    'code:parse-error' => :warning,
-    'controlrepo:missing-modulepaths-from-envconf' => :warning,
-    'data:json-parse-error' => :warning,
-    'data:yaml-parse-error' => :warning,
-    'hierarchy:hiera-yaml-missing' => :error,
-    'hierarchy:tier-missing-path' => :note,
-    'hierarchy:unscannable-backend' => :note,
-    'hierarchy:unscannable-by-driftless-backend' => :note,
-    'hierarchy:unsupported-version' => :warning,
+  # The grade each key's findings carry, pinned so that changing one has to be
+  # an edit here and not only a change in behaviour. A nil quality is a real
+  # value: the key is unlabelled, filter-only.
+  declared_grades = {
+    'code:parse-error' => { severity: :warning, quality: :wrong },
+    'controlrepo:missing-modulepaths-from-envconf' => { severity: :warning, quality: :weird },
+    'data:json-parse-error' => { severity: :warning, quality: :wrong },
+    'data:yaml-parse-error' => { severity: :warning, quality: :wrong },
+    'hierarchy:hiera-yaml-missing' => { severity: :error, quality: :impossible },
+    'hierarchy:tier-missing-path' => { severity: :note, quality: nil },
+    'hierarchy:unscannable-backend' => { severity: :note, quality: nil },
+    'hierarchy:unscannable-by-driftless-backend' => { severity: :note, quality: nil },
+    'hierarchy:unsupported-version' => { severity: :error, quality: nil },
   }.freeze
 
-  severities_at_emit_sites.each do |key, severity|
+  declared_grades.each do |key, grade|
     context key do
       let(:registration) { Driftless::Detectors.find(key) }
 
@@ -34,19 +33,18 @@ RSpec.describe 'input registrations' do
         expect(registration.about).to be_a(String).and(satisfy { |s| !s.empty? })
       end
 
-      it "grades its findings #{severity}" do
-        expect(registration.severity).to eq(severity)
+      it "grades its findings #{grade[:severity]}" do
+        expect(registration.severity).to eq(grade[:severity])
+      end
+
+      it "tags its findings #{grade[:quality].inspect}" do
+        expect(registration.quality).to eq(grade[:quality])
       end
 
       it 'accepts the universal options, so a config file can reach it' do
         expect(registration.config_options.keys).to include(:enabled, :exclude_paths)
       end
     end
-  end
-
-  it 'keeps the modulepath finding tagged :weird' do
-    expect(Driftless::Detectors.find('controlrepo:missing-modulepaths-from-envconf').quality)
-      .to eq(:weird)
   end
 
   describe '.finding' do

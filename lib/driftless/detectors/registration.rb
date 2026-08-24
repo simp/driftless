@@ -94,6 +94,22 @@ module Driftless
             own
           end
         end
+
+        # Builds a finding under this key, filling in the declared severity and
+        # quality. Whoever meets the condition calls this; a {Callable} reaches
+        # the same builder through {Registration#build_finding}.
+        def finding(message:, path: nil, line: nil, meta: {},
+                    severity: nil, quality: nil)
+          Finding.new(
+            key:      key,
+            path:     path,
+            line:     line,
+            message:  message,
+            meta:     meta,
+            severity: severity || self.severity,
+            quality:  quality  || self.quality,
+          )
+        end
       end
 
       # Universal controls: {Scan#run} applies both to every finding it collects.
@@ -126,14 +142,9 @@ module Driftless
 
       def build_finding(message:, path: nil, line: nil, meta: {},
                         severity: nil, quality: nil)
-        Finding.new(
-          key:      self.class.key,
-          path:     path,
-          line:     line,
-          message:  message,
-          meta:     meta,
-          severity: severity || self.class.severity,
-          quality:  quality  || self.class.quality,
+        self.class.finding(
+          message: message, path: path, line: line, meta: meta,
+          severity: severity, quality: quality,
         )
       end
 

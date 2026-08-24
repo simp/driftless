@@ -1,6 +1,6 @@
 require 'puppet'
 
-require 'driftless/finding'
+require 'driftless/detectors/input_registrations'
 
 module Driftless
   module Inputs
@@ -31,12 +31,10 @@ module Driftless
       private
 
       def parse_error_finding(line, message)
-        Finding.new(
-          key:     'code:parse-error',
+        Detectors::CodeParseError.finding(
           path:    @path,
           line:    line,
           message: message,
-          meta:    {},
         )
       end
     end

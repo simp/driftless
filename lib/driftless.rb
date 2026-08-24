@@ -22,6 +22,7 @@ require 'driftless/inputs/hierarchy_loader'
 require 'driftless/detectors'
 require 'driftless/detectors/registration'
 require 'driftless/detectors/callable'
+require 'driftless/detectors/input_registrations'
 
 require 'driftless/detectors/hierarchy_files_missed_by_reported_fact_values'
 require 'driftless/detectors/hierarchy_tiers_interpolating_unreported_facts'

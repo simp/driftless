@@ -1,7 +1,7 @@
 require 'psych'
 require 'set'
 
-require 'driftless/finding'
+require 'driftless/detectors/input_registrations'
 require 'driftless/models/hiera_data_file_info'
 
 module Driftless
@@ -64,12 +64,10 @@ module Driftless
       end
 
       def yaml_error_finding(path, err)
-        Finding.new(
-          key:     'data:yaml-parse-error',
+        Detectors::DataYamlParseError.finding(
           path:    path,
           line:    err.respond_to?(:line) ? err.line : nil,
           message: "YAML parse error: #{err.message}",
-          meta:    {},
         )
       end
     end

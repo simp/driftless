@@ -125,6 +125,81 @@ RSpec.describe Driftless::Scan do
     end
   end
 
+  # Findings raised while the corpus is built are registered under their own
+  # keys, so a config file reaches them the same way it reaches a detector's.
+  describe 'config applied to registrations raised by the inputs' do
+    def unsupported_version_repo(dir)
+      minimal_repo(dir)
+      File.write(File.join(dir, 'hiera.yaml'), "---\nversion: 4\n")
+    end
+
+    def scan(dir)
+      described_class.new(repo_dir: dir, incoming_dir: File.join(dir, 'incoming')).run
+    end
+
+    before { silence_driftless_logger }
+
+    it 'raises the finding when nothing disables it' do
+      Dir.mktmpdir do |dir|
+        unsupported_version_repo(dir)
+        expect(scan(dir).map(&:key)).to include('hierarchy:unsupported-version')
+      end
+    end
+
+    it 'drops the finding when its key is disabled' do
+      Dir.mktmpdir do |dir|
+        unsupported_version_repo(dir)
+        set_config('detectors' => { 'hierarchy:unsupported-version' => { 'enabled' => false } })
+        expect(scan(dir).map(&:key)).not_to include('hierarchy:unsupported-version')
+      end
+    end
+
+    it 'drops the finding when its path is excluded' do
+      Dir.mktmpdir do |dir|
+        unsupported_version_repo(dir)
+        set_config('detectors' => {
+          'hierarchy:unsupported-version' => { 'exclude_paths' => ['hiera.yaml'] },
+        })
+        expect(scan(dir).map(&:key)).not_to include('hierarchy:unsupported-version')
+      end
+    end
+
+    # Both pass-through branches, reached directly: nothing #run collects today
+    # carries a key of either shape.
+    describe 'keys the filter does not own' do
+      let(:scanner) { described_class.new(repo_dir: '/nonexistent', incoming_dir: '/nonexistent') }
+
+      def finding(key)
+        Driftless::Finding.new(key: key, message: 'x', path: 'a.yaml')
+      end
+
+      it 'passes through a finding whose key carries no registration' do
+        f = finding('not:registered')
+        expect(scanner.send(:apply_registration_config, [f])).to eq([f])
+      end
+
+      it 'passes through a finding under a detector key' do
+        f = finding('data:legacy-facts')
+        expect(scanner.send(:apply_registration_config, [f])).to eq([f])
+      end
+    end
+
+    it 'grades the finding from its registration rather than the emit site' do
+      Dir.mktmpdir do |dir|
+        minimal_repo(dir)
+        File.write(File.join(dir, 'hiera.yaml'), <<~YAML)
+          ---
+          version: 5
+          hierarchy:
+            - name: 'No path'
+        YAML
+        f = scan(dir).find { |x| x.key == 'hierarchy:tier-missing-path' }
+        expect(f.severity).to eq(Driftless::Detectors::HierarchyTierMissingPath.severity)
+        expect(f.severity).to eq(:note)
+      end
+    end
+  end
+
   describe '#apply_environment_filter' do
     def make_node(certname:, environment:)
       Driftless::Node.new(certname: certname, environment: environment, facts: {}, trusted: {})

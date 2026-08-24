@@ -1,7 +1,7 @@
 require 'driftless/config_keys'
 require 'json'
 
-require 'driftless/finding'
+require 'driftless/detectors/input_registrations'
 require 'driftless/logger'
 require 'driftless/reported'
 require 'driftless/models/node'
@@ -84,9 +84,9 @@ module Driftless
             begin
               parse_records(info[:path])
             rescue JSON::ParserError => e
-              errs << Finding.new(
-                key: 'data:json-parse-error', path: info[:path], line: nil,
-                message: "JSON parse error in #{query}/#{collector}: #{e.message}", meta: {},
+              errs << Detectors::DataJsonParseError.finding(
+                path: info[:path],
+                message: "JSON parse error in #{query}/#{collector}: #{e.message}",
               )
               next
             end

@@ -1,6 +1,6 @@
 require 'yaml'
 
-require 'driftless/finding'
+require 'driftless/detectors/input_registrations'
 require 'driftless/models/hiera_tier'
 
 module Driftless
@@ -24,7 +24,7 @@ module Driftless
 
         unless File.file?(@hiera_yaml)
           findings << finding(
-            'hierarchy:hiera-yaml-missing',
+            Detectors::HierarchyHieraYamlMissing,
             "no hiera.yaml at #{@hiera_yaml}",
           )
           return [tiers, findings]
@@ -37,7 +37,7 @@ module Driftless
             YAML.safe_load(source, permitted_classes: [Symbol])
           rescue Psych::SyntaxError => e
             findings << finding(
-              'data:yaml-parse-error',
+              Detectors::DataYamlParseError,
               "hiera.yaml parse error: #{e.message}",
             )
             return [tiers, findings]
@@ -45,7 +45,7 @@ module Driftless
 
         unless doc.is_a?(Hash) && doc['version'] == 5
           findings << finding(
-            'hierarchy:unsupported-version',
+            Detectors::HierarchyUnsupportedVersion,
             'hiera.yaml must be a Hash with version: 5',
           )
           return [tiers, findings]
@@ -66,11 +66,10 @@ module Driftless
 
           if entry.key?('lookup_key') || entry.key?('data_dig')
             findings << finding(
-              'hierarchy:unscannable-by-driftless-backend',
+              Detectors::HierarchyUnscannableByDriftlessBackend,
               "tier #{name.inspect} uses a lookup_key/data_dig backend " \
               '(driftless currently only scans data_hash tiers with a datadir)',
               line: line,
-              severity: :note,
             )
             next
           end
@@ -78,10 +77,9 @@ module Driftless
           backend = entry['data_hash'] || default_backend
           unless SUPPORTED_DATA_HASH_BACKENDS.include?(backend)
             findings << finding(
-              'hierarchy:unscannable-backend',
+              Detectors::HierarchyUnscannableBackend,
               "tier #{name.inspect} uses data_hash: #{backend.inspect} (currently unscannable by driftless)",
               line: line,
-              severity: :note,
             )
             next
           end
@@ -89,10 +87,9 @@ module Driftless
           templates, multi = extract_templates(entry)
           if templates.nil?
             findings << finding(
-              'hierarchy:tier-missing-path',
+              Detectors::HierarchyTierMissingPath,
               "tier #{name.inspect} has neither path: nor paths:",
               line: line,
-              severity: :note,
             )
             next
           end
@@ -146,8 +143,10 @@ module Driftless
         template.to_s.scan(INTERPOLATION_RE).map { |m| m[0].strip }
       end
 
-      def finding(key, message, line: nil, severity: :warning)
-        Finding.new(key: key, path: @hiera_yaml, line: line, message: message, meta: {}, severity: severity)
+      # Every finding here anchors to hiera.yaml; the registration supplies
+      # the key and how the finding is graded.
+      def finding(registration, message, line: nil)
+        registration.finding(path: @hiera_yaml, line: line, message: message)
       end
     end
   end

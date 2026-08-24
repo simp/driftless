@@ -143,7 +143,7 @@ module Driftless
         filtered
       end
 
-      all_findings = meta_findings + detector_findings
+      all_findings = apply_registration_config(meta_findings) + detector_findings
       relativize_finding_paths!(all_findings)
       Driftless.logger.info("Scan complete: #{all_findings.size} findings")
       all_findings
@@ -164,6 +164,24 @@ module Driftless
         dir = File.join(repo_dir, rel)
         next [] unless File.directory?(dir)
         Dir[File.join(dir, '*/templates/**/*.epp')]
+      end
+    end
+
+    # Applies :enabled and :exclude_paths to the findings raised under each
+    # registration's key while the corpus was built. Two kinds pass through
+    # untouched: a key carrying no registration, and a detector's key, whose
+    # findings the detector loop has already filtered.
+    def apply_registration_config(findings)
+      findings.group_by(&:key).flat_map do |key, group|
+        registration = Detectors.find(key)
+        next group if registration.nil? || registration.callable?
+
+        instance = registration.new
+        unless instance.option(:enabled)
+          Driftless.logger.info("  #{key} → disabled by config")
+          next []
+        end
+        apply_exclude_paths(group, instance.option(:exclude_paths), key)
       end
     end
 

@@ -1,5 +1,5 @@
 require 'driftless/config_keys'
-require 'driftless/finding'
+require 'driftless/detectors/input_registrations'
 require 'driftless/inputs/environment_conf'
 
 module Driftless
@@ -39,11 +39,9 @@ module Driftless
             # defaults (site-modules, modules, Puppet's ./modules) are widely
             # optional and would be noise.
             if entry[:source] == :explicit
-              findings << finding(
-                'controlrepo:missing-modulepaths-from-envconf',
-                entry[:path],
-                "\"#{entry[:declared]}\" is in $modulepath, but not on disk",
-                quality: :weird,
+              findings << Detectors::ControlrepoMissingModulepathsFromEnvconf.finding(
+                path:    entry[:path],
+                message: "\"#{entry[:declared]}\" is in $modulepath, but not on disk",
               )
             end
             next
@@ -103,13 +101,6 @@ module Driftless
         else
           []
         end
-      end
-
-      def finding(key, path, message, quality: nil)
-        Finding.new(
-          key: key, path: path, line: nil, message: message, meta: {},
-          quality: quality,
-        )
       end
     end
   end

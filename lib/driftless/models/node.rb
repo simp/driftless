@@ -27,19 +27,31 @@ module Driftless
 
     include Puppet::Pops::Lookup::SubLookup
 
+    # Returns hash of known fact paths' data structures (shared by every Node)
+    def self.memoized_split_fact_paths
+      # Hash mapping: fact_path => [namespace, split_fact_path]
+      #   namespace: :facts, :trusted, or :unprefixed, as the key declared it
+      #   split_fact_path: structured.fact.dot.path, as Arrays
+      @memoized_split_fact_paths ||= {}
+    end
+
     def fact(path)
-      segments = split_key(path.to_s)
-      case segments.first
-      when 'facts'
-        dig_hash(facts, segments.drop(1))
-      when 'trusted'
-        dig_hash(trusted, segments.drop(1))
-      else
-        dig_hash(facts, segments) || dig_hash(trusted, segments)
-      end
+      key = path.to_s
+      root, segments = self.class.memoized_split_fact_paths[key] ||= parse_key(key)
+      dig_hash((root == :trusted) ? trusted : facts, segments)
     end
 
     private
+
+    def parse_key(key)
+      segments = split_key(key)
+      case segments.first
+      when 'facts'   then [:facts,      segments.drop(1)]
+      when 'trusted' then [:trusted,    segments.drop(1)]
+      # Unprefixed names cannot reach $trusted: reserved, always structured.
+      else                [:unprefixed, segments]
+      end
+    end
 
     def dig_hash(hash, segments)
       return nil if hash.nil? || segments.empty?

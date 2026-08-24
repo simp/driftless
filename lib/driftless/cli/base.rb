@@ -109,31 +109,26 @@ module Driftless
       # then its own parse writes to @options. Child mutations don't bubble up.
       def initialize(parent_options: {})
         @options = parent_options.dup
-        @inherited_config_selection = config_selection
       end
 
+      # Parses this command's own options, then dispatches to a subcommand or
+      # executes. The color preference is set at every level, so a fatal raised
+      # while dispatching honours --[no-]color.
       def run(argv)
         argv = argv.dup
         parse_own_options!(argv)
         ::Driftless::Ansi.preference = @options[:color]
+        return dispatch(argv) unless self.class.subcommands.empty?
+
         after_own_parse
         apply_log_level
-        if self.class.subcommands.empty?
-          execute(argv)
-        else
-          dispatch(argv)
-        end
+        execute(argv)
       end
 
-      # Hook fired after this command's own options are parsed but before the
-      # log-level derivation and dispatch/execute step.
+      # Loads the config file, then layers its values under whatever the
+      # command line already set.
       def after_own_parse
-        if config_selection != @inherited_config_selection
-          # :log_level is inherited by value, so the parent's would otherwise
-          # outlive the file it came from.
-          @options.delete(:log_level)
-          load_config!
-        end
+        load_config!
         apply_config_defaults
       end
 
@@ -208,11 +203,6 @@ module Driftless
         end
       end
 
-      # Which config file the command line asks for.
-      def config_selection
-        [@options[:config_path], @options[:no_config]]
-      end
-
       def load_config!
         ::Driftless.config = ::Driftless::Config.load(
           config_path: @options[:config_path],
@@ -224,7 +214,6 @@ module Driftless
         ::Driftless::ConfigValidator.new(::Driftless.config).validate!
         @options[:log_level] ||= ::Driftless.config.dig('logging', 'level')
         ::Driftless::Ansi.configured = ::Driftless.config.dig('output', 'color')
-        @inherited_config_selection = config_selection
       rescue ::Driftless::ConfigLoadError, ::Driftless::ConfigValidationError => e
         fatal!("config error: #{e.message}")
       end

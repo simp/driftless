@@ -316,6 +316,23 @@ RSpec.describe Driftless::CLI::Base do
       end
     end
 
+    it 'prints a subcommand help without loading config' do
+      with_config("puppet:\n  role_regexp: \"^role::\"\n") do |path|
+        expect { branch.new.run(['child', '-c', path, '--help']) }
+          .to raise_error(SystemExit) { |e| expect(e.status).to eq(0) }
+          .and output(/Usage: parent child/).to_stdout
+      end
+    end
+
+    it 'does not load config for a command that only dispatches' do
+      with_config("logging:\n  level: info\n") do |path|
+        b = branch.new
+        expect(b).not_to receive(:load_config!)
+        b.run(['child', '-c', path])
+        expect(Driftless.config.sources).to eq([path])
+      end
+    end
+
     it 'loads the file when -c follows the subcommand' do
       with_config("logging:\n  level: info\n") do |path|
         branch.new.run(['child', '-c', path])

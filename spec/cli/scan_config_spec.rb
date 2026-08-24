@@ -17,11 +17,11 @@ RSpec.describe Driftless::CLI::Scan do
     Driftless.config = Driftless::Config.new(merged: hash)
   end
 
-  # Config defaults land in after_own_parse, so stop just short of #execute.
+  # @options as a run builds them, stopping at the defaults merge.
   def opts_after_parse(argv = [], **parent)
     cmd = described_class.new(parent_options: parent)
     cmd.send(:parse_own_options!, argv.dup)
-    cmd.after_own_parse
+    cmd.send(:apply_config_defaults)
     cmd.instance_variable_get(:@options)
   end
 

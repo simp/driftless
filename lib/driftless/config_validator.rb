@@ -11,8 +11,7 @@ module Driftless
   # unknown per-detector options. Uses stdlib {DidYouMean} for suggestions
   # when a typo has a close match.
   #
-  # Called by {Driftless::CLI::Root#after_own_parse} after config load;
-  # failures surface as `config error: ...` on stderr + exit 2.
+  # Raises {Driftless::ConfigValidationError} on the first problem found.
   class ConfigValidator
     # Listed explicitly because its keys are detector names from the registry
     # rather than declared config keys.

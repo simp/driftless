@@ -10,12 +10,6 @@ module Driftless
       register_command name: 'driftless'
       desc 'Puppet/OpenVox control-repo linter'
 
-      # Unconditional: every run needs a config, whether or not -c was given.
-      def after_own_parse
-        load_config!
-        apply_config_defaults
-      end
-
       protected
 
       def configure_parser(o)

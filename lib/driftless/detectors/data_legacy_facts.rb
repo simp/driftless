@@ -1,10 +1,10 @@
-require 'driftless/detectors/base'
+require 'driftless/detectors/callable'
 require 'driftless/detectors/legacy_fact_reference'
 require 'driftless/legacy_facts'
 
 module Driftless
   module Detectors
-    class DataLegacyFacts < Base
+    class DataLegacyFacts < Callable
       include LegacyFactReference
 
       key      'data:legacy-facts'

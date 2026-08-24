@@ -1,13 +1,13 @@
 require 'set'
 
-require 'driftless/detectors/base'
+require 'driftless/detectors/callable'
 require 'driftless/detectors/exclusions'
 require 'driftless/detectors/legacy_fact_reference'
 require 'driftless/legacy_facts'
 
 module Driftless
   module Detectors
-    class HierarchyTiersInterpolatingLegacyFacts < Base
+    class HierarchyTiersInterpolatingLegacyFacts < Callable
       include Exclusions::Tiers
       include LegacyFactReference
       include Exclusions::Facts

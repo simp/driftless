@@ -1,10 +1,10 @@
 require 'set'
 
-require 'driftless/detectors/base'
+require 'driftless/detectors/callable'
 
 module Driftless
   module Detectors
-    class DataCodebaseMissingClass < Base
+    class DataCodebaseMissingClass < Callable
       key      'data:codebase-missing-class'
       severity :error
       quality  :wrong

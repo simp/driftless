@@ -1,10 +1,10 @@
 require 'set'
 
-require 'driftless/detectors/base'
+require 'driftless/detectors/callable'
 
 module Driftless
   module Detectors
-    class DataMissingNodes < Base
+    class DataMissingNodes < Callable
       key      'data:paths-for-unreported-nodes'
       severity :warning
       quality  :stale

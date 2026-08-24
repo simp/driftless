@@ -1,11 +1,11 @@
 require 'set'
 
-require 'driftless/detectors/base'
+require 'driftless/detectors/callable'
 require 'driftless/role_profile'
 
 module Driftless
   module Detectors
-    class CodeLookupMissingHieraKeys < Base
+    class CodeLookupMissingHieraKeys < Callable
       key      'code:lookup-missing-hiera-keys'
       severity :error
       quality  :wrong

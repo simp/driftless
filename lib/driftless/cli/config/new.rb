@@ -173,7 +173,7 @@ module Driftless
         end
 
         def base_options
-          ::Driftless::Detectors::Base.config_options.values
+          ::Driftless::Detectors::Registration.config_options.values
         end
 
         def option_lines(opt, depth, exclude_comments=[])

@@ -3,7 +3,7 @@ require 'set'
 require 'driftless/config'
 require 'driftless/config_keys'
 require 'driftless/detectors'
-require 'driftless/detectors/base'
+require 'driftless/detectors/registration'
 
 module Driftless
   # Strict validator for a loaded {Driftless::Config}. Rejects unknown
@@ -147,9 +147,10 @@ module Driftless
 
     def all_declared_options
       set = Set.new
-      # Universal options on Base (also inherited by all subclasses, but including
-      # Base explicitly guarantees they're always accepted in defaults:).
-      Driftless::Detectors::Base.config_options.each_key { |name| set << name.to_s }
+      # Universal options on Registration (also inherited by all subclasses, but
+      # including Registration explicitly guarantees they're always accepted in
+      # defaults:).
+      Driftless::Detectors::Registration.config_options.each_key { |name| set << name.to_s }
       Driftless::Detectors.registry.each do |k|
         k.config_options.each_key { |name| set << name.to_s }
       end

@@ -20,6 +20,7 @@ module Driftless
       # (coverage check).
       def expected_reports
         registry.each_with_object([]) { |klass, acc|
+          next unless klass.callable?
           next unless klass.new(nil).option(:enabled)
           klass.requires_reports.each { |r| acc << r.to_s }
         }.uniq.sort

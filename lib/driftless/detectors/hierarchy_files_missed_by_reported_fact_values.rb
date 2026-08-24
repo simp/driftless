@@ -1,12 +1,12 @@
 require 'set'
 
-require 'driftless/detectors/base'
+require 'driftless/detectors/callable'
 require 'driftless/hierarchy_interpolator'
 require 'driftless/node_grouping'
 
 module Driftless
   module Detectors
-    class HierarchyFilesMissedByReportedFactValues < Base
+    class HierarchyFilesMissedByReportedFactValues < Callable
       key      'hierarchy:files-missed-by-reported-fact-values'
       severity :warning
       quality  :stale

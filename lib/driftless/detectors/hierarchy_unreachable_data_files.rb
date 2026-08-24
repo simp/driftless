@@ -1,10 +1,10 @@
 require 'set'
 
-require 'driftless/detectors/base'
+require 'driftless/detectors/callable'
 
 module Driftless
   module Detectors
-    class HierarchyUnreachableDataFiles < Base
+    class HierarchyUnreachableDataFiles < Callable
       key      'hierarchy:unreachable-data-files'
       severity :warning
       quality  :impossible

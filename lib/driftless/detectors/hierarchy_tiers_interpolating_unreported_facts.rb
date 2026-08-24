@@ -1,9 +1,9 @@
-require 'driftless/detectors/base'
+require 'driftless/detectors/callable'
 require 'driftless/detectors/exclusions'
 require 'driftless/legacy_facts'
 module Driftless
   module Detectors
-    class HierarchyTiersInterpolatingUnreportedFacts < Base
+    class HierarchyTiersInterpolatingUnreportedFacts < Callable
       include Exclusions::Tiers
       include Exclusions::Facts
 

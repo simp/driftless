@@ -168,7 +168,7 @@ module Driftless
     end
 
     def selected_detectors
-      d = Detectors.registry
+      d = Detectors.registry.select(&:callable?)
       d = d.select { |k| only.include?(k.key) } if only && !only.empty?
       d = d.reject { |k| skip.include?(k.key) } if skip && !skip.empty?
       d

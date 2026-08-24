@@ -4,26 +4,33 @@ require 'driftless/finding'
 
 module Driftless
   module Detectors
-    class Base
+    # A finding key together with the metadata and config surface every entry in
+    # {Detectors.registry} carries: what it reports, how it is graded, and which
+    # options a config file may set for it.
+    #
+    # Subclasses that go looking for their own findings inherit from
+    # {Detectors::Callable}. Subclassing Registration directly declares a key
+    # whose findings are raised elsewhere.
+    class Registration
       class << self
+        # Declaring a key registers the class. Registration hangs off the key
+        # rather than off `inherited` so that classes carrying only shared
+        # behaviour — Callable among them — stay out of the registry, and so
+        # every entry in it has a key to be listed and configured under.
         def key(k = nil)
-          k.nil? ? @key : (@key = k)
+          return @key if k.nil?
+
+          @key = k
+          Detectors.register(self)
+          k
         end
 
         def about(text = nil)
           text.nil? ? @about : (@about = text)
         end
 
-        def requires_reports(*names)
-          if names.empty?
-            @requires_reports ||= []
-          else
-            @requires_reports = names.flatten.map(&:to_s)
-          end
-        end
-
-        # SARIF-aligned severity applied by default to every finding this
-        # detector emits (per-finding override via {Base#build_finding}).
+        # SARIF-aligned severity applied by default to every finding under this
+        # key (per-finding override via {Registration#build_finding}).
         # Defaults to :warning; declare :error to force intentionality.
         def severity(s = nil)
           return (@severity || :warning) if s.nil?
@@ -36,8 +43,8 @@ module Driftless
           @severity = s
         end
 
-        # Optional categorical tag applied by default to every finding this
-        # detector emits (per-finding override via {Base#build_finding}).
+        # Optional categorical tag applied by default to every finding under
+        # this key (per-finding override via {Registration#build_finding}).
         # Nil means unlabelled — filter-only utility, no reader-facing tag.
         def quality(q = nil)
           return @quality if q.nil?
@@ -50,14 +57,15 @@ module Driftless
           @quality = q
         end
 
-        def inherited(subclass)
-          super
-          Detectors.register(subclass)
+        # Whether {Scan} runs this class to produce its findings.
+        # {Detectors::Callable} answers true.
+        def callable?
+          false
         end
 
-        # Declares a config-supported option for this detector class. Called at
-        # class-body evaluation time; subclasses inherit their ancestors' options
-        # via {.config_options}.
+        # Declares a config-supported option for this key. Called at class-body
+        # evaluation time; subclasses inherit their ancestors' options via
+        # {.config_options}.
         #
         # @param name    [Symbol]      Option key (as it appears in YAML too).
         # @param type    [Symbol]      One of :boolean, :string, :integer, :array, :regexp.
@@ -74,8 +82,8 @@ module Driftless
         end
 
         # All config options this class understands, INCLUDING inherited ones
-        # from Base (:enabled, :exclude_paths) and any intermediate ancestor
-        # that declared its own.
+        # from Registration (:enabled, :exclude_paths) and any intermediate
+        # ancestor that declared its own.
         #
         # @return [Hash{Symbol => Hash}] Keyed by option name.
         def config_options
@@ -88,23 +96,13 @@ module Driftless
         end
       end
 
-      # Universal detector controls: {Scan#run} applies both to every detector.
-      # - :enabled — {Scan#run} skips detectors where option(:enabled) is false.
+      # Universal controls: {Scan#run} applies both to every finding it collects.
+      # - :enabled — findings under a key whose option(:enabled) is false are dropped.
       # - :exclude_paths — findings whose path matches any pattern are dropped.
       config_option :enabled, type: :boolean, default: true,
-        about: 'Enables/disables detector during a scan'
+        about: 'Enables/disables this key during a scan'
       config_option :exclude_paths, type: :array, default: [],
         about: 'List (of glob patterns) to filter out any finding with a matching path'
-
-      attr_reader :corpus
-
-      def initialize(corpus)
-        @corpus = corpus
-      end
-
-      def call
-        raise NotImplementedError, "#{self.class} must implement #call"
-      end
 
       # Reads the effective value of a declared config option, merging (in
       # ascending precedence): declared default → detectors.defaults section →
@@ -136,31 +134,6 @@ module Driftless
           meta:     meta,
           severity: severity || self.class.severity,
           quality:  quality  || self.class.quality,
-        )
-      end
-
-      def meta_finding(key:, message:, path: nil, line: nil, meta: {},
-                       severity: nil, quality: nil)
-        Finding.new(
-          key:      key,
-          path:     path,
-          line:     line,
-          message:  message,
-          meta:     meta,
-          severity: severity || self.class.severity,
-          quality:  quality  || self.class.quality,
-        )
-      end
-
-      def skip_meta_finding(reason:)
-        Finding.new(
-          key:      "skipped:#{self.class.key}",
-          path:     nil,
-          line:     nil,
-          message:  "detector skipped: #{reason}",
-          meta:     {},
-          severity: :note,
-          quality:  nil,
         )
       end
 

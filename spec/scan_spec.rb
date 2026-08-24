@@ -110,6 +110,19 @@ RSpec.describe Driftless::Scan do
         expect(@captured.string).to match(/hierarchy:files-missed-by-reported-fact-values → disabled by config/)
       end
     end
+
+    # Loader Registrations sit in the same registry and answer callable? false
+    # Only the detectors are run.
+    it 'does not run a registration that is not callable' do
+      Class.new(Driftless::Detectors::Registration) { key 'test:not-callable' }
+
+      Dir.mktmpdir do |dir|
+        minimal_repo(dir)
+        expect { described_class.new(repo_dir: dir, incoming_dir: File.join(dir, 'incoming')).run }
+          .not_to raise_error
+        expect(@captured.string).not_to include('test:not-callable')
+      end
+    end
   end
 
   describe '#apply_environment_filter' do

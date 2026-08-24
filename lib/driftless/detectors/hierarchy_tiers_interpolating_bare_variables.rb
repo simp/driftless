@@ -1,12 +1,12 @@
 require 'set'
 
-require 'driftless/detectors/base'
+require 'driftless/detectors/callable'
 require 'driftless/detectors/bare_variable_reference'
 require 'driftless/detectors/exclusions'
 
 module Driftless
   module Detectors
-    class HierarchyTiersInterpolatingBareVariables < Base
+    class HierarchyTiersInterpolatingBareVariables < Callable
       include BareVariableReference
       include Exclusions::Tiers
       include Exclusions::Facts

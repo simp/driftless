@@ -1,9 +1,9 @@
 require 'driftless/detectors/bare_variable_reference'
-require 'driftless/detectors/base'
+require 'driftless/detectors/callable'
 
 module Driftless
   module Detectors
-    class DataBareVariables < Base
+    class DataBareVariables < Callable
       include BareVariableReference
 
       key      'data:bare-variables'

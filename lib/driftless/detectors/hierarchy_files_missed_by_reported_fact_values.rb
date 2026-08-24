@@ -2,6 +2,7 @@ require 'set'
 
 require 'driftless/detectors/base'
 require 'driftless/hierarchy_interpolator'
+require 'driftless/node_grouping'
 
 module Driftless
   module Detectors
@@ -30,9 +31,11 @@ module Driftless
 
         reachable         = Set.new
         excluded_by_tiers = Set.new
+        # One walk of the node list, shared by every path in the hierarchy.
+        grouping = NodeGrouping.new(nodes, corpus.hiera_tiers.flat_map(&:interpolation_vars).uniq)
 
         corpus.hiera_tiers.each do |tier|
-          tier_reachable = reachable_paths_for(tier, nodes)
+          tier_reachable = reachable_paths_for(tier, grouping)
 
           if tier.interpolation_vars.any? && tier_reachable.empty?
             # A tier whose interpolation vars are satisfied by NO active node's facts.
@@ -59,17 +62,21 @@ module Driftless
 
       private
 
-      def reachable_paths_for(tier, nodes)
+      # Renders each path once per distinct set of values for the variables
+      # that path interpolates.
+      def reachable_paths_for(tier, grouping)
         paths = Set.new
         tier.path_templates.each do |template|
-          if tier.interpolation_vars.empty?
+          vars = tier.vars_for(template)
+          if vars.empty?
             paths << File.join(tier.datadir, template)
-          else
-            nodes.each do |node|
-              rendered = HierarchyInterpolator.new(node).render(template)
-              next if HierarchyInterpolator.unresolved?(rendered)
-              paths << File.join(tier.datadir, rendered)
-            end
+            next
+          end
+
+          grouping.representatives(vars).each do |node|
+            rendered = HierarchyInterpolator.new(node).render(template)
+            next if HierarchyInterpolator.unresolved?(rendered)
+            paths << File.join(tier.datadir, rendered)
           end
         end
         paths

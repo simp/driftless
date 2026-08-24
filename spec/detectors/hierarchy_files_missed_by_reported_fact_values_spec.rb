@@ -91,5 +91,42 @@ RSpec.describe Driftless::Detectors::HierarchyFilesMissedByReportedFactValues do
         expect(orphan_paths).not_to include(default_path)
       end
     end
+
+    context 'grouping nodes by the values a tier interpolates' do
+      def redhat(n)
+        Driftless::Node.new(
+          certname: "#{n}.example.com",
+          facts:    { 'hostname' => n, 'os' => { 'family' => 'RedHat' } },
+          trusted:  { 'certname' => "#{n}.example.com", 'hostname' => n },
+        )
+      end
+
+      let(:fleet) { %w[web1 web2 web3 web4].map { |n| redhat(n) } }
+
+      def orphans_for(nodes)
+        described_class.new(corpus_for('orphans', nodes: nodes)).call
+          .select { |f| f.key == 'hierarchy:files-missed-by-reported-fact-values' }
+          .map(&:path).sort
+      end
+
+      # Three more RedHat nodes reach the same os/family path, and their own
+      # hosts/ files are absent either way, so the findings must not move.
+      it 'reports the same paths for four RedHat nodes as for one' do
+        expect(orphans_for(fleet)).to eq(orphans_for([fleet.first]))
+      end
+
+      # The per-certname tier still renders per node, so a fleet of four
+      # produces four of those paths while the os/family tier produces one.
+      it 'renders the os/family path once for a fleet sharing that value' do
+        debian = Driftless::Node.new(
+          certname: 'db1.example.com',
+          facts:    { 'hostname' => 'db1', 'os' => { 'family' => 'Debian' } },
+          trusted:  { 'certname' => 'db1.example.com' },
+        )
+        grouping = Driftless::NodeGrouping.new(fleet + [debian], ['facts.os.family'])
+        reps = grouping.representatives(['facts.os.family'])
+        expect(reps.map { |n| n.fact('facts.os.family') }).to contain_exactly('RedHat', 'Debian')
+      end
+    end
   end
 end

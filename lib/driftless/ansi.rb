@@ -18,9 +18,7 @@ module Driftless
     }.freeze
 
     class << self
-      # What --color / --no-color asked for, and what output.color asked for:
-      # true, false, or nil for unset. Both set by the CLI; every stream's
-      # decision reads them.
+      # --[no-]color and output.color: true, false, or nil for unset.
       attr_accessor :preference, :configured
 
       # Whether to colorize output bound for io. The flag is the most local

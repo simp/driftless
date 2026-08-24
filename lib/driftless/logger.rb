@@ -27,8 +27,6 @@ module Driftless
 
     def self.format_line(severity, message)
       severity = severity.downcase
-      # Uppercased with or without color: fatal is the one severity that means
-      # the command stopped.
       label = (severity == 'fatal') ? 'FATAL' : severity
       return "#{label}: #{message}\n" unless Ansi.enabled?($stderr)
       return "#{Ansi.wrap("#{label}: #{message}", :dim)}\n" if severity == 'debug'

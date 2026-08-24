@@ -65,20 +65,6 @@ module Driftless
           if tier.interpolation_vars.empty?
             paths << File.join(tier.datadir, template)
           else
-            # naive approach: render every node against every var in every tier
-            # FIXME: only works with one var per tier needs to work for multi-variable sets of vars
-            # TODO: finish this work; it's not wired up yet
-            # better:
-            #   - find all unique sets of the interp vars,
-            #   - find one node for each unique set
-            #   - only render _those_ nodes
-            uniq_var_sets = tier.interpolation_vars.map do |var|
-              var_levels = var.split('.')
-              np =  nodes.map{ |n| n.dig(*var_levels) }
-              [var,np.uniq]
-            end.to_h
-
-
             nodes.each do |node|
               rendered = HierarchyInterpolator.new(node).render(template)
               next if HierarchyInterpolator.unresolved?(rendered)

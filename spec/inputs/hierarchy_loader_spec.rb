@@ -106,6 +106,165 @@ RSpec.describe Driftless::Inputs::HierarchyLoader do
       end
     end
 
+    context 'with a datadir that is not a directory' do
+      # Nothing else notices: every consumer does Dir[File.join(datadir, ...)],
+      # which returns [] for a directory that is not there.
+      def repo(dir, hiera)
+        File.write(File.join(dir, 'hiera.yaml'), hiera)
+        described_class.load(dir)
+      end
+
+      let(:one_bad_tier) do
+        <<~YAML
+          ---
+          version: 5
+          hierarchy:
+            - name: 'Typo'
+              datadir: dat
+              path: 'common.yaml'
+            - name: 'Fine'
+              datadir: data
+              path: 'default.yaml'
+        YAML
+      end
+
+      it 'emits one hierarchy:missing-datadir finding for the offending tier' do
+        Dir.mktmpdir do |dir|
+          FileUtils.mkdir_p(File.join(dir, 'data'))
+          _tiers, findings = repo(dir, one_bad_tier)
+          expect(findings.map(&:key)).to eq(['hierarchy:missing-datadir'])
+        end
+      end
+
+      it 'names the datadir as hiera.yaml spells it, not the expanded path' do
+        Dir.mktmpdir do |dir|
+          FileUtils.mkdir_p(File.join(dir, 'data'))
+          _tiers, findings = repo(dir, one_bad_tier)
+          expect(findings.first.message).to include('"dat"')
+          expect(findings.first.message).not_to include(dir)
+        end
+      end
+
+      it 'anchors the finding to the tier line in hiera.yaml' do
+        Dir.mktmpdir do |dir|
+          FileUtils.mkdir_p(File.join(dir, 'data'))
+          _tiers, findings = repo(dir, one_bad_tier)
+          expect(findings.first.path).to eq(File.join(dir, 'hiera.yaml'))
+          expect(findings.first.line).to eq(4)
+        end
+      end
+
+      # The tier is declared correctly, so it stays in the hierarchy; only its
+      # data files are missing.
+      it 'still returns the tier' do
+        Dir.mktmpdir do |dir|
+          FileUtils.mkdir_p(File.join(dir, 'data'))
+          tiers, _findings = repo(dir, one_bad_tier)
+          expect(tiers.map(&:name)).to eq(%w[Typo Fine])
+        end
+      end
+
+      # A typo in defaults: blinds every tier, so every tier reports it.
+      it 'fires once per tier when the typo is in defaults' do
+        Dir.mktmpdir do |dir|
+          _tiers, findings = repo(dir, <<~YAML)
+            ---
+            version: 5
+            defaults:
+              datadir: dat
+            hierarchy:
+              - name: 'One'
+                path: 'common.yaml'
+              - name: 'Two'
+                path: 'default.yaml'
+          YAML
+          expect(findings.map(&:key)).to eq(['hierarchy:missing-datadir'] * 2)
+        end
+      end
+
+      # Hiera's own default when hiera.yaml declares no datadir at any level.
+      it "catches the implicit 'data' datadir" do
+        Dir.mktmpdir do |dir|
+          _tiers, findings = repo(dir, <<~YAML)
+            ---
+            version: 5
+            hierarchy:
+              - name: 'Common'
+                path: 'common.yaml'
+          YAML
+          expect(findings.map(&:key)).to eq(['hierarchy:missing-datadir'])
+          expect(findings.first.message).to include('"data"')
+        end
+      end
+
+      # Hiera renders datadir before resolving paths against it (Puppet's
+      # HieraConfigV5), so a token here is a legitimate hierarchy and the
+      # literal string is never a directory.
+      context 'when the datadir interpolates' do
+        let(:interpolated) do
+          <<~YAML
+            ---
+            version: 5
+            hierarchy:
+              - name: 'Interpolated'
+                datadir: 'data/%{facts.os.family}'
+                path: 'common.yaml'
+          YAML
+        end
+
+        it 'reports hierarchy:interpolated-datadir, not missing-datadir' do
+          Dir.mktmpdir do |dir|
+            _tiers, findings = repo(dir, interpolated)
+            expect(findings.map(&:key)).to eq(['hierarchy:interpolated-datadir'])
+          end
+        end
+
+        it 'reports it even when the literal directory happens to exist' do
+          Dir.mktmpdir do |dir|
+            FileUtils.mkdir_p(File.join(dir, 'data/%{facts.os.family}'))
+            _tiers, findings = repo(dir, interpolated)
+            expect(findings.map(&:key)).to eq(['hierarchy:interpolated-datadir'])
+          end
+        end
+
+        it 'still returns the tier' do
+          Dir.mktmpdir do |dir|
+            tiers, _findings = repo(dir, interpolated)
+            expect(tiers.map(&:name)).to eq(['Interpolated'])
+          end
+        end
+      end
+
+      it 'stays quiet when the datadir exists' do
+        Dir.mktmpdir do |dir|
+          FileUtils.mkdir_p(File.join(dir, 'data'))
+          _tiers, findings = repo(dir, <<~YAML)
+            ---
+            version: 5
+            hierarchy:
+              - name: 'Fine'
+                path: 'common.yaml'
+          YAML
+          expect(findings).to be_empty
+        end
+      end
+
+      # A tier driftless skips never reaches the datadir check.
+      it 'does not report a datadir for a tier it already skipped' do
+        Dir.mktmpdir do |dir|
+          _tiers, findings = repo(dir, <<~YAML)
+            ---
+            version: 5
+            hierarchy:
+              - name: 'Vault'
+                datadir: dat
+                lookup_key: vault_lookup_key
+          YAML
+          expect(findings.map(&:key)).to eq(['hierarchy:unscannable-by-driftless-backend'])
+        end
+      end
+    end
+
     context 'with no hiera.yaml at all' do
       it 'returns no tiers and a hierarchy:hiera-yaml-missing finding' do
         Dir.mktmpdir do |empty|

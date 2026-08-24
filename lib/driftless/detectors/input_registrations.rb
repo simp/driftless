@@ -42,6 +42,20 @@ module Driftless
       severity :error
     end
 
+    class HierarchyInterpolatedDatadir < Registration
+      key      'hierarchy:interpolated-datadir'
+      about    'a tier interpolates its datadir, which driftless does not render, so none of its data files are scanned'
+      severity :note
+      quality  :weird
+    end
+
+    class HierarchyMissingDatadir < Registration
+      key      'hierarchy:missing-datadir'
+      about    "a tier's datadir is not a directory, so none of its data files are scanned"
+      severity :error
+      quality  :wrong
+    end
+
     class HierarchyTierMissingPath < Registration
       key      'hierarchy:tier-missing-path'
       about    'a tier declares neither path: nor paths:'

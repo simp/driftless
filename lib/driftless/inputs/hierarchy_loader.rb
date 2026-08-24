@@ -60,9 +60,10 @@ module Driftless
         Array(doc['hierarchy']).each_with_index do |entry, i|
           next unless entry.is_a?(Hash)
 
-          line    = entry_lines[i]
-          name    = entry['name'] || '(unnamed)'
-          datadir = File.expand_path(entry['datadir'] || default_datadir, @repo_dir)
+          line     = entry_lines[i]
+          name     = entry['name'] || '(unnamed)'
+          declared = entry['datadir'] || default_datadir
+          datadir  = File.expand_path(declared, @repo_dir)
 
           if entry.key?('lookup_key') || entry.key?('data_dig')
             findings << finding(
@@ -92,6 +93,27 @@ module Driftless
               line: line,
             )
             next
+          end
+
+          # Both reported as hiera.yaml spells the datadir, which is how a
+          # reader will recognize it. Either way the tier is declared correctly
+          # and stays in the hierarchy; only its data files go unread.
+          if declared.to_s.match?(INTERPOLATION_RE)
+            # Hiera renders the datadir before resolving paths against it, so
+            # the token is legitimate and the literal string is never a
+            # directory. driftless does not render it.
+            findings << finding(
+              Detectors::HierarchyInterpolatedDatadir,
+              "tier #{name.inspect} interpolates its datadir #{declared.inspect} " \
+              '(currently unscannable by driftless)',
+              line: line,
+            )
+          elsif !File.directory?(datadir)
+            findings << finding(
+              Detectors::HierarchyMissingDatadir,
+              "tier #{name.inspect} has datadir #{declared.inspect}, which is not a directory",
+              line: line,
+            )
           end
 
           tiers << HieraTier.new(

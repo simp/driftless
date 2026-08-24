@@ -11,6 +11,8 @@ RSpec.describe 'input registrations' do
     'data:json-parse-error' => { severity: :warning, quality: :wrong },
     'data:yaml-parse-error' => { severity: :warning, quality: :wrong },
     'hierarchy:hiera-yaml-missing' => { severity: :error, quality: :impossible },
+    'hierarchy:interpolated-datadir' => { severity: :note, quality: :weird },
+    'hierarchy:missing-datadir' => { severity: :error, quality: :wrong },
     'hierarchy:tier-missing-path' => { severity: :note, quality: nil },
     'hierarchy:unscannable-backend' => { severity: :note, quality: nil },
     'hierarchy:unscannable-by-driftless-backend' => { severity: :note, quality: nil },

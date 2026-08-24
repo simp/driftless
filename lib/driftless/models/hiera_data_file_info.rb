@@ -4,9 +4,9 @@ module Driftless
   # first-read value into `@source` — Data instances are frozen and cannot
   # accept post-construction ivar assignment.
   #
-  # @!attribute [r] path
+  # @!attribute [rw] path
   #   @return [String] Absolute path to the YAML file on disk.
-  # @!attribute [r] top_level_keys
+  # @!attribute [rw] top_level_keys
   #   @return [Hash{String => Integer}] Top-level keys mapped to their
   #     1-indexed source line numbers, extracted at load time.
   HieraDataFileInfo = Struct.new(:path, :top_level_keys, keyword_init: true) do

@@ -4,21 +4,25 @@ require 'puppet/pops/lookup/sub_lookup'
 module Driftless
   # One active node as reported by PuppetDB, merged across collectors.
   #
-  # @!attribute [r] certname
+  # @!attribute [rw] certname
   #   @return [String] The node's certname; unique within a merged report set.
-  # @!attribute [r] environment
+  # @!attribute [rw] environment
   #   @return [String, nil] catalog_environment when present, else environment.
   #     nil when the report carried neither.
-  # @!attribute [r] facts
+  # @!attribute [rw] facts
   #   @return [Hash] Structured facts, as reported.
-  # @!attribute [r] trusted
+  # @!attribute [rw] trusted
   #   @return [Hash] Trusted facts, as reported.
-  # @!attribute [r] collector
+  # @!attribute [rw] collector
   #   @return [String, nil] Which collector reported this node, parsed from
   #     `<collector>--<timestamp>` in the filename. nil for nodes not built
   #     from a report file.
   Node = Struct.new(
-    :certname, :environment, :facts, :trusted, :collector,
+    :certname,
+    :environment,
+    :facts,
+    :trusted,
+    :collector,
     keyword_init: true,
   ) do
     def initialize(certname:, environment: nil, facts: {}, trusted: {}, collector: nil)

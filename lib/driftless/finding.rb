@@ -1,19 +1,19 @@
 module Driftless
   # A single driftless finding.
   #
-  # @!attribute key
+  # @!attribute [rw] key
   #   @return [String] namespaced detector key, e.g. "hierarchy:unreachable-data-files"
-  # @!attribute path
+  # @!attribute [rw] path
   #   @return [String, nil] repo-relative path the finding anchors to (nil for structural findings)
-  # @!attribute line
+  # @!attribute [rw] line
   #   @return [Integer, nil] 1-indexed line, when applicable
-  # @!attribute message
+  # @!attribute [rw] message
   #   @return [String] human-readable one-liner
-  # @!attribute meta
+  # @!attribute [rw] meta
   #   @return [Hash] detector-specific structured payload
-  # @!attribute severity
+  # @!attribute [rw] severity
   #   @return [Symbol] one of {SEVERITIES} — SARIF-aligned: :error, :warning, :note
-  # @!attribute quality
+  # @!attribute [rw] quality
   #   @return [Symbol, nil] one of {QUALITIES} — categorical tag or nil (unlabelled)
   Finding = Struct.new(
     :key, :path, :line, :message, :meta, :severity, :quality,

@@ -33,7 +33,7 @@ module Driftless
           end
           next if unreported.empty?
 
-          noun = 'legacy fact/variable'
+          noun = 'variable/legacy fact'
           noun = 'legacy fact' if unreported.any? { |x| LegacyFacts.match(x) }
           noun = 'fact' if unreported.any? { |x| x.start_with?('facts.') }
           noun = 'trusted fact' if unreported.all? { |x| x =~ /^trusted\,/ }

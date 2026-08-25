@@ -57,7 +57,7 @@ module Driftless
             end
             branches.each do |branch|
               Driftless.logger.info("import git: branch #{branch}")
-              checkout(workdir, branch)
+              checkout(env, config_args, workdir, branch)
               r, s = copy_from_branch(workdir)
               reports_copied   += r
               summaries_copied += s
@@ -98,9 +98,12 @@ module Driftless
         branches.select { |b| b == want }
       end
 
-      def checkout(workdir, branch)
-        cmd = ['git', '-C', workdir, 'checkout', '--force', '-B', 'driftless-import', "origin/#{branch}"]
-        _, err, status = Open3.capture3(*cmd)
+      # The clone is blobless, so checkout fetches the branch's blobs from
+      # origin and needs the same auth as the clone.
+      def checkout(env, config_args, workdir, branch)
+        cmd = ['git', *config_args, '-C', workdir, 'checkout', '--force', '-B', 'driftless-import', "origin/#{branch}"]
+        Driftless.logger.debug("$ #{cmd.shelljoin}")
+        _, err, status = Open3.capture3(env, *cmd)
         raise Error, "git checkout #{branch} failed: #{err.strip}" unless status.success?
       end
 

@@ -176,6 +176,33 @@ RSpec.describe Driftless::Import::Git do
       end
     end
 
+    it 'runs checkout with the same auth env and config as clone' do
+      Dir.mktmpdir do |root|
+        remote = make_remote(root, { 'alpha' => { session: 'sess-a' } })
+        target = File.join(root, 'target', 'incoming')
+        calls = []
+        allow(Open3).to receive(:capture3).and_wrap_original do |m, *args|
+          calls << args
+          m.call(*args)
+        end
+
+        saved = ENV['DRIFTLESS_REPORT_PULL_TOKEN']
+        ENV['DRIFTLESS_REPORT_PULL_TOKEN'] = 'tok'
+        begin
+          described_class.new(repo_url: remote, incoming_dir: target).run
+        ensure
+          ENV['DRIFTLESS_REPORT_PULL_TOKEN'] = saved
+        end
+
+        clone    = calls.find { |a| a.include?('clone') }
+        checkout = calls.find { |a| a.include?('checkout') }
+        expect(clone.first).to include('GIT_TERMINAL_PROMPT' => '0')
+        expect(checkout.first).to eq(clone.first)
+        expect(checkout.grep(/\Acredential\.helper=/)).to eq(clone.grep(/\Acredential\.helper=/))
+        expect(checkout.grep(/\Acredential\.helper=!/)).not_to be_empty
+      end
+    end
+
     it 'raises Import::Error when repo_url is blank' do
       expect { described_class.new(repo_url: '', incoming_dir: '/tmp/x').run }
         .to raise_error(Driftless::Import::Error, /repo_url required/)

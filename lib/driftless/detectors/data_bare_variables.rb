@@ -12,14 +12,12 @@ module Driftless
       about 'Hiera data values interpolating an unqualified variable, which ' \
             'can resolve to a local variable instead of the intended value'
 
-      # Same line-by-line scan as data:legacy-facts: a multi-line scalar is
-      # still caught, with the line pointing at the part carrying the pattern.
       INTERPOLATION_RE = /%\{\s*([^{}\s]+)\s*\}/.freeze
 
       def call
         findings = []
         corpus.data_files.each do |df|
-          df.source.each_line.with_index(1) do |line, lineno|
+          df.value_lines.each do |line, lineno|
             line.scan(INTERPOLATION_RE).each do |(inner)|
               next unless bare?(inner)
 

@@ -13,15 +13,12 @@ module Driftless
       about 'Hiera data files that interpolate legacy facts' \
             '(%{osfamily}, %{hostname}, etc.) instead of the modern structured equivalents'
 
-      # Line-by-line scan matches bare `%{...}` in value positions.
-      # Multi-line scalar values with legacy fact interpolations will still be
-      # caught, but the reported line points to whichever contained the pattern.
       INTERPOLATION_RE = /%\{\s*([^{}\s]+)\s*\}/.freeze
 
       def call
         findings = []
         corpus.data_files.each do |df|
-          df.source.each_line.with_index(1) do |line, lineno|
+          df.value_lines.each do |line, lineno|
             line.scan(INTERPOLATION_RE).each do |(inner)|
               legacy = legacy_fact_for(inner)
               next unless legacy

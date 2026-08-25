@@ -52,6 +52,24 @@ RSpec.describe Driftless::Detectors::DataBareVariables do
     expect(f.path).to eq('/tmp/x.yaml')
   end
 
+  it 'ignores an interpolation in a full-line comment' do
+    expect(flagged("# mentions %{my_role}\nk: v\n")).to be_empty
+  end
+
+  it 'ignores an interpolation in a trailing comment' do
+    expect(flagged(%(k: v # %{my_role}\n))).to be_empty
+  end
+
+  it 'ignores an interpolation in a mapping key' do
+    expect(flagged(%("%{my_role}": v\n))).to be_empty
+  end
+
+  it 'reports the exact line inside a literal block scalar' do
+    src = "k: |\n  first\n  %{my_role}\n"
+    f = described_class.new(hand_corpus(data_files: [file_info(source: src)])).call.first
+    expect(f.line).to eq(3)
+  end
+
   it 'emits one finding per interpolation on a line' do
     expect(flagged(%(k: "%{a_var}-%{b_var}"\n))).to contain_exactly('a_var', 'b_var')
   end

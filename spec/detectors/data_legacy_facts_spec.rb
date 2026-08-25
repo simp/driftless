@@ -61,6 +61,14 @@ RSpec.describe Driftless::Detectors::DataLegacyFacts do
     expect(findings.first.line).to eq(4)
   end
 
+  it 'ignores legacy facts quoted in comments' do
+    df = file_info(source: <<~YAML)
+      # explains %{::osfamily}
+      a: "%{facts.os.family}" # was %{::osfamily}
+    YAML
+    expect(described_class.new(hand_corpus(data_files: [df])).call).to be_empty
+  end
+
   it 'emits multiple findings when multiple legacy facts appear on one line' do
     df = file_info(source: <<~YAML)
       composite: "%{::osfamily}-%{::hostname}"

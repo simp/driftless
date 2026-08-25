@@ -4,10 +4,10 @@ require 'driftless/models/lookup_call'
 
 module Driftless
   # Extracts {LookupCall} records (key, file, line, has_default) from either
-  # a parsed Puppet AST (`.extract`) or raw YAML source scanned for
-  # `%{lookup|alias|hiera(...)}` interpolations (`.extract_from_yaml_source`).
-  # Only calls whose first argument is a literal string are extracted; hash-
-  # form and dynamic-key calls are ignored.
+  # a parsed Puppet AST (`.extract`) or a YAML data file's scalar values
+  # scanned for `%{lookup|alias|hiera(...)}` interpolations
+  # (`.extract_from_yaml_values`). Only calls whose first argument is a
+  # literal string are extracted; hash-form and dynamic-key calls are ignored.
   class LookupCallExtractor
     LOOKUP_FUNCTIONS       = %w[lookup hiera].freeze
     YAML_LOOKUP_INTERP_RE  = /%\{(?:lookup|alias|hiera)\(\s*['"]([^'"]+)['"]\s*\)\}/.freeze
@@ -16,9 +16,10 @@ module Driftless
       new(program: program, file: file).extract
     end
 
-    def self.extract_from_yaml_source(source, file)
+    # @param value_lines [Array<Array(String, Integer)>] {HieraDataFileInfo#value_lines}
+    def self.extract_from_yaml_values(value_lines, file)
       calls = []
-      source.each_line.with_index(1) do |line, lineno|
+      value_lines.each do |line, lineno|
         line.scan(YAML_LOOKUP_INTERP_RE) do |captured|
           calls << LookupCall.new(
             key:         captured[0],

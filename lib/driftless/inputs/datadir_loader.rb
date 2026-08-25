@@ -42,9 +42,14 @@ module Driftless
       def load_file(path)
         source = File.read(path)
         stream = Psych.parse_stream(source, filename: path)
-        # Prime the source cache — we've already read the file to extract keys,
-        # so subsequent detectors that need df.source pay zero I/O cost.
-        info = HieraDataFileInfo.new(path: path, top_level_keys: extract_top_level_keys(stream), source: source)
+        # Prime the source and value_lines caches — the file is already read
+        # and parsed here, so detectors pay no I/O and no second parse.
+        info = HieraDataFileInfo.new(
+          path:           path,
+          top_level_keys: extract_top_level_keys(stream),
+          value_lines:    HieraDataFileInfo.value_lines_from(stream),
+          source:         source,
+        )
         [info, []]
       rescue Psych::SyntaxError, StandardError => e
         [nil, [yaml_error_finding(path, e)]]

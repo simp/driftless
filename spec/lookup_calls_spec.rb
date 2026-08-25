@@ -88,7 +88,7 @@ RSpec.describe Driftless::LookupCallExtractor do
       end
     end
 
-    context 'against YAML source (regex scan for %{lookup/alias/hiera(...)} interpolations)' do
+    context 'against YAML values (regex scan for %{lookup/alias/hiera(...)} interpolations)' do
       let(:yaml_source) do
         <<~YAML
           ---
@@ -98,10 +98,18 @@ RSpec.describe Driftless::LookupCallExtractor do
           via_hiera:  "%{hiera('legacy::interp::key')}"
           two_on_one_line: "%{lookup('a::b')}/%{alias('c::d')}"
           not_a_lookup: "%{facts.hostname}"
+          # in_comment: "%{lookup('comment::key')}"
         YAML
       end
 
-      let(:calls) { described_class.extract_from_yaml_source(yaml_source, 'data.yaml') }
+      let(:value_lines) do
+        Driftless::HieraDataFileInfo.new(path: 'data.yaml', top_level_keys: {}, source: yaml_source).value_lines
+      end
+      let(:calls) { described_class.extract_from_yaml_values(value_lines, 'data.yaml') }
+
+      it 'ignores a lookup interpolation inside a comment' do
+        expect(calls.map(&:key)).not_to include('comment::key')
+      end
 
       it 'captures each lookup/alias/hiera interpolation as a LookupCall' do
         expect(calls.map(&:key)).to contain_exactly(

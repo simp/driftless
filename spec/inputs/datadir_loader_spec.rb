@@ -44,6 +44,11 @@ RSpec.describe Driftless::Inputs::DatadirLoader do
       )
     end
 
+    it 'primes value_lines with each scalar value and its line' do
+      default_file = data_files.find { |df| df.path.end_with?('/default.yaml') }
+      expect(default_file.value_lines).to eq([['present', 2], ['true', 3], ['value', 4]])
+    end
+
     it 'traverses into nested subdirectories under the datadir' do
       web1 = data_files.find { |df| df.path.end_with?('/nodes/web1.yaml') }
       expect(web1).not_to be_nil

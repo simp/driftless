@@ -109,7 +109,7 @@ module Driftless
       phase('lookup extraction from Hiera data') do
         data_files.each do |df|
           next unless File.file?(df.path)
-          data_lookup_calls.concat(LookupCallExtractor.extract_from_yaml_source(df.source, df.path))
+          data_lookup_calls.concat(LookupCallExtractor.extract_from_yaml_values(df.value_lines, df.path))
         end
       end
 

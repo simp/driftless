@@ -1,0 +1,4 @@
+{"certname":"alpha.example.com","title":"Profile::Base","environment":"production"}
+{"certname":"alpha.example.com","title":"Role::Web","environment":"production"}
+{"certname":"alpha.example.com","title":"Profile::Base","environment":"production"}
+{"certname":"beta.example.com","title":"Role::Db","environment":"production"}

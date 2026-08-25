@@ -13,6 +13,9 @@ module Driftless
   #   @return [Hash] Structured facts, as reported.
   # @!attribute [rw] trusted
   #   @return [Hash] Trusted facts, as reported.
+  # @!attribute [rw] classes
+  #   @return [Array<String>] Class titles as PuppetDB spells them
+  #     (`Profile::Base`), deduped and sorted.
   # @!attribute [rw] collector
   #   @return [String, nil] Which collector reported this node, parsed from
   #     `<collector>--<timestamp>` in the filename. nil for nodes not built
@@ -22,10 +25,12 @@ module Driftless
     :environment,
     :facts,
     :trusted,
+    :classes,
     :collector,
     keyword_init: true,
   ) do
-    def initialize(certname:, environment: nil, facts: {}, trusted: {}, collector: nil)
+    def initialize(certname:, environment: nil, facts: {}, trusted: {},
+                   classes: [], collector: nil)
       super
     end
 

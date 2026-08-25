@@ -309,4 +309,79 @@ RSpec.describe Driftless::Inputs::ReportLoader do
       end
     end
   end
+
+  describe 'classes-for-all-active-nodes' do
+    let(:classed) { described_class.load(fixture('basic'))[0].report('classes-for-all-active-nodes') }
+    let(:by_certname) { classed.each_with_object({}) { |n, h| h[n.certname] = n } }
+
+    it 'is loaded' do
+      expect(described_class::QUERIES).to include('classes-for-all-active-nodes')
+    end
+
+    it 'yields Nodes, as the other reports do' do
+      expect(classed).to all(be_a(Driftless::Node))
+    end
+
+    it 'leaves facts and trusted empty, as the node reports leave classes' do
+      expect(by_certname['alpha.example.com'].facts).to eq({})
+      expect(by_certname['alpha.example.com'].trusted).to eq({})
+    end
+
+    # The query returns one row per (certname, class); the report is per node.
+    it 'collects a node\'s rows into one entry rather than keeping the last' do
+      expect(classed.map(&:certname))
+        .to contain_exactly('alpha.example.com', 'beta.example.com')
+      expect(by_certname['alpha.example.com'].classes)
+        .to eq(['Profile::Base', 'Role::Web'])
+    end
+
+    it 'dedupes a class repeated across rows' do
+      titles = by_certname['alpha.example.com'].classes
+      expect(titles.length).to eq(titles.uniq.length)
+    end
+
+    it 'sorts the class list, so it does not depend on row order' do
+      expect(by_certname['alpha.example.com'].classes).to eq(
+        by_certname['alpha.example.com'].classes.sort,
+      )
+    end
+
+    it 'carries the environment and the collector the rows came from' do
+      c = by_certname['beta.example.com']
+      expect(c.environment).to eq('production')
+      expect(c.collector).to eq('east')
+    end
+
+    it 'reports a certname claimed by two collectors, as the node reports do' do
+      Dir.mktmpdir do |dir|
+        FileUtils.mkdir_p(File.join(dir, 'classes-for-all-active-nodes'))
+        {
+          'east--20260803150000.ndjson' => '{"certname":"a","title":"Role::X"}',
+          'west--20260803150000.ndjson' => '{"certname":"a","title":"Role::Y"}',
+        }.each { |name, body| File.write(File.join(dir, 'classes-for-all-active-nodes', name), body + "\n") }
+        expect(described_class.load(dir)[0].duplicate_certnames).to eq('a' => %w[east west])
+      end
+    end
+
+    it 'emits a data:json-parse-error finding for an unparseable file' do
+      Dir.mktmpdir do |dir|
+        FileUtils.mkdir_p(File.join(dir, 'classes-for-all-active-nodes'))
+        File.write(File.join(dir, 'classes-for-all-active-nodes', 'east--20260803150000.json'), '{ nope')
+        _reported, findings = described_class.load(dir)
+        expect(findings.map(&:key)).to eq(['data:json-parse-error'])
+      end
+    end
+
+    it 'skips a row with no certname' do
+      Dir.mktmpdir do |dir|
+        FileUtils.mkdir_p(File.join(dir, 'classes-for-all-active-nodes'))
+        File.write(
+          File.join(dir, 'classes-for-all-active-nodes', 'east--20260803150000.ndjson'),
+          %({"title":"Role::Orphan"}\n{"certname":"a","title":"Role::X"}\n),
+        )
+        loaded = described_class.load(dir)[0].report('classes-for-all-active-nodes')
+        expect(loaded.map(&:certname)).to eq(['a'])
+      end
+    end
+  end
 end

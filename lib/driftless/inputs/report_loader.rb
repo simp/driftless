@@ -14,8 +14,15 @@ module Driftless
       config_key 'reports.incoming_dir', type: :string, default: 'incoming',
         about: "Raw-report landing directory tree for PDB reports from all enclaves. \nPopulated by `driftless import`, read by `driftless scan` and others "
 
-      QUERIES = %w[all-active-nodes factsets-for-all-active-nodes].freeze
-      NODE_REPORTS = %w[all-active-nodes factsets-for-all-active-nodes].freeze
+      # Report name => its row shape. Only :classes has more than one row per
+      # certname — one per (certname, class) — collected into a class list.
+      REPORTS = {
+        'all-active-nodes'              => :node,
+        'factsets-for-all-active-nodes' => :node,
+        'classes-for-all-active-nodes'  => :classes,
+      }.freeze
+
+      QUERIES = REPORTS.keys.freeze
 
       def self.load(incoming_dir)
         new(incoming_dir).load
@@ -42,8 +49,6 @@ module Driftless
       private
 
       def load_query(query)
-        return [Reported::MissingReport, [], {}] if query.start_with?('.')
-
         query_dir = File.join(@incoming_dir, query)
         return [Reported::MissingReport, [], {}] unless File.directory?(query_dir)
 
@@ -51,15 +56,13 @@ module Driftless
           .reject { |f| File.basename(f).start_with?('.') }
         return [Reported::MissingReport, [], {}] if files.empty?
 
-        per_collector       = newest_per_collector(files)
-        winners, errs, dups = merge_per_certname(per_collector, query)
-        records =
-          if NODE_REPORTS.include?(query)
-            winners.map { |w| build_node(w[:record], w[:collector]) }
-          else
-            winners.map { |w| w[:record] }
-          end
-        [records, errs, dups]
+        per_collector = newest_per_collector(files)
+        if REPORTS[query] == :classes
+          collect_per_certname(per_collector, query)
+        else
+          winners, errs, dups = merge_per_certname(per_collector, query)
+          [winners.map { |w| build_node(w[:record], w[:collector]) }, errs, dups]
+        end
       end
 
       def newest_per_collector(files)
@@ -75,9 +78,14 @@ module Driftless
         per
       end
 
-      def merge_per_certname(per_collector, query)
-        per_certname = {}
-        claimed_by   = Hash.new { |h, k| h[k] = [] }
+      # Walks every record across a query's collectors, yielding
+      # (record, certname, collector). Records with no certname are skipped, and
+      # a certname claimed by more than one collector lands in the returned
+      # duplicates hash.
+      #
+      # @return [Array(Array<Finding>, Hash)] parse-error findings, duplicates
+      def each_record(per_collector, query)
+        claimed_by = Hash.new { |h, k| h[k] = [] }
         errs = []
         per_collector.each do |collector, info|
           records =
@@ -94,15 +102,43 @@ module Driftless
             certname = record['certname']
             next unless certname
             claimed_by[certname] << collector
-            candidate = { record: record, collector: collector }
-            per_certname[certname] = pick_winner(per_certname[certname], candidate)
+            yield record, certname, collector
           end
         end
         dups = claimed_by.each_with_object({}) do |(certname, collectors), acc|
           uniq = collectors.uniq
           acc[certname] = uniq.sort if uniq.length > 1
         end
+        [errs, dups]
+      end
+
+      def merge_per_certname(per_collector, query)
+        per_certname = {}
+        errs, dups = each_record(per_collector, query) do |record, certname, collector|
+          candidate = { record: record, collector: collector }
+          per_certname[certname] = pick_winner(per_certname[certname], candidate)
+        end
         [per_certname.values, errs, dups]
+      end
+
+      # One row per (certname, class) becomes one Node per certname, carrying
+      # its class list.
+      def collect_per_certname(per_collector, query)
+        by_certname = {}
+        errs, dups = each_record(per_collector, query) do |record, certname, collector|
+          entry = (by_certname[certname] ||= { titles: [], environment: nil, collector: collector })
+          entry[:titles] << record['title'] if record['title']
+          entry[:environment] ||= record['environment']
+        end
+        nodes = by_certname.map do |certname, entry|
+          Node.new(
+            certname:    certname,
+            classes:     entry[:titles].uniq.sort,
+            environment: entry[:environment],
+            collector:   entry[:collector],
+          )
+        end
+        [nodes, errs, dups]
       end
 
       def pick_winner(existing, candidate)

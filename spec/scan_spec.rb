@@ -255,6 +255,26 @@ RSpec.describe Driftless::Scan do
       expect(result.report('all-active-nodes').map(&:certname)).to eq(['web1'])
     end
 
+    # Every report is a list of Nodes, so the same filter drops a node's class
+    # list when it drops the node.
+    it 'filters the classes report alongside the node reports' do
+      scan     = filter_scan(environments: ['production'], allow_missing_envs: true)
+      reported = Driftless::Reported.new(data: {
+        'all-active-nodes' => [
+          make_node(certname: 'web1', environment: 'production'),
+          make_node(certname: 'dev1', environment: 'dev'),
+        ],
+        'classes-for-all-active-nodes' => [
+          Driftless::Node.new(certname: 'web1', classes: ['Role::Web'], environment: 'production'),
+          Driftless::Node.new(certname: 'dev1', classes: ['Role::Dev'], environment: 'dev'),
+        ],
+      })
+
+      result = scan.send(:apply_environment_filter, reported)
+      expect(result.report('all-active-nodes').map(&:certname)).to eq(['web1'])
+      expect(result.report('classes-for-all-active-nodes').map(&:certname)).to eq(['web1'])
+    end
+
     it 'excludes nodes whose environment is not listed' do
       scan     = filter_scan(environments: ['production'], allow_missing_envs: true)
       reported = make_reported([

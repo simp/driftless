@@ -13,6 +13,8 @@ module Driftless
 
       NODE_CERTNAME_VARS = %w[trusted.certname facts.fqdn facts.hostname clientcert].freeze
 
+      GLOB_TOKEN_RE = %r{(\*\*/|\*\*|\*|\?|\{[^{}]*\}|\[[^\]]*\])}.freeze
+
       def call
         if corpus.reported.missing?('all-active-nodes')
           return [skip_meta_finding(reason: 'no report:all-active-nodes data')]
@@ -25,7 +27,7 @@ module Driftless
           tier.path_templates.each do |template|
             next unless template_has_certname_var?(template)
 
-            regex = template_to_regex(template)
+            regex = template_to_regex(template, glob: tier.glob?)
             each_matching_file(tier.datadir, template) do |file|
               rel = file.sub(File.join(tier.datadir, ''), '')
               match = rel.match(regex)
@@ -55,16 +57,40 @@ module Driftless
         Dir[File.join(datadir, glob)].each { |f| yield f }
       end
 
-      def template_to_regex(template)
+      # Splitting on %{...} puts each brace of `{%{a},b}` in a different part,
+      # so glob_to_regex reads neither as alternation. That template matches no
+      # file, and the caller skips a file it cannot match.
+      def template_to_regex(template, glob: false)
         parts = template.split(/(%\{[^{}]+\})/)
         regex_str = parts.map { |part|
           if (m = part.match(/\A%\{([^{}]+)\}\z/))
             NODE_CERTNAME_VARS.include?(m[1]) ? '(?<certname>[^/]+)' : '[^/]+'
+          elsif glob
+            glob_to_regex(part)
           else
             Regexp.escape(part)
           end
         }.join
         Regexp.new("\\A#{regex_str}\\z")
+      end
+
+      # Glob metacharacters as Hiera reads them, since a glob tier's template
+      # carries them where a path's would be a literal filename. Dir[] has
+      # already chosen the files this runs against, so the translation only has
+      # to keep the certname capture in the right place.
+      def glob_to_regex(part)
+        part.split(GLOB_TOKEN_RE).map { |token|
+          case token
+          when '**/' then '(?:[^/]+/)*'
+          when '**'  then '.*'
+          when '*'   then '[^/]*'
+          when '?'   then '[^/]'
+          when /\A\{(.*)\}\z/m
+            "(?:#{Regexp.last_match(1).split(',').map { |alt| Regexp.escape(alt) }.join('|')})"
+          when /\A\[.*\]\z/m then token
+          else Regexp.escape(token)
+          end
+        }.join
       end
     end
   end

@@ -106,6 +106,58 @@ RSpec.describe Driftless::Inputs::HierarchyLoader do
       end
     end
 
+    context 'with glob: and globs: tiers' do
+      let(:result) { described_class.load(fixture('glob_tier')) }
+      let(:tiers)  { result[0] }
+      let(:by_name) { tiers.each_with_object({}) { |t, h| h[t.name] = t } }
+
+      it 'keeps them instead of reporting hierarchy:tier-missing-path' do
+        expect(result[1].map(&:key)).not_to include('hierarchy:tier-missing-path')
+        expect(tiers.map(&:name)).to eq(['Globbed per-host', 'Globbed OS', 'Default'])
+      end
+
+      it 'records the locator so a glob is not mistaken for a path' do
+        expect(by_name['Globbed per-host'].locator).to eq(:glob)
+        expect(by_name['Globbed OS'].locator).to eq(:glob)
+        expect(by_name['Default'].locator).to eq(:path)
+      end
+
+      it 'answers glob? per tier' do
+        expect(by_name['Globbed per-host']).to be_glob
+        expect(by_name['Default']).not_to be_glob
+      end
+
+      it 'treats globs: as a sub-hierarchy, like paths:' do
+        expect(by_name['Globbed OS']).to be_multi_path
+        expect(by_name['Globbed OS'].path_templates)
+          .to eq(['os/%{facts.os.family}.yaml', 'os/shared-*.yaml'])
+      end
+
+      it 'extracts interpolation vars from a glob like any other template' do
+        expect(by_name['Globbed per-host'].interpolation_vars).to eq(['trusted.certname'])
+        expect(by_name['Globbed OS'].interpolation_vars).to eq(['facts.os.family'])
+      end
+
+      # Hiera permits one location key per tier and checks them in this order,
+      # so the first present is the one it would use.
+      it 'prefers path: over glob: when a tier declares both' do
+        Dir.mktmpdir do |dir|
+          FileUtils.mkdir_p(File.join(dir, 'data'))
+          File.write(File.join(dir, 'hiera.yaml'), <<~YAML)
+            ---
+            version: 5
+            hierarchy:
+              - name: 'Both'
+                path: 'common.yaml'
+                glob: '*.yaml'
+          YAML
+          tiers, = described_class.load(dir)
+          expect(tiers.first.locator).to eq(:path)
+          expect(tiers.first.path_templates).to eq(['common.yaml'])
+        end
+      end
+    end
+
     context 'with a datadir that is not a directory' do
       # Nothing else notices: every consumer does Dir[File.join(datadir, ...)],
       # which returns [] for a directory that is not there.

@@ -69,17 +69,27 @@ module Driftless
         tier.path_templates.each do |template|
           vars = tier.vars_for(template)
           if vars.empty?
-            paths << File.join(tier.datadir, template)
+            paths.merge(locations_for(tier, template))
             next
           end
 
           grouping.representatives(vars).each do |node|
             rendered = HierarchyInterpolator.new(node).render(template)
             next if HierarchyInterpolator.unresolved?(rendered)
-            paths << File.join(tier.datadir, rendered)
+            paths.merge(locations_for(tier, rendered))
           end
         end
         paths
+      end
+
+      # What one rendered level reaches under the tier's datadir. A path
+      # names a single file; a glob names whatever is on disk, expanded here
+      # as Hiera's expand_globs does, directories excluded.
+      def locations_for(tier, rendered)
+        full = File.join(tier.datadir, rendered)
+        return [full] unless tier.glob?
+
+        Dir[full].reject { |path| File.directory?(path) }
       end
 
       def would_match_files(tier)

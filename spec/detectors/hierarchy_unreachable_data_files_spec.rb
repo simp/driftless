@@ -1,4 +1,5 @@
 require 'spec_helper'
+require 'tmpdir'
 
 require 'driftless/detectors/hierarchy_unreachable_data_files'
 require 'driftless/corpus'
@@ -20,6 +21,52 @@ RSpec.describe Driftless::Detectors::HierarchyUnreachableDataFiles do
   end
 
   describe '#call' do
+    context 'against a hierarchy using glob: and globs:' do
+      let(:findings) { described_class.new(corpus_for('glob_tier')).call }
+
+      def data(rel)
+        File.join(fixture('glob_tier'), 'data', rel)
+      end
+
+      # This detector does not read facts: a glob reaches every file matching
+      # its pattern, so only a file no tier's pattern matches is flagged.
+      it 'treats files under a glob tier as reachable' do
+        expect(findings.map(&:path)).not_to include(
+          data('nodes/prod/web1.example.com.yaml'),
+          data('nodes/dev/gone.example.com.yaml'),
+          data('os/RedHat.yaml'),
+          data('os/shared-tuning.yaml'),
+        )
+      end
+
+      it 'still flags a file no tier can reach' do
+        expect(findings.map(&:path)).to include(data('stray.yaml'))
+      end
+
+      # Braces are alternation in a glob and a literal filename in a path, so
+      # only a glob tier is matched with FNM_EXTGLOB.
+      it 'reads brace alternation in a glob' do
+        Dir.mktmpdir do |dir|
+          FileUtils.mkdir_p(File.join(dir, 'data'))
+          File.write(File.join(dir, 'data/alpha.yaml'), "a: 1\n")
+          File.write(File.join(dir, 'hiera.yaml'), <<~YAML)
+            ---
+            version: 5
+            hierarchy:
+              - name: 'Braced'
+                glob: '{alpha,beta}.yaml'
+          YAML
+          tiers, = Driftless::Inputs::HierarchyLoader.load(dir)
+          corpus = Driftless::Corpus.new(
+            repo_dir: nil, hiera_tiers: tiers, puppet_classes: {},
+            data_files: [], reported: Driftless::Reported.new(data: {}),
+            code_lookup_calls: [], data_lookup_calls: [],
+          )
+          expect(described_class.new(corpus).call).to be_empty
+        end
+      end
+    end
+
     context 'against the unreachable_paths fixture' do
       let(:findings) { described_class.new(corpus_for('unreachable_paths')).call }
 

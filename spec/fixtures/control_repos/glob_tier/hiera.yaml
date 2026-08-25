@@ -1,0 +1,14 @@
+---
+version: 5
+defaults:
+  datadir: data
+  data_hash: yaml_data
+hierarchy:
+  - name: Globbed per-host
+    glob: "nodes/*/%{trusted.certname}.yaml"
+  - name: Globbed OS
+    globs:
+      - "os/%{facts.os.family}.yaml"
+      - "os/shared-*.yaml"
+  - name: Default
+    path: default.yaml

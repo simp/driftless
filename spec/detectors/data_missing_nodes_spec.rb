@@ -57,5 +57,30 @@ RSpec.describe Driftless::Detectors::DataMissingNodes do
         expect(findings).to be_empty
       end
     end
+
+    # A glob tier's template carries metacharacters where a path's would be a
+    # literal filename, so the certname has to be read through them.
+    context 'against a glob tier carrying a certname var' do
+      let(:findings) do
+        described_class.new(
+          corpus_for('glob_tier', nodes: [node('web1.example.com')]),
+        ).call
+      end
+
+      it 'flags the globbed file naming an unreported certname' do
+        expect(findings.map(&:path))
+          .to include(File.join(fixture('glob_tier'), 'data/nodes/dev/gone.example.com.yaml'))
+      end
+
+      it 'does not flag the globbed file naming a reported certname' do
+        expect(findings.map(&:path))
+          .not_to include(File.join(fixture('glob_tier'), 'data/nodes/prod/web1.example.com.yaml'))
+      end
+
+      it 'reads the certname out of the path, not the glob segment' do
+        f = findings.find { |x| x.path.end_with?('gone.example.com.yaml') }
+        expect(f.meta[:certname]).to eq('gone.example.com')
+      end
+    end
   end
 end

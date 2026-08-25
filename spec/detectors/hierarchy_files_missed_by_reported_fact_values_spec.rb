@@ -92,6 +92,55 @@ RSpec.describe Driftless::Detectors::HierarchyFilesMissedByReportedFactValues do
       end
     end
 
+    # A glob reaches whatever is on disk, so expanding it is what keeps its
+    # files from reading as orphans.
+    context 'against a hierarchy using glob: and globs:' do
+      let(:redhat_web1) do
+        Driftless::Node.new(
+          certname: 'web1.example.com',
+          facts:    { 'os' => { 'family' => 'RedHat' } },
+          trusted:  { 'certname' => 'web1.example.com' },
+        )
+      end
+
+      let(:orphans) do
+        described_class.new(corpus_for('glob_tier', nodes: [redhat_web1])).call
+          .select { |f| f.key == 'hierarchy:files-missed-by-reported-fact-values' }
+          .map(&:path)
+      end
+
+      def data(rel)
+        File.join(fixture('glob_tier'), 'data', rel)
+      end
+
+      it 'does not flag a file the glob reaches for a reported node' do
+        expect(orphans).not_to include(data('nodes/prod/web1.example.com.yaml'))
+      end
+
+      it 'does not flag a file matched by a literal glob segment' do
+        expect(orphans).not_to include(data('os/shared-tuning.yaml'))
+      end
+
+      it 'does not flag a file reached by an interpolated glob' do
+        expect(orphans).not_to include(data('os/RedHat.yaml'))
+      end
+
+      # The glob renders per node, so a value no node reports stays unreached.
+      it 'still flags a file no reported fact value reaches' do
+        expect(orphans).to include(data('os/Debian.yaml'))
+      end
+
+      it 'still flags a file no tier reaches at all' do
+        expect(orphans).to include(data('stray.yaml'))
+      end
+
+      # nodes/dev/gone.example.com.yaml matches the glob's shape but names a
+      # certname nothing reported, so no representative renders it.
+      it 'flags a globbed per-node file for an unreported certname' do
+        expect(orphans).to include(data('nodes/dev/gone.example.com.yaml'))
+      end
+    end
+
     context 'grouping nodes by the values a tier interpolates' do
       def redhat(n)
         Driftless::Node.new(

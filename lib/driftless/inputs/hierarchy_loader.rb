@@ -85,7 +85,7 @@ module Driftless
             next
           end
 
-          templates, multi = extract_templates(entry)
+          templates, multi, locator = extract_templates(entry)
           if templates.nil?
             findings << finding(
               Detectors::HierarchyTierMissingPath,
@@ -123,6 +123,7 @@ module Driftless
             path_templates:     templates,
             interpolation_vars: templates.flat_map { |t| interpolation_vars(t) }.uniq,
             multi_path:         multi,
+            locator:            locator,
             source_line:        line,
           )
         end
@@ -151,13 +152,20 @@ module Driftless
         []
       end
 
+      # Returns [templates, multi_path, locator]. Hiera permits exactly one
+      # location key per tier and checks them in this order, so the first one
+      # present is the one it would use.
       def extract_templates(entry)
         if entry.key?('path')
-          [[String(entry['path'])], false]
+          [[String(entry['path'])], false, :path]
         elsif entry.key?('paths')
-          [Array(entry['paths']).map(&:to_s), true]
+          [Array(entry['paths']).map(&:to_s), true, :path]
+        elsif entry.key?('glob')
+          [[String(entry['glob'])], false, :glob]
+        elsif entry.key?('globs')
+          [Array(entry['globs']).map(&:to_s), true, :glob]
         else
-          [nil, nil]
+          [nil, nil, nil]
         end
       end
 

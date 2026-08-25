@@ -22,8 +22,13 @@ module Driftless
       def call
         findings = []
 
-        globs_by_tier = corpus.hiera_tiers.map do |tier|
-          [tier, tier.path_templates.map { |t| File.join(tier.datadir, t.gsub(TEMPLATE_VAR_RE, '*')) }]
+        # Rendering %{...} as * turns a template into a pattern over the
+        # datadir. Braces are alternation in one of Hiera's glob keys and a
+        # literal filename in a path, so only a glob tier reads them that way;
+        # fnmatch handles *, **, ? and [] under FNM_PATHNAME alone.
+        matchers = corpus.hiera_tiers.map do |tier|
+          flags  = tier.glob? ? File::FNM_PATHNAME | File::FNM_EXTGLOB : File::FNM_PATHNAME
+          [tier.path_templates.map { |t| File.join(tier.datadir, t.gsub(TEMPLATE_VAR_RE, '*')) }, flags]
         end
 
         all_files = Set.new
@@ -34,8 +39,8 @@ module Driftless
         end
 
         all_files.sort.each do |file|
-          reachable = globs_by_tier.any? do |_tier, globs|
-            globs.any? { |g| File.fnmatch(g, file, File::FNM_PATHNAME) }
+          reachable = matchers.any? do |patterns, flags|
+            patterns.any? { |p| File.fnmatch(p, file, flags) }
           end
           next if reachable
 

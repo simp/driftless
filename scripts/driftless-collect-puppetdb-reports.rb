@@ -80,7 +80,7 @@ opts = {
   page_size:   500,
   sleep:       0.25,
   jitter:      0.25,
-  output_dir:  './driftless-collector-output',
+  output_dir:  ENV['DRIFTLESS_COLLECTOR_REPORTS_DIR'] || './driftless-collector-output',
   collector: nil,
   reports:     [],
   timeout:     120,

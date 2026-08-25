@@ -16,9 +16,9 @@ module Driftless
     # a per-branch checkout + directory copy — no format translation.
     #
     # Auth (all optional; reads from env):
-    #   DRIFTLESS_REPORT_PULL_TOKEN    - HTTPS token/password
     #   DRIFTLESS_REPORT_PULL_USERNAME - HTTPS username (default: x-token-auth)
-    #   DRIFTLESS_REPORT_PULL_SSH_KEY  - SSH private key material
+    #   DRIFTLESS_REPORT_PULL_TOKEN    - HTTPS token/password, - or -
+    #   DRIFTLESS_REPORT_PULL_SSH_KEY  - SSH private key (content, not file)
     class Git
       Result = Struct.new(:branches_imported, :reports_copied, :summaries_copied,
                           keyword_init: true)

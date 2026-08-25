@@ -89,6 +89,15 @@ module Driftless
           o.on('--no-summaries', 'Skip the summary/ tree')                                  { @options[:no_summaries] = true }
           o.on('--dry-run',      'Log what would be copied without touching the filesystem') { @options[:dry_run] = true }
           Import.declare_accept_partial(o, @options)
+          o.on_tail  <<~ENV_VAR_BANNER
+
+            Accepts env vars (all optional):
+
+               DRIFTLESS_REPORT_PULL_USERNAME - HTTPS username (default: x-token-auth)
+               DRIFTLESS_REPORT_PULL_TOKEN    - HTTPS token/password, - or -
+               DRIFTLESS_REPORT_PULL_SSH_KEY  - SSH private key (content, not file)
+
+          ENV_VAR_BANNER
         end
 
         private

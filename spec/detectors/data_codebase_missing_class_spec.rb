@@ -87,4 +87,57 @@ RSpec.describe Driftless::Detectors::DataCodebaseMissingClass do
       end
     end
   end
+  describe 'exclude_classes' do
+    around do |ex|
+      original = Driftless.instance_variable_get(:@config)
+      ex.run
+    ensure
+      Driftless.instance_variable_set(:@config, original)
+    end
+
+    def set_exclusions(*patterns)
+      Driftless.config = Driftless::Config.new(merged: {
+        'detectors' => { 'data:codebase-missing-class' => { 'exclude_classes' => patterns } },
+      })
+    end
+
+    let(:df) do
+      Driftless::HieraDataFileInfo.new(
+        path: '/tmp/default.yaml',
+        top_level_keys: {
+          'profile::legacy::foo' => 2,
+          'profile::other::bar'  => 3,
+          'role::gone::baz'      => 4,
+        },
+      )
+    end
+
+    let(:classes) { described_class.new(hand_corpus(data_files: [df])).call.map { |f| f.meta[:class_name] } }
+
+    it 'flags every missing class when nothing is excluded' do
+      Driftless.config = Driftless::Config.new(merged: {})
+      expect(classes).to contain_exactly('profile::legacy', 'profile::other', 'role::gone')
+    end
+
+    it 'drops a class named exactly' do
+      set_exclusions('profile::legacy')
+      expect(classes).to contain_exactly('profile::other', 'role::gone')
+    end
+
+    # `*` spans `::`, so one pattern covers a namespace at any depth.
+    it 'matches as a glob, with * spanning ::' do
+      set_exclusions('profile::*')
+      expect(classes).to contain_exactly('role::gone')
+    end
+
+    it 'accepts several patterns' do
+      set_exclusions('profile::legacy', 'role::*')
+      expect(classes).to contain_exactly('profile::other')
+    end
+
+    it 'leaves findings alone when the pattern matches nothing' do
+      set_exclusions('nothing::here')
+      expect(classes.size).to eq(3)
+    end
+  end
 end

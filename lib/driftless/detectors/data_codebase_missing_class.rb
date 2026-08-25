@@ -1,10 +1,13 @@
 require 'set'
 
 require 'driftless/detectors/callable'
+require 'driftless/detectors/exclusions'
 
 module Driftless
   module Detectors
     class DataCodebaseMissingClass < Callable
+      include Exclusions::Classes
+
       key      'data:codebase-missing-class'
       severity :error
       quality  :wrong
@@ -23,6 +26,7 @@ module Driftless
             next if exemptions.include?(key)
 
             class_name = key.rpartition('::')[0]
+            next if excluded_class?(class_name)
             next if corpus.puppet_classes.key?(class_name)
 
             findings << build_finding(

@@ -156,4 +156,60 @@ RSpec.describe Driftless::Detectors::DataCodebaseMissingClassParam do
       end
     end
   end
+  describe 'exclude_classes' do
+    around do |ex|
+      original = Driftless.instance_variable_get(:@config)
+      ex.run
+    ensure
+      Driftless.instance_variable_set(:@config, original)
+    end
+
+    def set_exclusions(*patterns)
+      Driftless.config = Driftless::Config.new(merged: {
+        'detectors' => { 'data:codebase-missing-class-param' => { 'exclude_classes' => patterns } },
+      })
+    end
+
+    let(:web_class) do
+      Driftless::PuppetClass.new(
+        fqname: 'profile::web', file: 'web.pp',
+        params: [Driftless::ClassParameter.new(name: 'port', default_expr: nil, type_expr: nil)],
+        role: false, profile: true,
+      )
+    end
+
+    let(:db_class) do
+      Driftless::PuppetClass.new(
+        fqname: 'other::db', file: 'db.pp',
+        params: [Driftless::ClassParameter.new(name: 'host', default_expr: nil, type_expr: nil)],
+        role: false, profile: false,
+      )
+    end
+
+    let(:df) do
+      Driftless::HieraDataFileInfo.new(
+        path: '/tmp/default.yaml',
+        top_level_keys: { 'profile::web::bogus' => 2, 'other::db::bogus' => 3 },
+      )
+    end
+
+    let(:classes) do
+      described_class.new(
+        hand_corpus(
+          data_files: [df],
+          puppet_classes: { 'profile::web' => web_class, 'other::db' => db_class },
+        ),
+      ).call.map { |f| f.meta[:class_name] }
+    end
+
+    it 'flags a bad param on every class when nothing is excluded' do
+      Driftless.config = Driftless::Config.new(merged: {})
+      expect(classes).to contain_exactly('profile::web', 'other::db')
+    end
+
+    it 'drops the class named by the pattern' do
+      set_exclusions('profile::*')
+      expect(classes).to eq(['other::db'])
+    end
+  end
 end

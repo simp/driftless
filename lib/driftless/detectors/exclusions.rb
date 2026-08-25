@@ -16,6 +16,22 @@ module Driftless
         end
       end
 
+      # For detectors whose findings name a Puppet class.
+      module Classes
+        def self.included(klass)
+          klass.config_option :exclude_classes, type: :array, default: [],
+            about: 'List (of glob patterns) of Puppet class names to skip'
+        end
+
+        # `*` spans `::`, so `profile::*` covers a whole namespace and
+        # `profile::legacy::*` only its own.
+        def excluded_class?(class_name)
+          patterns = option(:exclude_classes)
+          return false if patterns.empty?
+          patterns.any? { |pat| File.fnmatch(pat, class_name.to_s) }
+        end
+      end
+
       # For detectors whose findings name a fact or interpolated variable.
       module Facts
         def self.included(klass)

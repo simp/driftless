@@ -8,7 +8,7 @@ require 'driftless/import/local'
 # auto-trigger of cleanup. Library-level import mechanics are covered in
 # spec/import/local_spec.rb.
 RSpec.describe Driftless::CLI::Import::Local do
-  around do |ex|
+  around(:each) do |ex|
     original_config = Driftless.instance_variable_get(:@config)
     ex.run
   ensure
@@ -20,7 +20,8 @@ RSpec.describe Driftless::CLI::Import::Local do
     Struct.new(:copied, :skipped_missing, :session_id, keyword_init: true)
       .new(copied: 3, skipped_missing: 0, session_id: 'sid-1')
   end
-  before do
+
+  before(:each) do
     fake = Class.new do
       def initialize(**); end
       def run(*, **); end
@@ -78,7 +79,7 @@ RSpec.describe Driftless::CLI::Import::Local do
       .and_raise(Driftless::Import::Error, 'permission denied on .archive')
     exit_status = nil
     log = capture_log { exit_status = run_with(['-i', '/tmp/incoming', '/tmp/source']) }
-    expect(log).to match(/cleanup failed: permission denied/)
+    expect(log).to include('cleanup failed: permission denied')
     expect(exit_status).to eq(2)
   end
 

@@ -79,7 +79,7 @@ RSpec.describe Driftless::Inputs::DatadirLoader do
         name: 'json', datadir: datadir, backend: :json_data,
         path_templates: [], interpolation_vars: [], multi_path: false,
       )
-      dfs, _ = described_class.load([json_tier])
+      dfs, = described_class.load([json_tier])
       expect(dfs).to be_empty
     end
 
@@ -88,7 +88,7 @@ RSpec.describe Driftless::Inputs::DatadirLoader do
         name: 'dup', datadir: datadir, backend: :yaml_data,
         path_templates: [], interpolation_vars: [], multi_path: false,
       )
-      dfs, _ = described_class.load([tier, dup_tier])
+      dfs, = described_class.load([tier, dup_tier])
       paths = dfs.map(&:path)
       expect(paths.uniq).to eq(paths)
     end

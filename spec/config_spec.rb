@@ -150,7 +150,7 @@ RSpec.describe Driftless::Config do
     context 'with edge-case file contents' do
       it 'treats an empty file as an empty hash (not nil)' do
         with_isolated_env do |cwd:, **|
-          write_project_config(cwd, "")
+          write_project_config(cwd, '')
           cfg = described_class.load
           expect(cfg).to be_empty
           expect(cfg.sources.size).to eq(1)  # still counted as a source
@@ -207,7 +207,7 @@ RSpec.describe Driftless::Config do
   end
 
   describe 'Driftless.config module accessor' do
-    around do |ex|
+    around(:each) do |ex|
       original = Driftless.instance_variable_get(:@config)
       ex.run
     ensure

@@ -33,7 +33,7 @@ RSpec.describe Driftless::Inputs::ModulepathLoader do
         FileUtils.touch(File.join(repo, 'site-modules/profile/manifests/sub/one.pp'))
         FileUtils.touch(File.join(repo, 'site-modules/profile/manifests/sub/deeper/two.pp'))
 
-        files, _ = described_class.load(repo, basemodulepath: [])
+        files, = described_class.load(repo, basemodulepath: [])
         rels = files.map { |f| f.sub("#{repo}/", '') }
         expect(rels).to contain_exactly(
           'site-modules/profile/manifests/init.pp',
@@ -120,7 +120,7 @@ RSpec.describe Driftless::Inputs::ModulepathLoader do
           Dir.mktmpdir do |base|
             FileUtils.mkdir_p(File.join(base, 'stdlib/manifests'))
             FileUtils.touch(File.join(base, 'stdlib/manifests/init.pp'))
-            files, _ = described_class.load(repo, basemodulepath: [base])
+            files, = described_class.load(repo, basemodulepath: [base])
             expect(files.length).to eq(2)
           end
         end
@@ -152,7 +152,7 @@ RSpec.describe Driftless::Inputs::ModulepathLoader do
           FileUtils.mkdir_p(File.join(repo, 'site-modules/other/manifests'))
           FileUtils.touch(File.join(repo, 'site-modules/other/manifests/ignored.pp'))
 
-          files, _ = described_class.load(repo, basemodulepath: [])
+          files, = described_class.load(repo, basemodulepath: [])
           rels = files.map { |f| f.sub("#{repo}/", '') }
           expect(rels).to contain_exactly('modules/stdlib/manifests/init.pp')
         end
@@ -164,7 +164,7 @@ RSpec.describe Driftless::Inputs::ModulepathLoader do
         Dir.mktmpdir do |repo|
           FileUtils.mkdir_p(File.join(repo, 'manifests'))
           File.write(File.join(repo, 'manifests/site.pp'), "# noop\n")
-          files, _ = described_class.load(repo, basemodulepath: [])
+          files, = described_class.load(repo, basemodulepath: [])
           rels = files.map { |f| f.sub("#{repo}/", '') }
           expect(rels).to include('manifests/site.pp')
         end
@@ -177,7 +177,7 @@ RSpec.describe Driftless::Inputs::ModulepathLoader do
           File.write(File.join(repo, 'manifests/only.pp'), "# only\n")
           File.write(File.join(repo, 'manifests/other.pp'), "# not scanned\n")
 
-          files, _ = described_class.load(repo, basemodulepath: [])
+          files, = described_class.load(repo, basemodulepath: [])
           rels = files.map { |f| f.sub("#{repo}/", '') }
           expect(rels).to contain_exactly('manifests/only.pp')
         end
@@ -190,7 +190,7 @@ RSpec.describe Driftless::Inputs::ModulepathLoader do
           File.write(File.join(repo, 'manifests/site.pp'), "# top\n")
           File.write(File.join(repo, 'manifests/nodes/web.pp'), "# nested\n")
 
-          files, _ = described_class.load(repo, basemodulepath: [])
+          files, = described_class.load(repo, basemodulepath: [])
           rels = files.map { |f| f.sub("#{repo}/", '') }
           expect(rels).to contain_exactly('manifests/site.pp', 'manifests/nodes/web.pp')
         end

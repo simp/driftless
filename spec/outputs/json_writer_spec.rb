@@ -8,7 +8,7 @@ require 'driftless/finding'
 RSpec.describe Driftless::Outputs::JsonWriter do
   def finding(**kwargs)
     defaults = { key: 'x', path: nil, line: nil, message: 'msg', meta: {} }
-    Driftless::Finding.new(**defaults.merge(kwargs))
+    Driftless::Finding.new(**defaults, **kwargs)
   end
 
   describe '.write' do
@@ -69,7 +69,7 @@ RSpec.describe Driftless::Outputs::JsonWriter do
       io = StringIO.new
       described_class.write([finding(meta: {})], io)
       # No newline between "meta":{" and the closing } means the empty hash is inline
-      expect(io.string).to match(/"meta":\{\}/)
+      expect(io.string).to include('"meta":{}')
     end
 
     it 'produces `[]` (empty array on its own line pair) when given no findings' do

@@ -66,7 +66,7 @@ RSpec.describe Driftless::Detectors::DataCodebaseMissingClassParam do
     end
 
     context 'a namespace-only key under a class that exists' do
-      around do |ex|
+      around(:each) do |ex|
         original = Driftless.instance_variable_get(:@config)
         ex.run
       ensure
@@ -157,7 +157,7 @@ RSpec.describe Driftless::Detectors::DataCodebaseMissingClassParam do
     end
   end
   describe 'exclude_classes' do
-    around do |ex|
+    around(:each) do |ex|
       original = Driftless.instance_variable_get(:@config)
       ex.run
     ensure

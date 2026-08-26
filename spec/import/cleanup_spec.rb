@@ -138,7 +138,7 @@ RSpec.describe Driftless::Import::Cleanup do
 
         expect(result.live).to be_empty
         expect(result.quarantined.map(&:session_id)).to eq(['s1'])
-        expect(result.quarantined.first.reason).to match(/no _summary\.json/)
+        expect(result.quarantined.first.reason).to include('no _summary.json')
         expect(File).to exist(File.join(incoming, '.quarantine', 'alpha--s1', 'all-active-nodes.ndjson'))
         expect(File).not_to exist(File.join(incoming, '.quarantine', 'alpha--s1', '_summary.json'))
       end
@@ -176,7 +176,7 @@ RSpec.describe Driftless::Import::Cleanup do
         ).run
 
         expect(result.quarantined.map(&:session_id)).to eq(['s1'])
-        expect(result.quarantined.first.reason).to match(/status "failed"/)
+        expect(result.quarantined.first.reason).to include('status "failed"')
       end
     end
 
@@ -194,7 +194,7 @@ RSpec.describe Driftless::Import::Cleanup do
         ).run
 
         expect(result.quarantined.map(&:session_id)).to eq(['s1'])
-        expect(result.quarantined.first.reason).to match(/status:ok but no file/)
+        expect(result.quarantined.first.reason).to include('status:ok but no file')
       end
     end
 
@@ -373,7 +373,7 @@ RSpec.describe Driftless::Import::Cleanup do
 
         expect(result.live).to be_empty
         expect(result.quarantined.map(&:session_id)).to eq(['2026-06-01T00-00-00Z'])
-        expect(result.quarantined.first.reason).to match(/status:ok but no file/)
+        expect(result.quarantined.first.reason).to include('status:ok but no file')
       end
     end
   end
@@ -410,7 +410,7 @@ RSpec.describe Driftless::Import::Cleanup do
         ).run
 
         expect(result.live).to be_empty
-        expect(result.quarantined.first.reason).to match(/no _summary\.json/)
+        expect(result.quarantined.first.reason).to include('no _summary.json')
       end
     end
   end

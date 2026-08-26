@@ -169,7 +169,7 @@ RSpec.describe Driftless::Detectors::CodeLookupMissingHieraKeys do
     end
 
     context 'with config-driven behavior' do
-      around do |ex|
+      around(:each) do |ex|
         original = Driftless.instance_variable_get(:@config)
         ex.run
       ensure

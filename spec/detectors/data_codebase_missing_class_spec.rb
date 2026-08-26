@@ -88,7 +88,7 @@ RSpec.describe Driftless::Detectors::DataCodebaseMissingClass do
     end
   end
   describe 'exclude_classes' do
-    around do |ex|
+    around(:each) do |ex|
       original = Driftless.instance_variable_get(:@config)
       ex.run
     ensure

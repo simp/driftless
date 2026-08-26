@@ -39,7 +39,7 @@ RSpec.describe Driftless::Detectors::HierarchyTiersInterpolatingLegacyFacts do
     findings = described_class.new(hand_corpus(hiera_tiers: tiers)).call
     expect(findings.size).to eq(1)
     expect(findings.first.meta).to include(
-      tier: 'per-os', legacy: 'osfamily', modern: 'os.family', interpolation: '::osfamily'
+      tier: 'per-os', legacy: 'osfamily', modern: 'os.family', interpolation: '::osfamily',
     )
   end
 
@@ -55,7 +55,7 @@ RSpec.describe Driftless::Detectors::HierarchyTiersInterpolatingLegacyFacts do
     findings = described_class.new(hand_corpus(hiera_tiers: tiers)).call
     expect(findings.size).to eq(1)
     expect(findings.first.meta).to include(
-      legacy: 'hostname', modern: 'networking.hostname', interpolation: '::hostname'
+      legacy: 'hostname', modern: 'networking.hostname', interpolation: '::hostname',
     )
   end
 

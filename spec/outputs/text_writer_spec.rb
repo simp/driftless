@@ -7,7 +7,7 @@ require 'driftless/finding'
 RSpec.describe Driftless::Outputs::TextWriter do
   def finding(**kwargs)
     defaults = { key: 'x', path: nil, line: nil, message: 'msg', meta: {} }
-    Driftless::Finding.new(**defaults.merge(kwargs))
+    Driftless::Finding.new(**defaults, **kwargs)
   end
 
   # StringIO isn't a TTY, so auto-mode won't emit color. Tests that need to
@@ -63,6 +63,15 @@ RSpec.describe Driftless::Outputs::TextWriter do
         finding(key: 'k', path: '/tmp/longer-path', line: 200, message: 'long'),
       ]
     end
+    # A path-only location carries one ANSI wrap and a path:line location
+    # carries two, so byte length exceeds visible width by a different amount
+    # on each row.
+    let(:mixed_ansi_overhead) do
+      [
+        finding(key: 'k', path: '/tmp/a',    line: nil, message: 'one'),
+        finding(key: 'k', path: '/tmp/bbbb', line: 12,  message: 'two'),
+      ]
+    end
 
     it 'leaves each message at its own column when tabularize is off' do
       out = render(uneven_locations, tabularize: false)
@@ -72,16 +81,6 @@ RSpec.describe Driftless::Outputs::TextWriter do
     it 'aligns messages to a common column within a group by default' do
       out = render(uneven_locations)
       expect(message_column(out, 'short')).to eq(message_column(out, 'long'))
-    end
-
-    # A path-only location carries one ANSI wrap and a path:line location
-    # carries two, so byte length exceeds visible width by a different amount
-    # on each row.
-    let(:mixed_ansi_overhead) do
-      [
-        finding(key: 'k', path: '/tmp/a',    line: nil, message: 'one'),
-        finding(key: 'k', path: '/tmp/bbbb', line: 12,  message: 'two'),
-      ]
     end
 
     it 'aligns on visible width rather than ANSI byte length' do
@@ -176,7 +175,11 @@ RSpec.describe Driftless::Outputs::TextWriter do
     end
 
     it 'suppresses ANSI when color: false is passed explicitly even on a TTY-like io' do
-      tty_io = Class.new(StringIO) { def tty?; true; end }.new
+      tty_io = Class.new(StringIO) {
+        def tty?
+          true
+        end
+      }.new
       described_class.write([finding(key: 'k', severity: :error)], tty_io, color: false)
       expect(tty_io.string).not_to include("\e[")
     end

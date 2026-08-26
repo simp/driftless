@@ -7,7 +7,7 @@ require 'driftless/cli/import/cleanup'
 require 'driftless/import/cleanup'
 
 RSpec.describe Driftless::CLI::Import::Cleanup do
-  around do |example|
+  around(:each) do |example|
     original_level = Driftless.logger.level
     example.run
   ensure
@@ -17,9 +17,12 @@ RSpec.describe Driftless::CLI::Import::Cleanup do
   # Captures the args Import::Cleanup gets constructed with, without
   # actually gardening a real tree.
   let(:construction) { {} }
-  before do
+
+  before(:each) do
     fake = Class.new do
-      def initialize(**kwargs); $construction_capture.replace(kwargs); end
+      def initialize(**kwargs)
+        $construction_capture.replace(kwargs)
+      end
 
       def run
         Struct.new(:live, :archived, :quarantined, :dry_run, keyword_init: true)

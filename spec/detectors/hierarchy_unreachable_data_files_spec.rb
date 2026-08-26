@@ -12,7 +12,7 @@ RSpec.describe Driftless::Detectors::HierarchyUnreachableDataFiles do
   end
 
   def corpus_for(fixture_name)
-    tiers, _ = Driftless::Inputs::HierarchyLoader.load(fixture(fixture_name))
+    tiers, = Driftless::Inputs::HierarchyLoader.load(fixture(fixture_name))
     Driftless::Corpus.new(
       repo_dir: nil, hiera_tiers: tiers, puppet_classes: {},
       data_files: [], reported: Driftless::Reported.new(data: {}),

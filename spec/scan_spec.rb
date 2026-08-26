@@ -9,7 +9,7 @@ require 'driftless/inputs/report_loader'
 RSpec.describe Driftless::Scan do
   # Save/restore Driftless.config around every example — Scan#run reads it
   # per-detector via option() calls.
-  around do |ex|
+  around(:each) do |ex|
     original = Driftless.instance_variable_get(:@config)
     ex.run
   ensure
@@ -47,7 +47,7 @@ RSpec.describe Driftless::Scan do
   # A single canary test proves the wire between the log-emitter and the logger
   # is intact end-to-end; per-line coverage is deferred until it earns its keep.
   describe 'log narration' do
-    around do |example|
+    around(:each) do |example|
       captured        = StringIO.new
       original_logger = Driftless.logger
       Driftless.logger = Logger.new(captured, level: Logger::INFO)
@@ -76,7 +76,7 @@ RSpec.describe Driftless::Scan do
 
         described_class.new(repo_dir: dir, incoming_dir: File.join(dir, 'incoming')).run
 
-        expect(@captured.string).to match(/info: Scanning control repo: /)
+        expect(@captured.string).to include('info: Scanning control repo: ')
         expect(@captured.string).to match(/info: Loaded \d+ hierarchy tiers/)
         expect(@captured.string).to match(/info: Scan complete: \d+ findings/)
       end
@@ -84,7 +84,7 @@ RSpec.describe Driftless::Scan do
   end
 
   describe 'detector :enabled config' do
-    around do |ex|
+    around(:each) do |ex|
       captured        = StringIO.new
       original_logger = Driftless.logger
       Driftless.logger = Logger.new(captured, level: Logger::INFO)
@@ -107,7 +107,7 @@ RSpec.describe Driftless::Scan do
         expect(findings.map(&:key)).not_to include('skipped:hierarchy:files-missed-by-reported-fact-values')
 
         # And the log narrates the skip.
-        expect(@captured.string).to match(/hierarchy:files-missed-by-reported-fact-values → disabled by config/)
+        expect(@captured.string).to include('hierarchy:files-missed-by-reported-fact-values → disabled by config')
       end
     end
 
@@ -135,7 +135,7 @@ RSpec.describe Driftless::Scan do
       dir
     end
 
-    before { silence_driftless_logger }
+    before(:each) { silence_driftless_logger }
 
     it 'stops the scan instead of reporting nothing' do
       dir = repo_without_hiera_yaml
@@ -167,7 +167,7 @@ RSpec.describe Driftless::Scan do
       described_class.new(repo_dir: dir, incoming_dir: File.join(dir, 'incoming')).run
     end
 
-    before { silence_driftless_logger }
+    before(:each) { silence_driftless_logger }
 
     it 'raises the finding when nothing disables it' do
       Dir.mktmpdir do |dir|
@@ -294,7 +294,7 @@ RSpec.describe Driftless::Scan do
     end
 
     it 'raises ScanError when a listed env has no reports and allow_missing_envs is false' do
-      scan     = filter_scan(environments: ['production', 'staging'])
+      scan     = filter_scan(environments: %w[production staging])
       reported = make_reported([make_node(certname: 'web1', environment: 'production')])
       expect { scan.send(:apply_environment_filter, reported) }
         .to raise_error(Driftless::ScanError, /staging/)
@@ -302,7 +302,7 @@ RSpec.describe Driftless::Scan do
 
     it 'warns instead of raising when allow_missing_envs is true' do
       silence_driftless_logger
-      scan     = filter_scan(environments: ['production', 'staging'], allow_missing_envs: true)
+      scan     = filter_scan(environments: %w[production staging], allow_missing_envs: true)
       reported = make_reported([make_node(certname: 'web1', environment: 'production')])
       expect { scan.send(:apply_environment_filter, reported) }.not_to raise_error
     end
@@ -319,11 +319,11 @@ RSpec.describe Driftless::Scan do
       let(:empty_reported) { Driftless::Reported.new(data: {}) }
 
       it 'raises ScanError with a message that names the incoming_dir, not puppet.environments' do
-        scan = filter_scan(environments: ['production', 'staging'])
+        scan = filter_scan(environments: %w[production staging])
         expect { scan.send(:apply_environment_filter, empty_reported) }
           .to raise_error(Driftless::ScanError) { |e|
-            expect(e.message).to match(%r{no PuppetDB reports loaded from /tmp/incoming})
-            expect(e.message).not_to match(/puppet\.environments/)
+            expect(e.message).to include('no PuppetDB reports loaded from /tmp/incoming')
+            expect(e.message).not_to include('puppet.environments')
           }
       end
 
@@ -391,7 +391,6 @@ RSpec.describe Driftless::Scan do
         # it's inventory-independent and reliably yields a path-carrying finding.
         File.write(File.join(dir, 'data', 'orphan.yaml'), "---\n{}\n")
         set_config('puppet' => { 'environments' => ['production'] })
-        findings = 'WRONG'
         findings = described_class.new(
           repo_dir:     dir,
           incoming_dir: File.join(dir, 'incoming'),
@@ -511,7 +510,7 @@ RSpec.describe Driftless::Scan do
 
     # Stubs Detectors.expected_reports so the tests don't drift when
     # detectors are added/removed.
-    before do
+    before(:each) do
       allow(Driftless::Detectors).to receive(:expected_reports)
         .and_return(%w[all-active-nodes factsets-for-all-active-nodes])
     end

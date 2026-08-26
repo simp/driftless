@@ -84,7 +84,7 @@ RSpec.describe Driftless::CLI::Config::New do
         expect { capture_stdout { cli.execute([]) } }
           .to raise_error(SystemExit) { |e| expect(e.status).to eq(3) }
       end
-      expect(log).to match(/already exists/)
+      expect(log).to include('already exists')
       expect(File.read(path)).to include('production')
     end
   end

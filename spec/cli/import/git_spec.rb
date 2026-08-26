@@ -7,7 +7,7 @@ require 'driftless/import/git'
 # Verifies the CLI leaf's post-import behavior — specifically the §10
 # auto-trigger of cleanup and its interaction with --no-summaries.
 RSpec.describe Driftless::CLI::Import::Git do
-  around do |ex|
+  around(:each) do |ex|
     original_config = Driftless.instance_variable_get(:@config)
     ex.run
   ensure
@@ -18,7 +18,8 @@ RSpec.describe Driftless::CLI::Import::Git do
     Struct.new(:reports_copied, :summaries_copied, :branches_imported, keyword_init: true)
       .new(reports_copied: 5, summaries_copied: 2, branches_imported: 2)
   end
-  before do
+
+  before(:each) do
     fake = Class.new do
       def initialize(**); end
       def run; end
@@ -74,7 +75,7 @@ RSpec.describe Driftless::CLI::Import::Git do
       .and_raise(Driftless::Import::Error, 'archive dir not writable')
     exit_status = nil
     log = capture_log { exit_status = run_with(['-i', '/tmp/incoming', 'https://example/repo.git']) }
-    expect(log).to match(/cleanup failed: archive dir not writable/)
+    expect(log).to include('cleanup failed: archive dir not writable')
     expect(exit_status).to eq(2)
   end
 

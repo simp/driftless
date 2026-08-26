@@ -239,7 +239,7 @@ RSpec.describe Driftless::CLI::Base do
             .to raise_error(SystemExit) { |e| expect(e.status).to eq(2) }
         end
       }.to output(/Usage:/).to_stderr
-      expect(log).to match(/unknown subcommand/)
+      expect(log).to include('unknown subcommand')
     end
   end
 

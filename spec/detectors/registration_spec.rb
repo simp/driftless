@@ -3,7 +3,7 @@ require 'driftless/detectors/registration'
 
 RSpec.describe Driftless::Detectors::Registration do
   # Save/restore process-global Driftless.config around every example.
-  around do |ex|
+  around(:each) do |ex|
     original = Driftless.instance_variable_get(:@config)
     ex.run
   ensure
@@ -151,10 +151,10 @@ RSpec.describe Driftless::Detectors::Registration do
 
     it 'dedupes overlapping values across sources' do
       set_config('detectors' => {
-        'defaults'     => { 'my_arr' => ['a', 'b'] },
-        'test:example' => { 'my_arr' => ['b', 'c'] },
+        'defaults'     => { 'my_arr' => %w[a b] },
+        'test:example' => { 'my_arr' => %w[b c] },
       })
-      expect(instance.option(:my_arr)).to eq(['a', 'b', 'c'])
+      expect(instance.option(:my_arr)).to eq(%w[a b c])
     end
 
     it 'skips a section that does not set the array (does not concat nil)' do

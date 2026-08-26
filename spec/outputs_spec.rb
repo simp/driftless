@@ -7,7 +7,7 @@ require 'driftless/finding'
 RSpec.describe Driftless::Outputs do
   def finding(**kwargs)
     defaults = { key: 'k', path: '/tmp/x', line: 1, message: 'msg', meta: {} }
-    Driftless::Finding.new(**defaults.merge(kwargs))
+    Driftless::Finding.new(**defaults, **kwargs)
   end
 
   describe '.formats' do

@@ -10,7 +10,9 @@ RSpec.describe Driftless::Detectors::Callable do
     Class.new(described_class) do
       key 'test:callable-example'
       about 'test detector for callable specs'
-      def call; []; end
+      def call
+        []
+      end
     end
   end
 
@@ -51,7 +53,9 @@ RSpec.describe Driftless::Detectors::Callable do
         key      'test:tagged-meta'
         severity :error
         quality  :wrong
-        def call; []; end
+        def call
+          []
+        end
       end
     end
 
@@ -68,7 +72,9 @@ RSpec.describe Driftless::Detectors::Callable do
         key      'test:skip'
         severity :error
         quality  :wrong
-        def call; []; end
+        def call
+          []
+        end
       end
       f = klass.new(corpus).send(:skip_meta_finding, reason: 'no data')
       expect(f.severity).to eq(:note)

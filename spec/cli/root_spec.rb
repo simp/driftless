@@ -6,7 +6,7 @@ require 'driftless/cli/root'
 
 RSpec.describe Driftless::CLI::Root do
   # Save/restore process-globals around every example.
-  around do |ex|
+  around(:each) do |ex|
     original_config = Driftless.instance_variable_get(:@config)
     original_level  = Driftless.logger.level
     original_xdg    = ENV['XDG_CONFIG_HOME']

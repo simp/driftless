@@ -12,7 +12,7 @@ RSpec.describe Driftless::Detectors::HierarchyTiersInterpolatingUnreportedFacts 
   end
 
   def corpus_for(fixture_name, nodes: nil)
-    tiers, _ = Driftless::Inputs::HierarchyLoader.load(fixture(fixture_name))
+    tiers, = Driftless::Inputs::HierarchyLoader.load(fixture(fixture_name))
     data = nodes.nil? ? {} : { 'factsets-for-all-active-nodes' => nodes }
     Driftless::Corpus.new(
       repo_dir:       fixture(fixture_name),
@@ -84,7 +84,7 @@ RSpec.describe Driftless::Detectors::HierarchyTiersInterpolatingUnreportedFacts 
     end
 
     context 'top-scope variables (not facts, so never in a factset)' do
-      around do |ex|
+      around(:each) do |ex|
         original = Driftless.instance_variable_get(:@config)
         ex.run
       ensure
@@ -116,7 +116,7 @@ RSpec.describe Driftless::Detectors::HierarchyTiersInterpolatingUnreportedFacts 
     end
 
     context 'with exclude_tiers / exclude_facts configured' do
-      around do |ex|
+      around(:each) do |ex|
         original = Driftless.instance_variable_get(:@config)
         ex.run
       ensure

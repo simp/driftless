@@ -6,7 +6,7 @@ require 'driftless/cli/scan'
 # spec/scan_spec.rb; this file only exercises the @options-population
 # precedence order, which resolves once the command's own flags are parsed.
 RSpec.describe Driftless::CLI::Scan do
-  around do |ex|
+  around(:each) do |ex|
     original = Driftless.instance_variable_get(:@config)
     ex.run
   ensure
@@ -42,9 +42,9 @@ RSpec.describe Driftless::CLI::Scan do
     end
 
     it 'reads detectors.only and detectors.skip as arrays' do
-      set_config('detectors' => { 'only' => ['a', 'b'], 'skip' => ['c'] })
+      set_config('detectors' => { 'only' => %w[a b], 'skip' => ['c'] })
       opts = opts_after_parse
-      expect(opts[:only]).to eq(['a', 'b'])
+      expect(opts[:only]).to eq(%w[a b])
       expect(opts[:skip]).to eq(['c'])
     end
 
@@ -54,8 +54,8 @@ RSpec.describe Driftless::CLI::Scan do
     end
 
     it 'reads puppet.environments as the environments list' do
-      set_config('puppet' => { 'environments' => ['production', 'staging'] })
-      expect(opts_after_parse[:environments]).to eq(['production', 'staging'])
+      set_config('puppet' => { 'environments' => %w[production staging] })
+      expect(opts_after_parse[:environments]).to eq(%w[production staging])
     end
 
     it 'reads puppet.allow_missing_envs' do

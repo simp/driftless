@@ -38,7 +38,7 @@ RSpec.describe Driftless::Detectors::DataLegacyFacts do
     expect(findings.first.path).to eq('/tmp/x.yaml')
     expect(findings.first.line).to eq(1)
     expect(findings.first.meta).to include(
-      legacy: 'osfamily', modern: 'os.family', interpolation: '::osfamily'
+      legacy: 'osfamily', modern: 'os.family', interpolation: '::osfamily',
     )
   end
 

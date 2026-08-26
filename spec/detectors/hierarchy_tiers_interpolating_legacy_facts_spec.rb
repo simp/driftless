@@ -178,5 +178,4 @@ RSpec.describe Driftless::Detectors::HierarchyTiersInterpolatingLegacyFacts do
     tiers = [tier(name: 't', interpolation_vars: %w[osfamily ::osfamily])]
     expect(described_class.new(hand_corpus(hiera_tiers: tiers)).call.size).to eq(1)
   end
-
 end

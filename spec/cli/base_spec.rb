@@ -12,7 +12,6 @@ RSpec.describe Driftless::CLI::Base do
     Driftless.logger.level = original_level
   end
 
-
   # Fresh anonymous parent per test — keeps @subcommands state isolated.
   let(:parent_class) do
     Class.new(described_class) do

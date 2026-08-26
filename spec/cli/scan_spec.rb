@@ -44,5 +44,4 @@ RSpec.describe Driftless::CLI::Scan do
       end
     end
   end
-
 end

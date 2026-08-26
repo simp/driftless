@@ -10,9 +10,9 @@ RSpec.describe Driftless::CLI::Config::New do
   def generate(**options)
     dir     = Dir.mktmpdir
     path    = File.join(dir, 'driftless.yaml')
+    status  = nil
     cli     = described_class.new
     cli.instance_variable_set(:@options, { path: path }.merge(options))
-    status  = nil
     begin
       capture_stdout { cli.execute([]) }
     rescue SystemExit => e

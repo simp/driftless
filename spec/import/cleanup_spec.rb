@@ -38,8 +38,8 @@ RSpec.describe Driftless::Import::Cleanup do
 
   def paths(root)
     Dir.glob(File.join(root, '**', '*'))
-      .reject { |f|File.directory?(f) }
-      .map    { |f|f.sub(%r{\A#{Regexp.escape(root)}/?}, '') }
+      .reject { |f| File.directory?(f) }
+      .map    { |f| f.sub(%r{\A#{Regexp.escape(root)}/?}, '') }
       .sort
   end
 

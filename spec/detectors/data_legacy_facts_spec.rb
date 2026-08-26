@@ -107,5 +107,4 @@ RSpec.describe Driftless::Detectors::DataLegacyFacts do
     YAML
     expect(described_class.new(hand_corpus(data_files: [df])).call).to be_empty
   end
-
 end

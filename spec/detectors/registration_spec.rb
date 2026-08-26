@@ -252,7 +252,7 @@ RSpec.describe Driftless::Detectors::Registration do
 
     it 'per-finding kwargs override class defaults' do
       f = tagged_class.new
-            .send(:build_finding, message: 'x', severity: :warning, quality: :stale)
+        .send(:build_finding, message: 'x', severity: :warning, quality: :stale)
       expect(f.severity).to eq(:warning)
       expect(f.quality).to eq(:stale)
     end

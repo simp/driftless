@@ -18,7 +18,7 @@ RSpec.describe Driftless::CLI::Import::Local do
   # Stub Import::Local to a benign no-op returning a Result-shaped double.
   let(:fake_result) do
     Struct.new(:copied, :skipped_missing, :session_id, keyword_init: true)
-          .new(copied: 3, skipped_missing: 0, session_id: 'sid-1')
+      .new(copied: 3, skipped_missing: 0, session_id: 'sid-1')
   end
   before do
     fake = Class.new do

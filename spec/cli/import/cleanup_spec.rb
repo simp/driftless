@@ -22,7 +22,7 @@ RSpec.describe Driftless::CLI::Import::Cleanup do
       def initialize(**kwargs); $construction_capture.replace(kwargs); end
       def run
         Struct.new(:live, :archived, :quarantined, :dry_run, keyword_init: true)
-              .new(live: [], archived: [], quarantined: [], dry_run: false)
+          .new(live: [], archived: [], quarantined: [], dry_run: false)
       end
     end
     $construction_capture = construction

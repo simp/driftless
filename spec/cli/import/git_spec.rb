@@ -16,7 +16,7 @@ RSpec.describe Driftless::CLI::Import::Git do
 
   let(:fake_result) do
     Struct.new(:reports_copied, :summaries_copied, :branches_imported, keyword_init: true)
-          .new(reports_copied: 5, summaries_copied: 2, branches_imported: 2)
+      .new(reports_copied: 5, summaries_copied: 2, branches_imported: 2)
   end
   before do
     fake = Class.new do

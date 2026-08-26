@@ -55,18 +55,14 @@ module Driftless
         orphans.map do |path|
           tier, vars = interpolated_vars_for(path)
           if vars
+            noun = vars.size > 1 ? 'combination' : 'value'
             build_finding(
               path:    path,
-              message: "no reported value of #{vars.join(' and ')} resolves to this path",
+              message: "no reported #{noun} of #{vars.join(' and ')} resolves this path",
               meta:    { tier: tier.name, vars: vars },
             )
-          else
-            build_finding(
-              path:    path,
-              message: 'no reported fact resolves to this path',
-            )
           end
-        end
+        end.compact
       end
 
       private

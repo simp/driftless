@@ -38,7 +38,8 @@ RSpec.describe Driftless::Detectors::DataBareVariables do
   end
 
   it 'ignores structured accessors' do
-    expect(flagged(%(a: "%{facts.os.family}"\nb: "%{trusted.certname}"\n))).to be_empty
+    expect(flagged(%(a: "%{facts.os.family}"\nb: "%{trusted.certname}"\nc: "%{server_facts.environment}"\n)))
+      .to be_empty
   end
 
   it 'ignores Hiera function calls' do

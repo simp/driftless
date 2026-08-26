@@ -2,9 +2,9 @@ module Driftless
   module Detectors
     # What counts as a bare variable reference
     module BareVariableReference
-      # `facts.` and `trusted.` index a global structure, so they resolve
+      # Each indexes a global structure, so the reference resolves
       # deterministically.
-      STRUCTURED_PREFIXES = %w[facts. trusted.].freeze
+      STRUCTURED_PREFIXES = %w[facts. trusted. server_facts.].freeze
 
       # `%{lookup('x')}` and friends are Hiera function calls, not variables.
       FUNCTION_CALL = /\(/.freeze

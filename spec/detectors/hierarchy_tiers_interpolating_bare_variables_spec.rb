@@ -44,7 +44,7 @@ RSpec.describe Driftless::Detectors::HierarchyTiersInterpolatingBareVariables do
     end
 
     it 'ignores structured accessors' do
-      expect(flagged('facts.kernel', 'facts.os.family', 'trusted.certname')).to be_empty
+      expect(flagged('facts.kernel', 'facts.os.family', 'trusted.certname', 'server_facts.environment')).to be_empty
     end
 
     # An embedded :: is a class namespace, so the name is qualified too.

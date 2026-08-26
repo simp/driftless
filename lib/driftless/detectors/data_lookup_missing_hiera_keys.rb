@@ -21,8 +21,8 @@ module Driftless
           findings << build_finding(
             path:    lc.file,
             line:    lc.line,
-            message: "#{lc.key.inspect} not defined in any Hiera file",
-            meta:    { lookup_key: lc.key },
+            message: "#{lc.key.inspect} not defined in any Hiera file (via #{lc.function})",
+            meta:    { lookup_key: lc.key, function: lc.function },
           )
         end
         findings

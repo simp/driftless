@@ -39,7 +39,7 @@ module Driftless
             line:    lc.line,
             message: "#{lc.key.inspect} is " \
                      'not defined in any Hiera file',
-            meta:    { lookup_key: lc.key, has_default: lc.has_default },
+            meta:    { lookup_key: lc.key, function: lc.function, has_default: lc.has_default },
           )
         end
         findings

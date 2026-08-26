@@ -22,6 +22,12 @@ RSpec.describe Driftless::LookupCallExtractor do
         expect(calls.map(&:key)).to include('legacy::key')
       end
 
+      it 'records which function made each call' do
+        by_key = calls.each_with_object({}) { |c, h| h[c.key] = c }
+        expect(by_key['simple::key'].function).to eq('lookup')
+        expect(by_key['legacy::key'].function).to eq('hiera')
+      end
+
       it 'skips calls with a dynamic (non-LiteralString) first arg' do
         # $dynamic = lookup($some_var) is present in the fixture, deliberately not captured
         expect(calls.length).to eq(3)
@@ -132,6 +138,13 @@ RSpec.describe Driftless::LookupCallExtractor do
 
       it 'sets has_default? = false for YAML-scanned calls (no default in interp syntax)' do
         expect(calls).to all(have_attributes(has_default: false))
+      end
+
+      it 'records which function each interpolation used' do
+        by_key = calls.each_with_object({}) { |c, h| h[c.key] = c }
+        expect(by_key['namespace::simple::key'].function).to eq('lookup')
+        expect(by_key['config::alias::key'].function).to eq('alias')
+        expect(by_key['legacy::interp::key'].function).to eq('hiera')
       end
 
       it 'ignores %{facts.X} and other non-lookup interpolations' do

@@ -27,11 +27,20 @@ RSpec.describe Driftless::Detectors::DataLookupMissingHieraKeys do
     expect(findings.first.line).to eq(8)
   end
 
+  it 'names the function in the message and meta' do
+    calls = [Driftless::LookupCall.new(key: 'missing', function: 'alias', file: '/tmp/x.yaml', line: 1,
+                                       has_default: false)]
+    corpus   = build_corpus(data_files: [default_yaml], data_lookup_calls: calls)
+    findings = described_class.new(corpus).call
+    expect(findings.first.message).to eq('"missing" not defined in any Hiera file (via alias)')
+    expect(findings.first.meta[:function]).to eq('alias')
+  end
+
   it 'does NOT include has_default in meta (data-side interpolations cannot carry defaults)' do
     calls = [Driftless::LookupCall.new(key: 'missing', file: '/tmp/x.yaml', line: 1, has_default: false)]
     corpus   = build_corpus(data_files: [default_yaml], data_lookup_calls: calls)
     findings = described_class.new(corpus).call
-    expect(findings.first.meta.keys).to eq([:lookup_key])
+    expect(findings.first.meta.keys).to eq(%i[lookup_key function])
   end
 
   it 'is scoped to data_lookup_calls only — code_lookup_calls do not appear here' do

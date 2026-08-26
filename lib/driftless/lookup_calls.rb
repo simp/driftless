@@ -3,14 +3,14 @@ require 'puppet'
 require 'driftless/models/lookup_call'
 
 module Driftless
-  # Extracts {LookupCall} records (key, file, line, has_default) from either
+  # Extracts {LookupCall} records from either
   # a parsed Puppet AST (`.extract`) or a YAML data file's scalar values
   # scanned for `%{lookup|alias|hiera(...)}` interpolations
   # (`.extract_from_yaml_values`). Only calls whose first argument is a
   # literal string are extracted; hash-form and dynamic-key calls are ignored.
   class LookupCallExtractor
     LOOKUP_FUNCTIONS       = %w[lookup hiera].freeze
-    YAML_LOOKUP_INTERP_RE  = /%\{(?:lookup|alias|hiera)\(\s*['"]([^'"]+)['"]\s*\)\}/.freeze
+    YAML_LOOKUP_INTERP_RE  = /%\{(lookup|alias|hiera)\(\s*['"]([^'"]+)['"]\s*\)\}/.freeze
 
     def self.extract(program:, file:)
       new(program: program, file: file).extract
@@ -22,7 +22,8 @@ module Driftless
       value_lines.each do |line, lineno|
         line.scan(YAML_LOOKUP_INTERP_RE) do |captured|
           calls << LookupCall.new(
-            key:         captured[0],
+            key:         captured[1],
+            function:    captured[0],
             file:        file,
             line:        lineno,
             has_default: false,
@@ -49,6 +50,7 @@ module Driftless
 
         calls << LookupCall.new(
           key:         key,
+          function:    name,
           file:        @file,
           line:        node.line,
           has_default: default_arg?(node),

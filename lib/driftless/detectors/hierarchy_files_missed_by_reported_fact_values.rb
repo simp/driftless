@@ -53,14 +53,42 @@ module Driftless
         orphans = (on_disk - reachable - excluded_by_tiers).sort
 
         orphans.map do |path|
-          build_finding(
-            path:    path,
-            message: 'no reported fact resolves to this path',
-          )
+          tier, vars = interpolated_vars_for(path)
+          if vars
+            build_finding(
+              path:    path,
+              message: "no reported value of #{vars.join(' and ')} resolves to this path",
+              meta:    { tier: tier.name, vars: vars },
+            )
+          else
+            build_finding(
+              path:    path,
+              message: 'no reported fact resolves to this path',
+            )
+          end
         end
       end
 
       private
+
+      # The first tier whose interpolated template shape the file matches, and
+      # that template's variables. Matched the way
+      # hierarchy:unreachable-data-files matches: %{...} as *, braces as
+      # alternation only under a glob locator.
+      # @return [Array(HieraTier, Array<String>), nil]
+      def interpolated_vars_for(path)
+        corpus.hiera_tiers.each do |tier|
+          flags = tier.glob? ? File::FNM_PATHNAME | File::FNM_EXTGLOB : File::FNM_PATHNAME
+          tier.path_templates.each do |template|
+            vars = tier.vars_for(template)
+            next if vars.empty?
+
+            pattern = File.join(tier.datadir, template.gsub(TEMPLATE_VAR_RE, '*'))
+            return [tier, vars] if File.fnmatch(pattern, path, flags)
+          end
+        end
+        nil
+      end
 
       # Renders each path once per distinct set of values for the variables
       # that path interpolates.

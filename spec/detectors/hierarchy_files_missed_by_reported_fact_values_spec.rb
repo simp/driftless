@@ -56,6 +56,19 @@ RSpec.describe Driftless::Detectors::HierarchyFilesMissedByReportedFactValues do
         )
       end
 
+      it 'names the fact the path interpolates' do
+        by_path = orphans.to_h { |f| [f.path.delete_prefix("#{fixture('orphans')}/"), f] }
+        expect(by_path['data/os/family/Debian.yaml'].message)
+          .to eq('no reported value of facts.os.family resolves to this path')
+        expect(by_path['data/hosts/ghost.example.com.yaml'].message)
+          .to eq('no reported value of trusted.certname resolves to this path')
+      end
+
+      it 'records the tier and its variables in meta' do
+        f = orphans.find { |o| o.path.end_with?('Debian.yaml') }
+        expect(f.meta).to eq(tier: 'OS family', vars: ['facts.os.family'])
+      end
+
       it 'does NOT flag reachable files' do
         reachable_files = [
           File.join(fixture('orphans'), 'data/hosts/web1.example.com.yaml'),

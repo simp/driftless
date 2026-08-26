@@ -59,9 +59,9 @@ RSpec.describe Driftless::Detectors::HierarchyFilesMissedByReportedFactValues do
       it 'names the fact the path interpolates' do
         by_path = orphans.to_h { |f| [f.path.delete_prefix("#{fixture('orphans')}/"), f] }
         expect(by_path['data/os/family/Debian.yaml'].message)
-          .to eq('no reported value of facts.os.family resolves to this path')
+          .to eq('no reported value of facts.os.family resolves this path')
         expect(by_path['data/hosts/ghost.example.com.yaml'].message)
-          .to eq('no reported value of trusted.certname resolves to this path')
+          .to eq('no reported value of trusted.certname resolves this path')
       end
 
       it 'records the tier and its variables in meta' do
@@ -143,8 +143,10 @@ RSpec.describe Driftless::Detectors::HierarchyFilesMissedByReportedFactValues do
         expect(orphans).to include(data('os/Debian.yaml'))
       end
 
-      it 'still flags a file no tier reaches at all' do
-        expect(orphans).to include(data('stray.yaml'))
+      # A file matching no interpolating template belongs to
+      # hierarchy:unreachable-data-files, which flags stray.yaml in its own spec.
+      it 'leaves a file no tier reaches to the unreachable-data-files detector' do
+        expect(orphans).not_to include(data('stray.yaml'))
       end
 
       # nodes/dev/gone.example.com.yaml matches the glob's shape but names a

@@ -20,11 +20,11 @@ RSpec.describe Driftless::Export::Factsets do
 
   def record(certname, facts, environment: 'production', trusted: {})
     {
-      'certname'           => certname,
-      'catalog_environment'=> environment,
-      'facts'              => facts,
-      'trusted'            => trusted,
-      'report_timestamp'   => '2026-08-14T00:00:00Z',
+      'certname'            => certname,
+      'catalog_environment' => environment,
+      'facts'               => facts,
+      'trusted'             => trusted,
+      'report_timestamp'    => '2026-08-14T00:00:00Z',
     }
   end
 

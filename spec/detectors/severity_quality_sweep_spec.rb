@@ -8,16 +8,16 @@ require 'driftless/detectors'
 # where the declaration was forgotten entirely.
 RSpec.describe 'detector severity/quality declarations' do
   EXPECTED = {
-    'code:lookup-missing-hiera-keys'                => { severity: :error,   quality: :wrong },
-    'data:codebase-missing-class'                   => { severity: :error,   quality: :wrong },
-    'data:codebase-missing-class-param'             => { severity: :error,   quality: :wrong },
-    'data:legacy-facts'                             => { severity: :error,   quality: :wrong },
-    'data:lookup-missing-hiera-keys'                => { severity: :error,   quality: :wrong },
-    'data:paths-for-unreported-nodes'                            => { severity: :warning, quality: :stale },
+    'code:lookup-missing-hiera-keys'                 => { severity: :error,   quality: :wrong },
+    'data:codebase-missing-class'                    => { severity: :error,   quality: :wrong },
+    'data:codebase-missing-class-param'              => { severity: :error,   quality: :wrong },
+    'data:legacy-facts'                              => { severity: :error,   quality: :wrong },
+    'data:lookup-missing-hiera-keys'                 => { severity: :error,   quality: :wrong },
+    'data:paths-for-unreported-nodes'                => { severity: :warning, quality: :stale },
     'hierarchy:files-missed-by-reported-fact-values' => { severity: :warning, quality: :stale },
-    'hierarchy:tiers-interpolating-legacy-facts'    => { severity: :error,   quality: :wrong },
+    'hierarchy:tiers-interpolating-legacy-facts'     => { severity: :error,   quality: :wrong },
     'hierarchy:tiers-interpolating-unreported-facts' => { severity: :warning, quality: :stale },
-    'hierarchy:unreachable-data-files'              => { severity: :warning, quality: :impossible },
+    'hierarchy:unreachable-data-files'               => { severity: :warning, quality: :impossible },
   }.freeze
 
   # Subset check, not equality: other specs create anonymous test detectors

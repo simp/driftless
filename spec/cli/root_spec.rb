@@ -15,7 +15,7 @@ RSpec.describe Driftless::CLI::Root do
   ensure
     Driftless.instance_variable_set(:@config, original_config)
     Driftless.logger.level = original_level
-    ENV['XDG_CONFIG_HOME']  = original_xdg
+    ENV['XDG_CONFIG_HOME'] = original_xdg
     Dir.chdir(original_cwd) if original_cwd
   end
 

@@ -18,7 +18,7 @@ module Driftless
         def execute(_argv)
           path = @options[:path] || ::Driftless::Config.project_path
 
-          if path.match? /\A-+\Z/
+          if path.match?(/\A-+\Z/)
             puts render
             exit 0
           end
@@ -49,7 +49,6 @@ module Driftless
           bare_text = text.sub(/\A#{text_prefix}/, '')
           comment_prefix = "# #{'  ' * depth}"
           return comment_prefix.strip if text.empty?
-          padding = comment_prefix.size
           lines = wrap_text(bare_text, cols - comment_prefix.size).split("\n")
           lines.map { |t| "#{comment_prefix}#{text_prefix}#{t}".strip }.join("\n")
         end
@@ -65,7 +64,7 @@ module Driftless
         def wrap_text(txt, col = 80)
           txt.gsub(
             /(?:((?>.{1,#{col}}(?:(?<=[^\S\r\n])[^\S\r\n]?|(?=\r?\n)|$|[^\S\r\n]))|.{1,#{col}})(?:\r?\n)?|(?:\r?\n|$))/,
-            "\\1\n"
+            "\\1\n",
           ).chomp
         end
 
@@ -80,12 +79,12 @@ module Driftless
                    '## Config file search order:',
                    *::Driftless::Config.search_chain.map { |p| "##   #{p}" },
                    '## `--config PATH` replaces that chain; `--no-config` skips it.',
-                   '## ' + '-' * 77,]
+                   '## ' + '-' * 77]
           subsystems.each { |name| lines.concat(subsystem_section(name)) }
           lines.concat(detectors_section)
           lines.concat([comment(0, '')])
           # lines.concat(withheld_section)
-          lines = lines.map { |x| x.split(/\n/) }.flatten
+          lines = lines.map { |x| x.split("\n") }.flatten
           lines.map! { |x| x.gsub(/\s+$/, '') }
           "#{lines.join("\n")}\n"
         end

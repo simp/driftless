@@ -52,17 +52,16 @@ module Driftless
         on_disk = files_on_disk(corpus.hiera_tiers)
         orphans = (on_disk - reachable - excluded_by_tiers).sort
 
-        orphans.map do |path|
+        orphans.map { |path|
           tier, vars = interpolated_vars_for(path)
-          if vars
-            noun = vars.size > 1 ? 'combination' : 'value'
-            build_finding(
-              path:    path,
-              message: "no reported #{noun} of #{vars.join(' and ')} resolves this path",
-              meta:    { tier: tier.name, vars: vars },
-            )
-          end
-        end.compact
+          next unless vars
+          noun = (vars.size > 1) ? 'combination' : 'value'
+          build_finding(
+            path:    path,
+            message: "no reported #{noun} of #{vars.join(' and ')} resolves this path",
+            meta:    { tier: tier.name, vars: vars },
+          )
+        }.compact
       end
 
       private

@@ -440,7 +440,7 @@ RSpec.describe Driftless::Scan do
       findings = [
         Driftless::Finding.new(key: 'x', path: '/tmp/repo/vendor/foo.pp', line: 1, message: 'v', meta: {}),
         Driftless::Finding.new(key: 'x', path: '/tmp/repo/modules/bar.pp', line: 1, message: 'm', meta: {}),
-        Driftless::Finding.new(key: 'x', path: '/tmp/repo/site.pp',       line: 1, message: 's', meta: {}),
+        Driftless::Finding.new(key: 'x', path: '/tmp/repo/site.pp', line: 1, message: 's', meta: {}),
       ]
       result = scan.send(:apply_exclude_paths, findings, ['modules/**', 'vendor/**'], 'x')
       expect(result.map(&:path)).to eq(['/tmp/repo/site.pp'])

@@ -72,7 +72,7 @@ RSpec.describe Driftless::Detectors::HierarchyTiersInterpolatingLegacyFacts do
   end
 
   it 'reports findings independently across multiple tiers' do
-    tiers    = [
+    tiers = [
       tier(name: 't1', interpolation_vars: ['::osfamily']),
       tier(name: 't2', interpolation_vars: ['::osfamily']),
     ]

@@ -208,7 +208,7 @@ RSpec.describe Driftless::Config do
 
   describe 'Driftless.config module accessor' do
     around do |ex|
-      original    = Driftless.instance_variable_get(:@config)
+      original = Driftless.instance_variable_get(:@config)
       ex.run
     ensure
       Driftless.instance_variable_set(:@config, original)

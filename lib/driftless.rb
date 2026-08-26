@@ -2,6 +2,7 @@ require 'driftless/version'
 require 'driftless/logger'
 require 'driftless/config'
 require 'driftless/role_profile'
+require 'driftless/top_scope_variables'
 require 'driftless/control_repo'
 
 require 'driftless/finding'

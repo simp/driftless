@@ -83,6 +83,38 @@ RSpec.describe Driftless::Detectors::HierarchyTiersInterpolatingUnreportedFacts 
       end
     end
 
+    context 'top-scope variables (not facts, so never in a factset)' do
+      around do |ex|
+        original = Driftless.instance_variable_get(:@config)
+        ex.run
+      ensure
+        Driftless.instance_variable_set(:@config, original)
+      end
+
+      def set_puppet_config(opts)
+        Driftless.config = Driftless::Config.new(merged: { 'puppet' => opts })
+      end
+
+      let(:tiers_flagged) do
+        described_class.new(corpus_for('top_scope_tiers', nodes: [web1])).call.map { |f| f.meta[:tier] }
+      end
+
+      it 'skips the built-in server variables and reports the rest' do
+        set_puppet_config({})
+        expect(tiers_flagged).to eq(['Region'])
+      end
+
+      it 'skips a name listed in puppet.top_scope_variables' do
+        set_puppet_config('top_scope_variables' => ['site_region'])
+        expect(tiers_flagged).to be_empty
+      end
+
+      it 'reports the server variables when puppet.builtin_top_scope_variables is false' do
+        set_puppet_config('builtin_top_scope_variables' => false)
+        expect(tiers_flagged).to contain_exactly('Environment', 'Server environment', 'Strict', 'Region')
+      end
+    end
+
     context 'with exclude_tiers / exclude_facts configured' do
       around do |ex|
         original = Driftless.instance_variable_get(:@config)

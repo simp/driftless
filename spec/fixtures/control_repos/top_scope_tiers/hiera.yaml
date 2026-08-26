@@ -1,0 +1,16 @@
+---
+version: 5
+defaults:
+  datadir: data
+  data_hash: yaml_data
+hierarchy:
+  - name: Environment
+    path: "environments/%{environment}.yaml"
+  - name: Server environment
+    path: "server/%{server_facts.environment}.yaml"
+  - name: Strict
+    path: "strict/%{settings::strict_variables}.yaml"
+  - name: Region
+    path: "regions/%{::site_region}.yaml"
+  - name: Default
+    path: default.yaml

@@ -9,6 +9,8 @@ RSpec.describe Driftless::ConfigKeys do
       'puppet.profile_regex'       => Driftless::RoleProfile,
       'puppet.environments'        => Driftless::Scan,
       'puppet.allow_missing_envs'  => Driftless::Scan,
+      'puppet.top_scope_variables' => Driftless::TopScopeVariables,
+      'puppet.builtin_top_scope_variables' => Driftless::TopScopeVariables,
       'reports.incoming_dir'       => Driftless::Inputs::ReportLoader,
       'output.format'              => Driftless::Outputs,
       'output.default_file'        => Driftless::Outputs,

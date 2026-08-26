@@ -1,6 +1,8 @@
 require 'driftless/detectors/callable'
 require 'driftless/detectors/exclusions'
 require 'driftless/legacy_facts'
+require 'driftless/top_scope_variables'
+
 module Driftless
   module Detectors
     class HierarchyTiersInterpolatingUnreportedFacts < Callable
@@ -29,7 +31,8 @@ module Driftless
           next if excluded_tier?(tier)
 
           unreported = tier.interpolation_vars.reject do |var|
-            excluded_fact?(var) || nodes.any? { |node| !node.fact(var).nil? }
+            TopScopeVariables.known?(var) || excluded_fact?(var) ||
+              nodes.any? { |node| !node.fact(var).nil? }
           end
           next if unreported.empty?
 

@@ -3,6 +3,7 @@ require 'driftless/cli/root'
 require 'driftless/cli/import'
 require 'driftless/config_keys'
 require 'driftless/scan'
+require 'driftless/fail_on'
 require 'driftless/control_repo'
 require 'driftless/outputs'
 require 'driftless/ansi'
@@ -15,7 +16,7 @@ module Driftless
       register_command name: 'scan', subcommand_of: Root
 
       config_key 'scan.fail_on', type: :string, default: 'any',
-                 about: 'Exit non-zero on findings: any or never'
+                 about: 'Exit non-zero on findings: any, none, or comma-joined severity/quality terms'
       config_key 'detectors.only', type: :array, default: nil,
                  about: 'Run only these detector keys'
       config_key 'detectors.skip', type: :array, default: nil,
@@ -23,6 +24,12 @@ module Driftless
       desc 'Cross-reference control repo against PuppetDB reports'
 
       def execute(_argv)
+        begin
+          fail_on = ::Driftless::FailOn.parse(@options[:fail_on])
+        rescue ArgumentError => e
+          fatal!(e.message, help: true)
+        end
+
         repo = if @options[:repo_dir]
                  ::Driftless::ControlRepo.new(@options[:repo_dir])
                else
@@ -78,8 +85,7 @@ module Driftless
 
         emit(findings)
 
-        exit 0 if @options[:fail_on] == 'never'
-        exit(findings.empty? ? 0 : 1)
+        exit(fail_on.fail?(findings) ? 1 : 0)
       end
 
       protected
@@ -138,8 +144,10 @@ module Driftless
         o.separator ''
         o.separator 'Other:'
         o.on('--basemodulepath=PATH', 'Override $basemodulepath (colon-separated)') { |v| @options[:basemodulepath] = v.split(':') }
-        o.on('--fail-on=WHEN', %w[any never],
-             'Exit non-zero on findings: any (default) or never') { |v| @options[:fail_on] = v }
+        o.on('--fail-on=TERMS',
+             'Exit non-zero on findings: any (default), none, or',
+             'comma-joined terms — a severity fails on itself or worse,',
+             'a quality on exact match (e.g. error,stale)') { |v| @options[:fail_on] = v }
         Import.declare_accept_partial(o, @options)
       end
 

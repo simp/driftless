@@ -6,6 +6,7 @@ require 'driftless/top_scope_variables'
 require 'driftless/control_repo'
 
 require 'driftless/finding'
+require 'driftless/fail_on'
 require 'driftless/corpus'
 require 'driftless/reported'
 

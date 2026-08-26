@@ -46,11 +46,11 @@ module Driftless
         # Return commented-out line(s) at `depth` levels of YAML nesting
         def comment(depth, text, cols = 80)
           text_prefix = text.start_with?('# ') ? '# ' : ''
-          bare_text = text.sub(/\A#{text_prefix}/,'')
+          bare_text = text.sub(/\A#{text_prefix}/, '')
           comment_prefix = "# #{'  ' * depth}"
           return comment_prefix.strip if text.empty?
           padding = comment_prefix.size
-          lines = wrap_text(bare_text,cols-comment_prefix.size).split("\n")
+          lines = wrap_text(bare_text, cols - comment_prefix.size).split("\n")
           lines.map { |t| "#{comment_prefix}#{text_prefix}#{t}".strip }.join("\n")
         end
 
@@ -72,7 +72,7 @@ module Driftless
         def render
           require 'time'
           lines = ['## driftless configuration file',
-                   '## ' + '-'*77,
+                   '## ' + '-' * 77,
                    "## Generated at #{Time.now} by `driftless config new`",
                    '##',
                    '## Every key starts commented out, showing its default/an illustrative value.',
@@ -80,11 +80,10 @@ module Driftless
                    '## Config file search order:',
                    *::Driftless::Config.search_chain.map { |p| "##   #{p}" },
                    '## `--config PATH` replaces that chain; `--no-config` skips it.',
-                   '## ' + '-'*77,
-          ]
+                   '## ' + '-' * 77,]
           subsystems.each { |name| lines.concat(subsystem_section(name)) }
           lines.concat(detectors_section)
-          lines.concat([comment(0,'')])
+          lines.concat([comment(0, '')])
           # lines.concat(withheld_section)
           lines = lines.map { |x| x.split(/\n/) }.flatten
           lines.map! { |x| x.gsub(/\s+$/, '') }
@@ -145,13 +144,13 @@ module Driftless
           sample = ::Driftless::Detectors.registry.map(&:key).sort.first
           lines  = ['',
                     '#',
-                    '## ' + '-'*77,
+                    '## ' + '-' * 77,
                     '##' + 'DETECTORS'.center(78),
-                    '## ' + '-'*77,
+                    '## ' + '-' * 77,
                     '## - `only` and `skip` select which detectors run',
                     '## = `defaults` applies to every detector',
                     '## - A per-detector key overrides its defaults',
-                    '## ' + '-'*77,
+                    '## ' + '-' * 77,
                     comment(0, 'detectors:')]
           ::Driftless::ConfigKeys.settable('detectors').each do |key|
             lines << comment(1, "# #{key.about}") if key.about
@@ -166,7 +165,7 @@ module Driftless
             lines << comment(1, "#{klass.key}:")
             klass.config_options.each_value do |opt|
               lines.concat(option_lines(opt, 2,
-                base_options.map { |x| x[:name]}))
+                base_options.map { |x| x[:name] }))
             end
           end
           lines
@@ -176,7 +175,7 @@ module Driftless
           ::Driftless::Detectors::Registration.config_options.values
         end
 
-        def option_lines(opt, depth, exclude_comments=[])
+        def option_lines(opt, depth, exclude_comments = [])
           lines = []
           unless exclude_comments.include?(opt[:name])
             lines << comment(depth, "# #{opt[:about]}") if opt[:about]

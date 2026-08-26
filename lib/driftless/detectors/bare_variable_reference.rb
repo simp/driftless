@@ -13,15 +13,15 @@ module Driftless
       # They are available as bare variables and keys in $facts/$trusted
       AGENT_BUILTIN_VARIABLES = {
         # prefer trusted.certname to facts.clientcert (and facts.fqdn)
-        'clientcert' => 'trusted.certname', 
-        'clientversion' =>'facts.clientversion',
+        'clientcert' => 'trusted.certname',
+        'clientversion' => 'facts.clientversion',
         'puppetversion' => 'facts.puppetversion',
         'clientnoop' => 'facts.clientnoop',
         # only set when agent sets its own environment (in puppet.conf, cli flag)
         'agent_specified_environment' => 'facts.agent_specified_environment',
       }
       # server-injected variables, ONLY visible in server compiles (including hiera)
-      # They are all available as bare variables 
+      # They are all available as bare variables
       SERVER_BUILTIN_VARIABLES = {
         'environment' => 'server_facts.environment',
         'serverip' => 'server_facts.serverip',
@@ -31,7 +31,7 @@ module Driftless
         # Probably only available in openvox, have not yet confirmed
         'serverimplementation' => 'server_facts.serverimplementation',
       }
-      
+
       # Any `::` qualifies the name — leading for top scope, embedded for a
       # class namespace — and either way it is not a local variable.
       def bare?(var)

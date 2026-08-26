@@ -33,7 +33,7 @@ module Driftless
               path:    df.path,
               line:    line,
               message: "class #{class_name.inspect} not found in codebase",
-              #message: "#{key.inspect} references undefined class #{class_name.inspect}",
+              # message: "#{key.inspect} references undefined class #{class_name.inspect}",
               meta:    { class_name: class_name },
             )
           end

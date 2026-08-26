@@ -23,7 +23,7 @@ module Driftless
           df.top_level_keys.each do |key, line|
             next unless key.include?('::')
 
-            class_name   = key.rpartition('::')[0]
+            class_name = key.rpartition('::')[0]
             next if excluded_class?(class_name)
 
             param_name   = key.rpartition('::')[2]

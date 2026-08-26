@@ -89,7 +89,7 @@ module Driftless
           o.on('--no-summaries', 'Skip the summary/ tree')                                  { @options[:no_summaries] = true }
           o.on('--dry-run',      'Log what would be copied without touching the filesystem') { @options[:dry_run] = true }
           Import.declare_accept_partial(o, @options)
-          o.on_tail  <<~ENV_VAR_BANNER
+          o.on_tail <<~ENV_VAR_BANNER
 
             Accepts env vars (all optional):
 

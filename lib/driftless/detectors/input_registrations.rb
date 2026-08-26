@@ -58,7 +58,7 @@ module Driftless
 
     class HierarchyTierMissingPath < Registration
       key      'hierarchy:tier-missing-path'
-      about    'a tier declares neither path: nor paths:'
+      about    'a tier declares no path:, paths:, glob:, or globs:, or uses a locator driftless does not scan (uri:, mapped_paths:)'
       severity :note
     end
 

@@ -106,6 +106,28 @@ RSpec.describe Driftless::Inputs::HierarchyLoader do
       end
     end
 
+    context 'with tiers driftless cannot locate data for' do
+      let(:result)   { described_class.load(fixture('unscanned_locator')) }
+      let(:tiers)    { result[0] }
+      let(:findings) { result[1] }
+
+      it 'skips them but keeps the others' do
+        expect(tiers.map(&:name)).to eq(['Default'])
+      end
+
+      it 'reports each as hierarchy:tier-missing-path' do
+        expect(findings.map(&:key)).to eq(%w[hierarchy:tier-missing-path hierarchy:tier-missing-path])
+      end
+
+      it 'names an unscanned locator rather than blaming the config' do
+        expect(findings[0].message).to eq('tier "Roles" uses mapped_paths:, a locator driftless does not scan')
+      end
+
+      it 'lists the scanned locators when a tier declares none' do
+        expect(findings[1].message).to eq('tier "No locator" declares no path:, paths:, glob:, or globs:')
+      end
+    end
+
     context 'with glob: and globs: tiers' do
       let(:result) { described_class.load(fixture('glob_tier')) }
       let(:tiers)  { result[0] }

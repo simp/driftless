@@ -1,0 +1,11 @@
+---
+version: 5
+defaults:
+  datadir: data
+  data_hash: yaml_data
+hierarchy:
+  - name: Roles
+    mapped_paths: [facts.roles, role, "roles/%{role}.yaml"]
+  - name: No locator
+  - name: Default
+    path: default.yaml

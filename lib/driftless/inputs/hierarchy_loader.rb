@@ -7,6 +7,9 @@ module Driftless
   module Inputs
     class HierarchyLoader
       SUPPORTED_DATA_HASH_BACKENDS = %w[yaml_data json_data hocon_data].freeze
+      # Hiera 5 location keys driftless does not read; see extract_templates
+      # for the ones it does.
+      UNSCANNED_LOCATORS = %w[uri uris mapped_paths].freeze
       INTERPOLATION_RE = /%\{([^{}]+)\}/.freeze
 
       def self.load(repo_dir)
@@ -87,9 +90,14 @@ module Driftless
 
           templates, multi, locator = extract_templates(entry)
           if templates.nil?
+            unscanned = (UNSCANNED_LOCATORS & entry.keys).first
             findings << finding(
               Detectors::HierarchyTierMissingPath,
-              "tier #{name.inspect} has neither path: nor paths:",
+              if unscanned
+                "tier #{name.inspect} uses #{unscanned}:, a locator driftless does not scan"
+              else
+                "tier #{name.inspect} declares no path:, paths:, glob:, or globs:"
+              end,
               line: line,
             )
             next

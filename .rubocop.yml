@@ -26,6 +26,16 @@ Layout/ExtraSpacing:
   AllowForAlignment: true
 Layout/MultilineMethodCallIndentation:
   EnforcedStyle: indented
+  IndentationWidth: 2
+Layout/FirstHashElementIndentation:
+  EnforcedStyle: consistent
+  IndentationWidth: 2
+Layout/FirstArrayElementIndentation:
+  EnforcedStyle: consistent
+  IndentationWidth: 2
+Layout/MultilineMethodCallBraceLayout:
+  Enabled: false
+  EnforcedStyle: new_line
 Style/EmptyStringInsideInterpolation:
   EnforcedStyle: trailing_conditional
 Style/ConditionalAssignment:

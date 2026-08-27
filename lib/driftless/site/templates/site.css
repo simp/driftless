@@ -4,6 +4,7 @@
   --muted: #59636e;
   --line: #d1d9e0;
   --panel: #f6f8fa;
+  --accent: #0969da;
   --error: #b42318;
   --warning: #9a6700;
   --note: #0969da;
@@ -20,6 +21,7 @@
     --muted: #9198a1;
     --line: #30363d;
     --panel: #161b22;
+    --accent: #58a6ff;
     --error: #ff7b72;
     --warning: #d29922;
     --note: #58a6ff;
@@ -35,10 +37,14 @@ body {
   color: var(--fg);
 }
 
-code, .mono, td.location, td.key {
+code, .mono, td.location, td.key, td.name, .var {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 0.93em;
 }
+
+a { color: var(--accent); }
+
+/* ---- header ------------------------------------------------------------ */
 
 #header {
   padding: 1rem 1.5rem;
@@ -61,6 +67,42 @@ code, .mono, td.location, td.key {
 #run-facts dt { color: var(--muted); }
 #run-facts dd { margin: 0; }
 
+.overrides {
+  margin: 0.75rem 0 0;
+  padding: 0.5rem 0.8rem;
+  border: 1px solid var(--warning);
+  border-radius: 4px;
+}
+
+#sessions {
+  margin-top: 0.75rem;
+  width: auto;
+}
+
+/* ---- navigation and layout --------------------------------------------- */
+
+#views {
+  display: flex;
+  gap: 0.25rem;
+  padding: 0.5rem 1.5rem 0;
+  border-bottom: 1px solid var(--line);
+}
+
+#views button {
+  font: inherit;
+  color: var(--muted);
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  padding: 0.4rem 0.8rem;
+  cursor: pointer;
+}
+
+#views button.active {
+  color: var(--fg);
+  border-bottom-color: var(--accent);
+}
+
 #app, .noscript {
   padding: 1rem 1.5rem;
 }
@@ -71,6 +113,54 @@ h2 {
   font-size: 1.1rem;
   margin: 0 0 0.5rem;
 }
+
+/* ---- controls ---------------------------------------------------------- */
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.25rem;
+  align-items: center;
+  padding: 0.6rem 0.9rem;
+  margin-bottom: 1rem;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--panel);
+}
+
+.controls label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.controls .group { display: inline-flex; gap: 0.6rem; align-items: center; }
+.controls .group > span:first-child { color: var(--muted); }
+
+.controls input[type="text"], .controls select {
+  font: inherit;
+  color: var(--fg);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  padding: 0.2rem 0.4rem;
+}
+
+.controls input[type="text"] { min-width: 12rem; }
+
+.controls button {
+  font: inherit;
+  color: var(--fg);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  padding: 0.2rem 0.6rem;
+  cursor: pointer;
+}
+
+.shown { color: var(--muted); margin-left: auto; }
+
+/* ---- tables ------------------------------------------------------------ */
 
 table {
   border-collapse: collapse;
@@ -85,8 +175,10 @@ th, td {
 }
 
 th { color: var(--muted); font-weight: 600; }
+th.sortable { cursor: pointer; }
+th.sorted { color: var(--fg); }
 
-td.count { text-align: right; }
+td.count, th.count { text-align: right; }
 
 .severity-error   { color: var(--error); font-weight: 600; }
 .severity-warning { color: var(--warning); }
@@ -103,13 +195,35 @@ tr.total td { font-weight: 600; border-bottom: none; }
 
 .warnings ul { margin: 0.3rem 0 0; padding-left: 1.2rem; }
 
-.group { margin-top: 1rem; }
+.group-block { margin-top: 1rem; }
 
-.group h3 {
+.group-block h3 {
   font-size: 1rem;
   margin: 0 0 0.25rem;
 }
 
-.group h3 .count { color: var(--muted); font-weight: normal; }
+.group-block h3 .count { color: var(--muted); font-weight: normal; }
 
 .empty { color: var(--muted); }
+
+/* ---- hierarchy --------------------------------------------------------- */
+
+.tier td.paths { white-space: pre-line; }
+
+.var { display: inline-block; margin: 0 0.5rem 0.15rem 0; }
+
+.flag {
+  display: inline-block;
+  font-family: system-ui, sans-serif;
+  font-size: 0.8em;
+  padding: 0 0.35rem;
+  margin-left: 0.25rem;
+  border-radius: 3px;
+  border: 1px solid currentColor;
+}
+
+.flag-unreported { color: var(--warning); }
+.flag-bare       { color: var(--warning); }
+.flag-legacy     { color: var(--error); }
+
+.tier-note { color: var(--muted); }

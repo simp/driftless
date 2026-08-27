@@ -82,6 +82,22 @@ module Driftless
         list.empty? ? '-' : list.join(', ')
       end
 
+      def sessions
+        data.fetch('sessions', [])
+      end
+
+      # The acceptance rules the scan relaxed, as "flag" or "flag=value".
+      def overrides_in_force
+        data.fetch('overrides', {}).filter_map do |name, value|
+          next if value.nil? || value == false
+          (value == true) ? name : "#{name}=#{Array(value).join(',')}"
+        end
+      end
+
+      def sources
+        data.fetch('sources', {}).compact
+      end
+
       def data_element_id
         DATA_ELEMENT_ID
       end

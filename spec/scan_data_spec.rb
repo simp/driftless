@@ -6,6 +6,7 @@ require 'fileutils'
 require 'driftless/scan_data'
 require 'driftless/scan'
 require 'driftless/models/node'
+require 'driftless/models/hiera_tier'
 require 'driftless/reported'
 require 'driftless/finding'
 
@@ -147,6 +148,18 @@ RSpec.describe Driftless::ScanData do
     it 'records the corpus repo_dir' do
       corpus = build_corpus(repo_dir: '/srv/repo', reported: reported_with([]))
       expect(assemble(corpus: corpus)['repo']['dir']).to eq('/srv/repo')
+    end
+
+    it 'lists the declared hierarchy under repo' do
+      tier = Driftless::HieraTier.new(
+        name: 'Per-node data', datadir: '/tmp/data', backend: :yaml_data, source_line: 7,
+        path_templates: ['nodes/%{trusted.certname}.yaml'], interpolation_vars: ['trusted.certname'], multi_path: false,
+      )
+      corpus = build_corpus(hiera_tiers: [tier], reported: reported_with([]))
+      expect(assemble(corpus: corpus)['repo']['hierarchy']).to eq([
+        { 'name' => 'Per-node data', 'backend' => 'yaml_data', 'line' => 7,
+          'paths' => ['nodes/%{trusted.certname}.yaml'], 'vars' => ['trusted.certname'] },
+      ])
     end
 
     it 'has no git revision for a directory that is not a work tree' do

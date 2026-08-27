@@ -39,14 +39,35 @@ module Driftless
         'schema_version'    => SCHEMA_VERSION,
         'generated_at'      => now.utc.iso8601,
         'driftless_version' => VERSION,
-        'repo'              => { 'dir' => corpus.repo_dir, 'git' => git_revision(corpus.repo_dir) },
+        'repo'              => repo(corpus),
         'environments'      => Array(environments),
         'overrides'         => overrides,
         'sessions'          => sessions(corpus.reported),
+        # Fleet description; carried here until `report` exists, then moves
+        # to the report document (design notes §7).
         'nodes'             => nodes(corpus.reported),
         'findings'          => finding_rows(findings),
         'warnings'          => warnings.dup,
       }
+    end
+
+    # The control repo is what a scan is about, so its description sits here:
+    # where it is, which revision, and the hierarchy it declares.
+    def repo(corpus)
+      {
+        'dir'       => corpus.repo_dir,
+        'git'       => git_revision(corpus.repo_dir),
+        'hierarchy' => hierarchy(corpus.hiera_tiers),
+      }
+    end
+
+    # The tiers as hiera.yaml declares them, so a reader can show every tier —
+    # not only those a finding mentions — with the variables it interpolates.
+    def hierarchy(tiers)
+      tiers.map do |t|
+        { 'name' => t.name, 'backend' => t.backend.to_s, 'line' => t.source_line,
+          'paths' => t.path_templates, 'vars' => t.interpolation_vars }
+      end
     end
 
     # The acceptance rules a scan was told to relax, so a reader of the

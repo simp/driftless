@@ -12,13 +12,13 @@ RSpec.describe Driftless::Site do
     Driftless::Finding.new(key: key, path: path, line: line, message: message, meta: { certname: 'x' })
   end
 
-  def build_data(findings: [], warnings: [])
+  def build_data(findings: [], warnings: [], sessions: [], overrides: {})
     scan = Driftless::ScanData.assemble(
       findings:     findings,
-      corpus:       build_corpus(repo_dir: '/srv/control-repo', reported: Driftless::Reported.new(data: {})),
+      corpus:       build_corpus(repo_dir: '/srv/control-repo', reported: Driftless::Reported.new(data: {}, sessions: sessions)),
       warnings:     warnings,
       environments: ['production'],
-      overrides:    {},
+      overrides:    overrides,
       now:          Time.utc(2026, 8, 26, 11, 0, 0),
     )
     Driftless::Site::BuildData.assemble(scan: scan, now: Time.utc(2026, 8, 26, 12, 0, 0))
@@ -75,6 +75,32 @@ RSpec.describe Driftless::Site do
       html = described_class.render(build_data)
       expect(html).to include('<title>driftless — control-repo</title>')
       expect(html).to include('/srv/control-repo')
+    end
+
+    it 'shows when the scan document was written' do
+      html = described_class.render(build_data)
+      expect(html).to include('<dt>scan data</dt><dd>2026-08-26T11:00:00Z (driftless ' + Driftless::VERSION + ')</dd>')
+    end
+
+    it 'lists the sessions read in the header' do
+      session = Driftless::Reported::Session.new(collector: 'east', session_id: 'T02', reports: %w[a b])
+      html = described_class.render(build_data(sessions: [session]))
+      expect(html).to include('<td>east</td><td class="mono">T02</td><td>a, b</td>')
+    end
+
+    it 'omits the sessions table when nothing was read' do
+      expect(described_class.render(build_data)).not_to include('id="sessions"')
+    end
+
+    it 'names the acceptance rules the scan relaxed, and says nothing when none were' do
+      relaxed = { 'accept_partial_report_sessions' => %w[a b], 'accept_duplicate_certnames' => true, 'allow_missing_envs' => false }
+      expect(described_class.render(build_data(overrides: relaxed)))
+        .to include('<code>accept_partial_report_sessions=a,b accept_duplicate_certnames</code>')
+      expect(described_class.render(build_data)).not_to include('Acceptance rules relaxed')
+    end
+
+    it 'carries a hidden view nav for the script to fill' do
+      expect(described_class.render(build_data)).to include('<nav id="views" hidden></nav>')
     end
 
     it 'lists each finding in the noscript table, HTML-escaped' do

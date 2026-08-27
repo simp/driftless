@@ -1,165 +1,113 @@
 require 'spec_helper'
 require 'json'
 require 'tmpdir'
-require 'fileutils'
 
 require 'driftless/site/build_data'
-require 'driftless/models/node'
-require 'driftless/reported'
-require 'driftless/finding'
 
 RSpec.describe Driftless::Site::BuildData do
-  def node(certname, environment: 'production', collector: 'east')
-    Driftless::Node.new(certname: certname, environment: environment, collector: collector)
+  def session(collector, session_id)
+    { 'collector' => collector, 'session_id' => session_id, 'reports' => ['all-active-nodes'] }
   end
 
-  def reported_with(nodes)
-    Driftless::Reported.new(data: { 'all-active-nodes' => nodes })
+  # A scan document as ScanData.assemble shapes it; hand-made so this spec
+  # pins the contract rather than the producer.
+  def scan_doc(**overrides)
+    {
+      'document' => 'scan', 'schema_version' => 1,
+      'generated_at' => '2026-08-26T11:00:00Z', 'driftless_version' => '0.2.0',
+      'repo' => { 'dir' => '/srv/repo', 'git' => nil },
+      'environments' => ['production'],
+      'overrides' => { 'accept_partial_report_sessions' => nil, 'accept_duplicate_certnames' => false,
+                       'allow_missing_envs' => false },
+      'sessions' => [session('east', 'T02'), session('west', 'T01')],
+      'nodes' => { 'total' => 2, 'by_collector' => { 'east' => 1, 'west' => 1 }, 'by_environment' => { 'production' => 2 } },
+      'findings' => [{ 'key' => 'data:missing-nodes', 'severity' => 'warning', 'quality' => nil,
+                       'path' => 'x.yaml', 'line' => nil, 'message' => 'gone', 'meta' => {} }],
+      'warnings' => ['w']
+    }.merge(overrides)
   end
 
-  def finding(key: 'data:missing-nodes', path: 'data/nodes/x.yaml', line: nil, message: 'gone')
-    Driftless::Finding.new(key: key, path: path, line: line, message: message, meta: { certname: 'x' })
+  def report_doc(**overrides)
+    {
+      'document' => 'report', 'schema_version' => 1,
+      'generated_at' => '2026-08-26T11:05:00Z', 'driftless_version' => '0.2.0',
+      'sessions' => [session('east', 'T02'), session('west', 'T01')],
+      'utilization' => { 'modules' => [{ 'name' => 'nginx', 'nodes' => 2 }] }
+    }.merge(overrides)
   end
 
-  def assemble(**overrides)
-    defaults = {
-      findings:     [],
-      corpus:       build_corpus(reported: reported_with([])),
-      warnings:     [],
-      environments: ['production'],
-      summary_dir:  nil,
-      now:          Time.utc(2026, 8, 26, 12, 0, 0),
-    }
-    described_class.assemble(**defaults, **overrides)
-  end
+  let(:now) { Time.utc(2026, 8, 26, 12, 0, 0) }
 
-  it 'stamps the schema version, generation time, and driftless version' do
-    data = assemble
-    expect(data['schema_version']).to eq(1)
-    expect(data['generated_at']).to eq('2026-08-26T12:00:00Z')
-    expect(data['driftless_version']).to eq(Driftless::VERSION)
-  end
+  describe '.assemble from a scan document alone' do
+    subject(:data) { described_class.assemble(scan: scan_doc, now: now) }
 
-  it 'reserves utilization as null until report exists' do
-    expect(assemble).to include('utilization' => nil)
-  end
-
-  it 'carries the scan warnings and environments through' do
-    data = assemble(warnings: %w[w1 w2], environments: %w[production staging])
-    expect(data['warnings']).to eq(%w[w1 w2])
-    expect(data['environments']).to eq(%w[production staging])
-  end
-
-  it 'renders nil environments as an empty list' do
-    expect(assemble(environments: nil)['environments']).to eq([])
-  end
-
-  describe 'findings' do
-    it 'renders each finding as the json writer does, string-keyed and in its order' do
-      findings = [
-        finding(key: 'hierarchy:x', path: 'hiera.yaml', line: 3),
-        finding(key: 'data:missing-nodes', path: 'data/nodes/b.yaml'),
-        finding(key: 'data:missing-nodes', path: 'data/nodes/a.yaml'),
-      ]
-      rows = assemble(findings: findings)['findings']
-      expect(rows.map { |r| [r['key'], r['path']] }).to eq(
-        [['data:missing-nodes', 'data/nodes/a.yaml'], ['data:missing-nodes', 'data/nodes/b.yaml'], ['hierarchy:x', 'hiera.yaml']],
-      )
-      expect(rows.first.keys).to eq(%w[key severity quality path line message meta])
+    it 'names its document kind and schema version first' do
+      expect(data.keys.first(2)).to eq(%w[document schema_version])
+      expect(data).to include('document' => 'site', 'schema_version' => 1)
     end
-  end
 
-  describe 'nodes' do
-    it 'tallies the all-active-nodes report by collector and environment' do
-      corpus = build_corpus(reported: reported_with([
-        node('a', collector: 'east', environment: 'production'),
-        node('b', collector: 'west', environment: 'production'),
-        node('c', collector: 'east', environment: 'staging'),
-      ]))
-      expect(assemble(corpus: corpus)['nodes']).to eq(
-        'total'          => 3,
-        'by_collector'   => { 'east' => 2, 'west' => 1 },
-        'by_environment' => { 'production' => 2, 'staging' => 1 },
+    it 'stamps itself and records when each source was written' do
+      expect(data['generated_at']).to eq('2026-08-26T12:00:00Z')
+      expect(data['driftless_version']).to eq(Driftless::VERSION)
+      expect(data['sources']).to eq(
+        'scan'   => { 'generated_at' => '2026-08-26T11:00:00Z', 'driftless_version' => '0.2.0' },
+        'report' => nil,
       )
     end
 
-    it 'tallies a node with no environment under a placeholder key' do
-      corpus = build_corpus(reported: reported_with([node('a', environment: nil)]))
-      expect(assemble(corpus: corpus)['nodes']['by_environment']).to eq('(unknown)' => 1)
+    it 'carries the scan fields through unchanged' do
+      %w[repo environments overrides sessions nodes findings warnings].each do |k|
+        expect(data[k]).to eq(scan_doc[k]), k
+      end
     end
 
-    it 'reports zero nodes when the report was not loaded' do
-      corpus = build_corpus(reported: Driftless::Reported.new(data: {}))
-      expect(assemble(corpus: corpus)['nodes']).to eq('total' => 0, 'by_collector' => {}, 'by_environment' => {})
+    it 'leaves utilization null' do
+      expect(data).to include('utilization' => nil)
     end
   end
 
-  describe 'sessions' do
-    def write_summary(dir, collector, session_id, reports)
-      File.write(File.join(dir, "#{collector}--#{session_id}.json"), JSON.generate('reports' => reports))
+  describe '.assemble with a report document' do
+    it 'takes utilization from the report and stamps it as a source' do
+      data = described_class.assemble(scan: scan_doc, report: report_doc, now: now)
+      expect(data['utilization']).to eq('modules' => [{ 'name' => 'nginx', 'nodes' => 2 }])
+      expect(data['sources']['report']['generated_at']).to eq('2026-08-26T11:05:00Z')
     end
 
-    it 'lists the newest session per collector, in collector order' do
-      Dir.mktmpdir do |dir|
-        write_summary(dir, 'west', '20260101T000000Z', { 'all-active-nodes' => 'ok' })
-        write_summary(dir, 'east', '20260101T000000Z', { 'all-active-nodes' => 'ok' })
-        write_summary(dir, 'east', '20260102T000000Z', { 'all-active-nodes' => 'ok', 'factsets-for-all-active-nodes' => 'ok' })
-
-        sessions = assemble(summary_dir: dir)['sessions']
-        expect(sessions.map { |s| [s['collector'], s['session_id']] })
-          .to eq([%w[east 20260102T000000Z], %w[west 20260101T000000Z]])
-        expect(sessions.first['reports_declared'].keys).to contain_exactly('all-active-nodes', 'factsets-for-all-active-nodes')
-      end
+    it 'refuses when the two read different sessions, naming the difference' do
+      report = report_doc('sessions' => [session('east', 'T03'), session('west', 'T01')])
+      expect { described_class.assemble(scan: scan_doc, report: report) }
+        .to raise_error(Driftless::JsonDocument::Error,
+                        'scan and report data disagree on sessions: scan read east@T02, report read east@T03')
     end
 
-    it 'is empty without a summary dir' do
-      expect(assemble(summary_dir: nil)['sessions']).to eq([])
-    end
-  end
-
-  describe 'repo' do
-    it 'records the corpus repo_dir' do
-      corpus = build_corpus(repo_dir: '/srv/repo', reported: reported_with([]))
-      expect(assemble(corpus: corpus)['repo']['dir']).to eq('/srv/repo')
+    it 'refuses when one read a collector the other did not' do
+      report = report_doc('sessions' => [session('east', 'T02')])
+      expect { described_class.assemble(scan: scan_doc, report: report) }
+        .to raise_error(Driftless::JsonDocument::Error, /scan read west@T01, report read nothing the other did not/)
     end
 
-    it 'has no git revision for a directory that is not a work tree' do
-      Dir.mktmpdir do |dir|
-        corpus = build_corpus(repo_dir: dir, reported: reported_with([]))
-        expect(assemble(corpus: corpus)['repo']['git']).to be_nil
-      end
-    end
-
-    it 'has no git revision when repo_dir is nil' do
-      expect(assemble['repo']['git']).to be_nil
-    end
-
-    it 'records the sha and branch of a work tree' do
-      Dir.mktmpdir do |dir|
-        system('git', '-C', dir, 'init', '-q', '-b', 'main', exception: true)
-        system('git', '-C', dir, '-c', 'user.name=t', '-c', 'user.email=t@example.com',
-               'commit', '-q', '--allow-empty', '-m', 'init', exception: true)
-        corpus = build_corpus(repo_dir: dir, reported: reported_with([]))
-        git = assemble(corpus: corpus)['repo']['git']
-        expect(git['sha']).to match(/\A[0-9a-f]{40}\z/)
-        expect(git['branch']).to eq('main')
-      end
-    end
-
-    it 'has no git revision when git is not installed' do
-      allow(Open3).to receive(:capture3).and_raise(Errno::ENOENT)
-      Dir.mktmpdir do |dir|
-        corpus = build_corpus(repo_dir: dir, reported: reported_with([]))
-        expect(assemble(corpus: corpus)['repo']['git']).to be_nil
-      end
+    it 'ignores session order' do
+      report = report_doc('sessions' => [session('west', 'T01'), session('east', 'T02')])
+      expect { described_class.assemble(scan: scan_doc, report: report) }.not_to raise_error
     end
   end
 
-  it 'round-trips through JSON' do
-    data   = assemble(findings: [finding(line: 4)], warnings: ['w'])
-    parsed = JSON.parse(JSON.generate(data))
-    expect(parsed.keys).to eq(data.keys)
-    expect(parsed['findings'].first).to include('line' => 4, 'meta' => { 'certname' => 'x' })
-    expect(parsed['warnings']).to eq(['w'])
+  describe '.write and .read' do
+    it 'round-trips through a file' do
+      Dir.mktmpdir do |dir|
+        data = described_class.assemble(scan: scan_doc, now: now)
+        path = described_class.write(data, File.join(dir, 'data.json'))
+        expect(described_class.read(path)).to eq(data)
+      end
+    end
+
+    it 'refuses a scan document' do
+      Dir.mktmpdir do |dir|
+        path = File.join(dir, 'scan.json')
+        File.write(path, JSON.generate(scan_doc))
+        expect { described_class.read(path) }
+          .to raise_error(Driftless::JsonDocument::Error, /is a "scan" document, expected "site"/)
+      end
+    end
   end
 end

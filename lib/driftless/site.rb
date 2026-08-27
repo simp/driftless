@@ -27,8 +27,7 @@ module Driftless
     def build(data, dir)
       FileUtils.mkdir_p(dir)
       index_path = File.join(dir, INDEX_FILE)
-      data_path  = File.join(dir, DATA_FILE)
-      File.write(data_path, "#{JSON.pretty_generate(data)}\n")
+      data_path  = BuildData.write(data, File.join(dir, DATA_FILE))
       File.write(index_path, render(data))
       [index_path, data_path]
     end

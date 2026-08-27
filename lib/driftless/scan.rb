@@ -381,7 +381,8 @@ module Driftless
         warn(msg)
       end
 
-      Reported.new(data: filtered_data)
+      Reported.new(data: filtered_data, duplicate_certnames: reported.duplicate_certnames,
+                   sessions: reported.sessions)
     end
   end
 

@@ -7,6 +7,7 @@ require 'driftless/fail_on'
 require 'driftless/control_repo'
 require 'driftless/outputs'
 require 'driftless/ansi'
+require 'driftless/scan_data'
 
 module Driftless
   module CLI
@@ -85,6 +86,7 @@ module Driftless
         end
 
         emit(findings, warnings: scanner.warnings)
+        write_data_file(scanner, findings) if @options[:data_file]
 
         exit(fail_on.fail?(findings) ? 1 : 0)
       end
@@ -126,6 +128,11 @@ module Driftless
         end
         o.on('--[no-]tabularize',
              'Align finding messages in a column (default: on)') { |v| @options[:tabularize] = v }
+        o.on('--data-file[=PATH]',
+             'Also write the scan data document for `driftless site`',
+             "(default PATH: #{::Driftless::ScanData::DEFAULT_PATH})") do |v|
+          @options[:data_file] = v || ::Driftless::ScanData::DEFAULT_PATH
+        end
 
         o.separator ''
         o.separator 'Environment scoping:'
@@ -169,6 +176,21 @@ module Driftless
           skip:               cfg.dig('detectors', 'skip'),
           incoming_dir:       cfg.dig('reports',   'incoming_dir'),
         }.compact
+      end
+
+      # The scan data document is scan's output for `driftless site`: what the
+      # terminal writers cannot carry (sessions, nodes, overrides, warnings,
+      # revision), assembled from the finished scan (design notes §7).
+      def write_data_file(scanner, findings)
+        data = ::Driftless::ScanData.assemble(
+          findings:     findings,
+          corpus:       scanner.corpus,
+          warnings:     scanner.warnings,
+          environments: @options[:environments],
+          overrides:    ::Driftless::ScanData.overrides_from(scanner),
+        )
+        path = ::Driftless::ScanData.write(data, File.expand_path(@options[:data_file]))
+        ::Driftless.logger.info("scan data written: #{path}")
       end
 
       # The default format follows $stdout even when -o redirects to a file, so

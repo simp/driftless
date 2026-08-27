@@ -64,6 +64,58 @@ RSpec.describe Driftless::Inputs::ReportLoader do
       end
     end
 
+    describe 'sessions read' do
+      def incoming(files_by_query)
+        dir = Dir.mktmpdir
+        files_by_query.each do |query, files|
+          FileUtils.mkdir_p(File.join(dir, query))
+          files.each do |name|
+            record  = { 'certname' => 'a' }
+            content = name.end_with?('.ndjson') ? "#{JSON.generate(record)}\n" : JSON.generate([record])
+            File.write(File.join(dir, query, name), content)
+          end
+        end
+        dir
+      end
+
+      def sessions(dir)
+        described_class.load(dir)[0].sessions.map { |s| [s.collector, s.session_id, s.reports] }
+      end
+
+      it 'records one session per collector with the reports read from it, in collector order' do
+        dir = incoming(
+          'all-active-nodes'              => ['west--T01.json', 'east--T02.json'],
+          'factsets-for-all-active-nodes' => ['west--T01.ndjson', 'east--T02.ndjson'],
+        )
+        expect(sessions(dir)).to eq([
+          ['east', 'T02', %w[all-active-nodes factsets-for-all-active-nodes]],
+          ['west', 'T01', %w[all-active-nodes factsets-for-all-active-nodes]],
+        ])
+      end
+
+      it 'records the newest session per collector, ignoring superseded files' do
+        dir = incoming('all-active-nodes' => ['east--T01.json', 'east--T02.json'])
+        expect(sessions(dir)).to eq([['east', 'T02', ['all-active-nodes']]])
+      end
+
+      # Only reachable when the acceptance rule was relaxed: the live tree
+      # normally holds one complete session per collector.
+      it 'shows a collector twice when its reports came from different sessions' do
+        dir = incoming(
+          'all-active-nodes'              => ['east--T02.json'],
+          'factsets-for-all-active-nodes' => ['east--T01.ndjson'],
+        )
+        expect(sessions(dir)).to eq([
+          ['east', 'T01', ['factsets-for-all-active-nodes']],
+          ['east', 'T02', ['all-active-nodes']],
+        ])
+      end
+
+      it 'is empty when nothing was loaded' do
+        expect(described_class.load('/does/not/exist')[0].sessions).to eq([])
+      end
+    end
+
     describe 'duplicate certnames' do
       def incoming(files)
         dir = Dir.mktmpdir

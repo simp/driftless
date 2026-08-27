@@ -333,6 +333,19 @@ RSpec.describe Driftless::Scan do
       expect(scan.warnings).to contain_exactly(a_string_including('staging'))
     end
 
+    it 'keeps the sessions and duplicate certnames of the unfiltered result' do
+      silence_driftless_logger
+      scan     = filter_scan(environments: ['production'])
+      session  = Driftless::Reported::Session.new(collector: 'east', session_id: 'T01', reports: ['all-active-nodes'])
+      reported = Driftless::Reported.new(
+        data: { 'all-active-nodes' => [make_node(certname: 'web1', environment: 'production')] },
+        duplicate_certnames: { 'web1' => %w[east west] }, sessions: [session],
+      )
+      filtered = scan.send(:apply_environment_filter, reported)
+      expect(filtered.sessions).to eq([session])
+      expect(filtered.duplicate_certnames).to eq('web1' => %w[east west])
+    end
+
     it 'keeps MissingReport queries absent from the filtered result' do
       silence_driftless_logger
       scan     = filter_scan(environments: ['production'], allow_missing_envs: true)

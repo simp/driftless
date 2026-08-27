@@ -36,32 +36,41 @@ module Driftless
         data       = {}
         findings   = []
         duplicates = {}
+        read_from  = Hash.new { |h, k| h[k] = [] }
         QUERIES.each do |query|
-          records, errs, dups = load_query(query)
+          records, errs, dups, sessions = load_query(query)
           data[query] = records
           findings.concat(errs)
           dups.each { |certname, collectors| (duplicates[certname] ||= []).concat(collectors) }
+          sessions.each { |collector, session_id| read_from[[collector, session_id]] << query }
         end
         duplicates.each_value { |collectors| collectors.replace(collectors.uniq.sort) }
-        [Reported.new(data: data, duplicate_certnames: duplicates), findings]
+        sessions = read_from.sort.map do |(collector, session_id), queries|
+          Reported::Session.new(collector: collector, session_id: session_id, reports: queries.sort)
+        end
+        [Reported.new(data: data, duplicate_certnames: duplicates, sessions: sessions), findings]
       end
 
       private
 
+      # @return [Array(records, Array<Finding>, Hash, Array<Array(String, String)>)]
+      #   the rows, parse-error findings, duplicate certnames, and the
+      #   (collector, session_id) pairs the rows were read from
       def load_query(query)
         query_dir = File.join(@incoming_dir, query)
-        return [Reported::MissingReport, [], {}] unless File.directory?(query_dir)
+        return [Reported::MissingReport, [], {}, []] unless File.directory?(query_dir)
 
         files = Dir[File.join(query_dir, '*.json'), File.join(query_dir, '*.ndjson')]
           .reject { |f| File.basename(f).start_with?('.') }
-        return [Reported::MissingReport, [], {}] if files.empty?
+        return [Reported::MissingReport, [], {}, []] if files.empty?
 
         per_collector = newest_per_collector(files)
+        sessions      = per_collector.map { |collector, info| [collector, info[:timestamp]] }
         if REPORTS[query] == :classes
-          collect_per_certname(per_collector, query)
+          [*collect_per_certname(per_collector, query), sessions]
         else
           winners, errs, dups = merge_per_certname(per_collector, query)
-          [winners.map { |w| build_node(w[:record], w[:collector]) }, errs, dups]
+          [winners.map { |w| build_node(w[:record], w[:collector]) }, errs, dups, sessions]
         end
       end
 

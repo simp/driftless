@@ -3,6 +3,7 @@ require 'json'
 require 'tmpdir'
 
 require 'driftless/site'
+require 'driftless/scan_data'
 require 'driftless/finding'
 require 'driftless/reported'
 
@@ -12,14 +13,15 @@ RSpec.describe Driftless::Site do
   end
 
   def build_data(findings: [], warnings: [])
-    Driftless::Site::BuildData.assemble(
+    scan = Driftless::ScanData.assemble(
       findings:     findings,
       corpus:       build_corpus(repo_dir: '/srv/control-repo', reported: Driftless::Reported.new(data: {})),
       warnings:     warnings,
       environments: ['production'],
-      summary_dir:  nil,
-      now:          Time.utc(2026, 8, 26, 12, 0, 0),
+      overrides:    {},
+      now:          Time.utc(2026, 8, 26, 11, 0, 0),
     )
+    Driftless::Site::BuildData.assemble(scan: scan, now: Time.utc(2026, 8, 26, 12, 0, 0))
   end
 
   # The JSON between the data element's tags.

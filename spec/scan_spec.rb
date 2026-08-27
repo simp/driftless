@@ -83,6 +83,24 @@ RSpec.describe Driftless::Scan do
     end
   end
 
+  describe '#corpus' do
+    it 'is nil before the scan runs' do
+      expect(described_class.new(repo_dir: '/tmp/repo', incoming_dir: '/tmp/incoming').corpus).to be_nil
+    end
+
+    it 'exposes the corpus the detectors ran against once the scan has run' do
+      silence_driftless_logger
+      Dir.mktmpdir do |dir|
+        minimal_repo(dir)
+        scan = described_class.new(repo_dir: dir, incoming_dir: File.join(dir, 'incoming'))
+        scan.run
+        expect(scan.corpus).to be_a(Driftless::Corpus)
+        expect(scan.corpus.repo_dir).to eq(dir)
+        expect(scan.corpus.hiera_tiers.map(&:name)).to eq(['Common'])
+      end
+    end
+  end
+
   describe 'detector :enabled config' do
     around(:each) do |ex|
       captured        = StringIO.new

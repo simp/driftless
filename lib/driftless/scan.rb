@@ -30,6 +30,11 @@ module Driftless
     #   the CLI can replay them after a long findings list
     attr_reader :warnings
 
+    # @return [Corpus, nil] the read model the detectors ran against; nil until
+    #   {#run} builds it. Findings alone cannot answer node counts or
+    #   utilization, so consumers of a finished scan read them from here.
+    attr_reader :corpus
+
     def initialize(repo_dir:, incoming_dir:, only: nil, skip: nil, basemodulepath: nil,
                    environments: nil, allow_missing_envs: false,
                    summary_dir: nil, accept_partial_report_sessions: nil,
@@ -118,7 +123,7 @@ module Driftless
         end
       end
 
-      corpus = Corpus.new(
+      @corpus = corpus = Corpus.new(
         repo_dir:          repo_dir,
         hiera_tiers:       hiera_tiers,
         puppet_classes:    puppet_classes,

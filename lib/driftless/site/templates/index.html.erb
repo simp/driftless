@@ -10,31 +10,42 @@
 </head>
 <body>
 <header id="header">
-  <h1>driftless</h1>
-  <dl id="run-facts">
-    <dt>generated</dt><dd><%= h data['generated_at'] %></dd>
-    <dt>version</dt><dd><%= h data['driftless_version'] %></dd>
-    <dt>repo</dt><dd><%= h data.dig('repo', 'dir') || '-' %></dd>
-    <dt>revision</dt><dd><%= h revision %></dd>
-    <dt>environments</dt><dd><%= h environment_list %></dd>
-    <dt>nodes</dt><dd><%= h data.dig('nodes', 'total') || 0 %></dd>
-    <% sources.each do |name, stamp| -%>
-    <dt><%= h name %> data</dt><dd><%= h stamp['generated_at'] %> (driftless <%= h stamp['driftless_version'] %>)</dd>
+  <details id="run">
+    <summary>
+      <strong>driftless</strong>
+      <span class="mono"><%= h repo_name %><% if short_sha %> @ <%= h short_sha %><% end %></span>
+      · <%= h findings.length %> findings
+      · <%= h data.dig('nodes', 'total') || 0 %> nodes
+      · <%= h data['generated_at'] %>
+      <% unless overrides_in_force.empty? -%>
+      · <span class="caveat">acceptance rules relaxed</span>
+      <% end -%>
+    </summary>
+    <dl id="run-facts">
+      <dt>generated</dt><dd><%= h data['generated_at'] %></dd>
+      <dt>version</dt><dd><%= h data['driftless_version'] %></dd>
+      <dt>repo</dt><dd><%= h data.dig('repo', 'dir') || '-' %></dd>
+      <dt>revision</dt><dd><%= h revision %></dd>
+      <dt>environments</dt><dd><%= h environment_list %></dd>
+      <dt>nodes</dt><dd><%= h data.dig('nodes', 'total') || 0 %></dd>
+      <% sources.each do |name, stamp| -%>
+      <dt><%= h name %> data</dt><dd><%= h stamp['generated_at'] %> (driftless <%= h stamp['driftless_version'] %>)</dd>
+      <% end -%>
+    </dl>
+    <% unless overrides_in_force.empty? -%>
+    <p class="overrides">Acceptance rules relaxed for this scan: <code><%= h overrides_in_force.join(' ') %></code></p>
     <% end -%>
-  </dl>
-  <% unless overrides_in_force.empty? -%>
-  <p class="overrides">Acceptance rules relaxed for this scan: <code><%= h overrides_in_force.join(' ') %></code></p>
-  <% end -%>
-  <% unless sessions.empty? -%>
-  <table id="sessions">
-    <thead><tr><th>collector</th><th>session</th><th>reports read</th></tr></thead>
-    <tbody>
-    <% sessions.each do |s| -%>
-      <tr><td><%= h s['collector'] %></td><td class="mono"><%= h s['session_id'] %></td><td><%= h Array(s['reports']).join(', ') %></td></tr>
+    <% unless sessions.empty? -%>
+    <table id="sessions">
+      <thead><tr><th>collector</th><th>session</th><th>reports read</th></tr></thead>
+      <tbody>
+      <% sessions.each do |s| -%>
+        <tr><td><%= h s['collector'] %></td><td class="mono"><%= h s['session_id'] %></td><td><%= h Array(s['reports']).join(', ') %></td></tr>
+      <% end -%>
+      </tbody>
+    </table>
     <% end -%>
-    </tbody>
-  </table>
-  <% end -%>
+  </details>
 </header>
 
 <noscript>

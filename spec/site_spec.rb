@@ -77,6 +77,20 @@ RSpec.describe Driftless::Site do
       expect(html).to include('/srv/control-repo')
     end
 
+    it 'folds the run facts behind a one-line summary that starts collapsed' do
+      html = described_class.render(build_data(findings: [finding]))
+      expect(html).to include('<details id="run">')
+      expect(html).not_to include('<details id="run" open')
+      summary = html[%r{<summary>(.*?)</summary>}m, 1]
+      expect(summary).to include('control-repo').and include('1 findings').and include('0 nodes')
+      expect(summary).not_to include('relaxed')
+    end
+
+    it 'flags relaxed acceptance rules in the summary line' do
+      html = described_class.render(build_data(overrides: { 'allow_missing_envs' => true }))
+      expect(html[%r{<summary>(.*?)</summary>}m, 1]).to include('acceptance rules relaxed')
+    end
+
     it 'shows when the scan document was written' do
       html = described_class.render(build_data)
       expect(html).to include('<dt>scan data</dt><dd>2026-08-26T11:00:00Z (driftless ' + Driftless::VERSION + ')</dd>')

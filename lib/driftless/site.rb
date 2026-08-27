@@ -82,6 +82,17 @@ module Driftless
         list.empty? ? '-' : list.join(', ')
       end
 
+      # The repo's basename, for the one-line summary.
+      def repo_name
+        dir = data.dig('repo', 'dir')
+        dir ? File.basename(dir) : '-'
+      end
+
+      def short_sha
+        sha = data.dig('repo', 'git', 'sha')
+        sha && sha[0, 8]
+      end
+
       def sessions
         data.fetch('sessions', [])
       end

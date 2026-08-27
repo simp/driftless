@@ -47,15 +47,34 @@ a { color: var(--accent); }
 /* ---- header ------------------------------------------------------------ */
 
 #header {
-  padding: 1rem 1.5rem;
+  padding: 0.5rem 1.5rem;
   border-bottom: 1px solid var(--line);
   background: var(--panel);
 }
 
-#header h1 {
-  margin: 0 0 0.5rem;
-  font-size: 1.4rem;
+/* The run facts fold away behind a one-line summary; the page opens closed. */
+#run > summary {
+  cursor: pointer;
+  list-style: none;
+  padding: 0.25rem 0;
 }
+
+#run > summary::-webkit-details-marker { display: none; }
+
+#run > summary::before {
+  content: "▸";
+  display: inline-block;
+  width: 1.1em;
+  color: var(--muted);
+}
+
+#run[open] > summary::before { content: "▾"; }
+
+#run[open] > summary { margin-bottom: 0.5rem; }
+
+#run-facts, #sessions { margin-left: 1.1em; }
+
+.caveat { color: var(--warning); }
 
 #run-facts {
   display: grid;
@@ -68,7 +87,7 @@ a { color: var(--accent); }
 #run-facts dd { margin: 0; }
 
 .overrides {
-  margin: 0.75rem 0 0;
+  margin: 0.75rem 0 0 1.1em;
   padding: 0.5rem 0.8rem;
   border: 1px solid var(--warning);
   border-radius: 4px;
@@ -108,6 +127,42 @@ a { color: var(--accent); }
 }
 
 section + section { margin-top: 1.5rem; }
+
+/* ---- results: summary panel beside the list on a wide viewport ----------- */
+
+#results { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1.5rem; }
+
+#summary {
+  min-width: 0;
+  overflow: hidden;
+  padding: 0.6rem 0.9rem;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--panel);
+}
+
+/* Fixed layout so the key column takes what is left and wraps, instead of
+   the table growing past the panel. */
+#summary table { table-layout: fixed; }
+#summary th:nth-child(1) { width: 2.5rem; }
+#summary th:nth-child(2) { width: 5.5rem; }
+#summary th:nth-child(3) { width: 6rem; }
+#summary td.key { overflow-wrap: anywhere; }
+
+#summary > summary {
+  cursor: pointer;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+#summary[open] > summary { margin-bottom: 0.5rem; }
+
+@media (min-width: 1100px) {
+  #results { grid-template-columns: 26rem minmax(0, 1fr); align-items: start; }
+  #results.summary-closed { grid-template-columns: max-content minmax(0, 1fr); }
+  #summary { position: sticky; top: 0.5rem; }
+  #results > section + section, #results > section + details { margin-top: 0; }
+}
 
 h2 {
   font-size: 1.1rem;

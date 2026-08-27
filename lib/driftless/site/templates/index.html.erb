@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title><%= h title %></title>
+<style>
+<%= stylesheet -%>
+</style>
+</head>
+<body>
+<header id="header">
+  <h1>driftless</h1>
+  <dl id="run-facts">
+    <dt>generated</dt><dd><%= h data['generated_at'] %></dd>
+    <dt>version</dt><dd><%= h data['driftless_version'] %></dd>
+    <dt>repo</dt><dd><%= h data.dig('repo', 'dir') || '-' %></dd>
+    <dt>revision</dt><dd><%= h revision %></dd>
+    <dt>environments</dt><dd><%= h environment_list %></dd>
+    <dt>nodes</dt><dd><%= h data.dig('nodes', 'total') || 0 %></dd>
+  </dl>
+</header>
+
+<noscript>
+  <section class="noscript">
+    <p>This page renders its views with JavaScript. The findings are listed below without it.</p>
+    <% if findings.empty? -%>
+    <p>no findings</p>
+    <% else -%>
+    <table>
+      <thead><tr><th>key</th><th>severity</th><th>quality</th><th>location</th><th>message</th></tr></thead>
+      <tbody>
+      <% findings.each do |f| -%>
+        <tr>
+          <td><%= h f['key'] %></td>
+          <td><%= h f['severity'] %></td>
+          <td><%= h f['quality'] %></td>
+          <td><%= h location(f) %></td>
+          <td><%= h f['message'] %></td>
+        </tr>
+      <% end -%>
+      </tbody>
+    </table>
+    <% end -%>
+  </section>
+</noscript>
+
+<main id="app"></main>
+
+<script id="<%= data_element_id %>" type="application/json"><%= embedded_json %></script>
+<script>
+<%= script -%>
+</script>
+</body>
+</html>

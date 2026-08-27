@@ -1,0 +1,115 @@
+:root {
+  --bg: #ffffff;
+  --fg: #1f2328;
+  --muted: #59636e;
+  --line: #d1d9e0;
+  --panel: #f6f8fa;
+  --error: #b42318;
+  --warning: #9a6700;
+  --note: #0969da;
+  --quality: #0b7285;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: 15px;
+  line-height: 1.45;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0d1117;
+    --fg: #e6edf3;
+    --muted: #9198a1;
+    --line: #30363d;
+    --panel: #161b22;
+    --error: #ff7b72;
+    --warning: #d29922;
+    --note: #58a6ff;
+    --quality: #56d4dd;
+  }
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+}
+
+code, .mono, td.location, td.key {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.93em;
+}
+
+#header {
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid var(--line);
+  background: var(--panel);
+}
+
+#header h1 {
+  margin: 0 0 0.5rem;
+  font-size: 1.4rem;
+}
+
+#run-facts {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.15rem 1rem;
+  margin: 0;
+}
+
+#run-facts dt { color: var(--muted); }
+#run-facts dd { margin: 0; }
+
+#app, .noscript {
+  padding: 1rem 1.5rem;
+}
+
+section + section { margin-top: 1.5rem; }
+
+h2 {
+  font-size: 1.1rem;
+  margin: 0 0 0.5rem;
+}
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+th, td {
+  text-align: left;
+  vertical-align: top;
+  padding: 0.25rem 0.6rem;
+  border-bottom: 1px solid var(--line);
+}
+
+th { color: var(--muted); font-weight: 600; }
+
+td.count { text-align: right; }
+
+.severity-error   { color: var(--error); font-weight: 600; }
+.severity-warning { color: var(--warning); }
+.severity-note    { color: var(--note); }
+.quality          { color: var(--quality); }
+
+tr.total td { font-weight: 600; border-bottom: none; }
+
+.warnings {
+  padding: 0.6rem 0.9rem;
+  border: 1px solid var(--warning);
+  border-radius: 4px;
+}
+
+.warnings ul { margin: 0.3rem 0 0; padding-left: 1.2rem; }
+
+.group { margin-top: 1rem; }
+
+.group h3 {
+  font-size: 1rem;
+  margin: 0 0 0.25rem;
+}
+
+.group h3 .count { color: var(--muted); font-weight: normal; }
+
+.empty { color: var(--muted); }

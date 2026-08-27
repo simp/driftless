@@ -47,7 +47,7 @@ require 'driftless/import/cleanup'
 require 'driftless/export/factsets'
 
 require 'driftless/outputs'
-require 'driftless/site/build_data'
+require 'driftless/site'
 
 module Driftless
 end

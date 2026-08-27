@@ -9,6 +9,9 @@
   --warning: #9a6700;
   --note: #0969da;
   --quality: #0b7285;
+  --path: #1f2328;
+  --line-no: #0969da;
+  --message: #0b7285;
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   font-size: 15px;
   line-height: 1.45;
@@ -26,6 +29,9 @@
     --warning: #d29922;
     --note: #58a6ff;
     --quality: #56d4dd;
+    --path: #e6edf3;
+    --line-no: #58a6ff;
+    --message: #56d4dd;
   }
 }
 
@@ -240,6 +246,11 @@ td.count, th.count { text-align: right; }
 .severity-note    { color: var(--note); }
 .quality          { color: var(--quality); }
 
+/* As the text writer colors a finding row: path, line number, message. */
+.path    { color: var(--path); }
+.line    { color: var(--line-no); }
+.message { color: var(--message); }
+
 tr.total td { font-weight: 600; border-bottom: none; }
 
 .warnings {
@@ -258,6 +269,17 @@ tr.total td { font-weight: 600; border-bottom: none; }
 }
 
 .group-block h3 .count { color: var(--muted); font-weight: normal; }
+
+/* Severity and quality in fixed columns, as the text writer pads them, so
+   a run of headings scans down. */
+.group-block h3 {
+  display: grid;
+  grid-template-columns: max-content max-content 1fr;
+  column-gap: 0.75rem;
+  align-items: baseline;
+}
+
+.group-block h3.by-key { grid-template-columns: 5.5rem 6rem max-content 1fr; }
 
 .empty { color: var(--muted); }
 

@@ -1,4 +1,5 @@
 require 'driftless/ansi'
+require 'driftless/finding'
 
 module Driftless
   module Outputs
@@ -52,6 +53,41 @@ module Driftless
             io.puts "  #{format_location(f, style)}#{pad}  #{style.call(f.message, *MESSAGE_STYLES)}"
           end
         end
+      end
+
+      # Per-key count table: count column first, then the severity/quality
+      # labels styled as in the group headers, then the key. Count and key
+      # stay plain; total is the last line. Empty findings render nothing —
+      # `write`'s "no findings" line already covers that case.
+      def write_summary(findings, io, color: nil)
+        return if findings.empty?
+        color = io.respond_to?(:tty?) && io.tty? if color.nil?
+        style = ->(str, *s) { color ? Ansi.wrap(str, *s) : str }
+
+        grouped   = findings.group_by(&:key).sort_by { |k, _| k }
+        width     = findings.length.to_s.length
+        key_width = grouped.map { |key, _| key.length }.max
+        border    = "#{'-' * (width + 3)}+#{'-' * (SEVERITY_WIDTH + 2)}+" \
+                    "#{'-' * (QUALITY_WIDTH + 2)}+#{'-' * (key_width + 1)}"
+
+        io.puts
+        io.puts border
+        grouped.each do |key, group|
+          f    = group.first
+          sev  = f.severity.to_s.ljust(SEVERITY_WIDTH)
+          qual = f.quality.to_s.ljust(QUALITY_WIDTH)
+          io.puts "  #{group.length.to_s.rjust(width)} | " \
+                  "#{style.call(sev, *SEVERITY_STYLES.fetch(f.severity, []))} | " \
+                  "#{style.call(qual, *QUALITY_STYLES.fetch(f.quality, []))} | #{key}"
+        end
+        io.puts border
+
+        by_severity = findings.group_by(&:severity)
+        breakdown = Finding::SEVERITIES.map { |s|
+          "#{by_severity.fetch(s, []).length} #{style.call(s.to_s, *SEVERITY_STYLES.fetch(s, []))}"
+        }.join(', ')
+        io.puts "  #{style.call(findings.length.to_s.rjust(width), :bold)} | " \
+                "#{style.call('total:', :bold)} #{breakdown}"
       end
 
       # Detector-class contract: severity/quality are declared per-key, so

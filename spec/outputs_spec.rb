@@ -77,4 +77,23 @@ RSpec.describe Driftless::Outputs do
         .to raise_error(ArgumentError, /unknown output format "yaml".*json, text/)
     end
   end
+
+  describe '.write_summary' do
+    it 'renders the count table for text' do
+      io = StringIO.new
+      described_class.write_summary([finding], io, format: 'text')
+      expect(io.string).to include('1 | total')
+    end
+
+    it 'writes nothing for json' do
+      io = StringIO.new
+      described_class.write_summary([finding], io, format: 'json')
+      expect(io.string).to eq('')
+    end
+
+    it 'names the known formats when given an unknown one' do
+      expect { described_class.write_summary([finding], StringIO.new, format: 'yaml') }
+        .to raise_error(ArgumentError, /unknown output format "yaml"/)
+    end
+  end
 end

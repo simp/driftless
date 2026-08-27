@@ -26,6 +26,10 @@ module Driftless
                 :environments, :allow_missing_envs, :summary_dir,
                 :accept_partial_report_sessions, :accept_duplicate_certnames
 
+    # @return [Array<String>] warnings this run logged, in emission order, so
+    #   the CLI can replay them after a long findings list
+    attr_reader :warnings
+
     def initialize(repo_dir:, incoming_dir:, only: nil, skip: nil, basemodulepath: nil,
                    environments: nil, allow_missing_envs: false,
                    summary_dir: nil, accept_partial_report_sessions: nil,
@@ -40,6 +44,7 @@ module Driftless
       @summary_dir                    = summary_dir
       @accept_partial_report_sessions = accept_partial_report_sessions
       @accept_duplicate_certnames     = accept_duplicate_certnames
+      @warnings                       = []
     end
 
     def run
@@ -151,6 +156,12 @@ module Driftless
     end
 
     private
+
+    # Logs the warning now and records it in {#warnings} for end-of-run replay.
+    def warn(message)
+      @warnings << message
+      Driftless.logger.warn(message)
+    end
 
     def load_manifest_files
       if basemodulepath
@@ -291,7 +302,7 @@ module Driftless
               'or pass --accept-partial-report-sessions)'
       else
         gaps.each do |collector, missing|
-          Driftless.logger.warn(
+          warn(
             "scan: collector #{collector} missing expected reports #{missing.inspect} " \
             '(accepting partial session per --accept-partial-report-sessions)',
           )
@@ -314,7 +325,7 @@ module Driftless
       end
 
       dups.each do |certname, collectors|
-        Driftless.logger.warn(
+        warn(
           "certname #{certname.inspect} reported by #{collectors.length} collectors " \
           "(#{collectors.join(', ')}); keeping the newest record " \
           '(accepted per accept_duplicate_certnames)',
@@ -332,7 +343,7 @@ module Driftless
               '(expected <query>/<collector>--<timestamp>.{json,ndjson} ' \
               "files under at least one of: #{Inputs::ReportLoader::QUERIES.join(', ')})"
         raise ScanError, msg unless allow_missing_envs
-        Driftless.logger.warn(msg)
+        warn(msg)
         return reported
 
       end
@@ -362,7 +373,7 @@ module Driftless
       (env_set - seen_envs).each do |env|
         msg = "environment #{env.inspect} listed in puppet.environments but has no reports in #{incoming_dir}"
         raise ScanError, msg unless allow_missing_envs
-        Driftless.logger.warn(msg)
+        warn(msg)
       end
 
       Reported.new(data: filtered_data)

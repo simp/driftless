@@ -253,4 +253,71 @@ RSpec.describe Driftless::Outputs::TextWriter do
       expect(io.string).to include("  -  \e[0;36mno-path finding\e[0m")
     end
   end
+
+  describe '.write_summary' do
+    def summary(findings, **kwargs)
+      io = StringIO.new
+      described_class.write_summary(findings, io, **kwargs)
+      io.string
+    end
+
+    it 'renders nothing for an empty findings list' do
+      expect(summary([])).to eq('')
+    end
+
+    it 'renders one row per key — count, severity/quality, key — sorted by key' do
+      out = summary([
+        finding(key: 'z:late', severity: :error, quality: :wrong),
+        finding(key: 'a:early'),
+        finding(key: 'a:early'),
+      ])
+      rows = out.lines.map(&:rstrip).reject(&:empty?)
+      expect(rows[0]).to match(/\A-+\+-+\+-+\+-+\z/)
+      expect(rows[1]).to match(/\A  2 \| warning \|\s+\| a:early\z/)
+      expect(rows[2]).to match(/\A  1 \| error\s+\| wrong\s+\| z:late\z/)
+      expect(rows[3]).to match(/\A-+\+-+\+-+\+-+\z/)
+      expect(rows[4]).to eq('  3 | total: 1 error, 2 warning, 0 note')
+    end
+
+    it 'ends with the per-severity total, under a horizontal border' do
+      out = summary([finding(key: 'a'), finding(key: 'b')])
+      expect(out.lines.last).to eq("  2 | total: 0 error, 2 warning, 0 note\n")
+      expect(out.lines[-2]).to start_with('----+')
+    end
+
+    it 'aligns every border joint with a column separator' do
+      out  = summary([finding(key: 'some:key')])
+      border, row = out.lines.values_at(1, 2)
+      joints = (0...border.length).select { |i| border[i] == '+' }
+      pipes  = (0...row.length).select { |i| row[i] == '|' }
+      expect(joints).to eq(pipes)
+      expect(joints.length).to eq(3)
+    end
+
+    it 'right-aligns counts to the width of the total' do
+      out = summary(
+        Array.new(9) { finding(key: 'a:many') } + [finding(key: 'b:one'), finding(key: 'c:one')],
+      )
+      expect(out).to include("\n   9 | warning")
+      expect(out).to include("\n  11 | total:")
+    end
+
+    it 'colors severity and quality labels, leaving count and key plain, when color: true' do
+      out = summary([finding(key: 'k', severity: :warning, quality: :stale)], color: true)
+      row = out.lines[2]
+      expect(row).to start_with("  1 | \e[0;33mwarning\e[0m")
+      expect(row).to include("\e[0;36mstale")
+      expect(row).to end_with("| k\n")
+    end
+
+    it 'colors each severity name in the total, leaving its count plain' do
+      out = summary([finding(key: 'k', severity: :warning)], color: true)
+      expect(out.lines.last)
+        .to include("0 \e[0;31m\e[1merror\e[0m, 1 \e[0;33mwarning\e[0m, 0 \e[0;36mnote\e[0m")
+    end
+
+    it 'omits ANSI escapes when color is off (default with non-TTY io)' do
+      expect(summary([finding(key: 'k', severity: :error)])).not_to include("\e[")
+    end
+  end
 end

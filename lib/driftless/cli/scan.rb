@@ -67,7 +67,7 @@ module Driftless
           end
 
         begin
-          findings = ::Driftless::Scan.new(
+          scanner = ::Driftless::Scan.new(
             repo_dir:                       @options[:repo_dir],
             incoming_dir:                   @options[:incoming_dir],
             only:                           @options[:only],
@@ -78,12 +78,13 @@ module Driftless
             accept_duplicate_certnames:     @options[:accept_duplicate_certnames] || false,
             summary_dir:                    summary_dir,
             accept_partial_report_sessions: @options[:accept_partial_report_sessions],
-          ).run
+          )
+          findings = scanner.run
         rescue ::Driftless::ScanError => e
           fatal!("scan error: #{e.message}")
         end
 
-        emit(findings)
+        emit(findings, warnings: scanner.warnings)
 
         exit(fail_on.fail?(findings) ? 1 : 0)
       end
@@ -172,11 +173,21 @@ module Driftless
 
       # The default format follows $stdout even when -o redirects to a file, so
       # that `-o findings.txt` from a terminal still renders as text.
-      def emit(findings)
+      #
+      # Warnings replay through the logger between the findings list and the
+      # count table, so on a TTY they sit beside the totals instead of
+      # scrolled away above the findings.
+      def emit(findings, warnings: [])
         format = @options[:format] || ::Driftless::Outputs.default_format($stdout)
         out    = @options[:output_file] ? File.open(@options[:output_file], 'w') : $stdout
+        color  = ::Driftless::Ansi.enabled?(out)
         ::Driftless::Outputs.write(findings, out, format: format,
-                                   color: ::Driftless::Ansi.enabled?(out), tabularize: @options[:tabularize])
+                                   color: color, tabularize: @options[:tabularize])
+        # Piped stdout is block-buffered while stderr is not; without the flush
+        # the replayed warnings land above the findings in a merged stream.
+        out.flush
+        warnings.each { |w| ::Driftless.logger.warn(w) }
+        ::Driftless::Outputs.write_summary(findings, out, format: format, color: color)
       ensure
         out.close if out && out != $stdout
       end

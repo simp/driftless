@@ -307,6 +307,14 @@ RSpec.describe Driftless::Scan do
       expect { scan.send(:apply_environment_filter, reported) }.not_to raise_error
     end
 
+    it 'records the warning in #warnings for end-of-run replay' do
+      silence_driftless_logger
+      scan     = filter_scan(environments: %w[production staging], allow_missing_envs: true)
+      reported = make_reported([make_node(certname: 'web1', environment: 'production')])
+      scan.send(:apply_environment_filter, reported)
+      expect(scan.warnings).to contain_exactly(a_string_including('staging'))
+    end
+
     it 'keeps MissingReport queries absent from the filtered result' do
       silence_driftless_logger
       scan     = filter_scan(environments: ['production'], allow_missing_envs: true)

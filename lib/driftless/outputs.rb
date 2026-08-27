@@ -48,10 +48,19 @@ module Driftless
     end
 
     def write(findings, io, format:, color: nil, tabularize: true)
-      writer = WRITERS.fetch(format.to_s) do
+      writer_for(format).write(findings, io, color: color, tabularize: tabularize)
+    end
+
+    # End-of-scan per-key count table. Rendered apart from {write} so the CLI
+    # can replay run warnings between the findings list and the totals.
+    def write_summary(findings, io, format:, color: nil)
+      writer_for(format).write_summary(findings, io, color: color)
+    end
+
+    def writer_for(format)
+      WRITERS.fetch(format.to_s) do
         raise ArgumentError, "unknown output format #{format.inspect} (known: #{formats.join(', ')})"
       end
-      writer.write(findings, io, color: color, tabularize: tabularize)
     end
   end
 end

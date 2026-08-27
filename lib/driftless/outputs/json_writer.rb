@@ -19,6 +19,10 @@ module Driftless
       end
       # rubocop:enable Lint/UnusedMethodArgument
 
+      # The JSON document carries no summary; consumers count the array.
+      # Accepted so every writer shares one signature.
+      def write_summary(findings, io, color: nil); end
+
       def finding_to_h(f)
         {
           key:      f.key,

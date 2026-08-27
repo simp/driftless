@@ -96,6 +96,18 @@ RSpec.describe Driftless::CLI::Site do
   end
 
   describe 'unusable input' do
+    it 'exits 2 on a second positional, and writes nothing' do
+      Dir.mktmpdir do |dir|
+        scan_path = Driftless::ScanData.write(scan_data, File.join(dir, 'scan.json'))
+        log = capture_log do
+          expect { expect(run(site_with, [scan_path, 'report.json', 'extra']).first).to eq(2) }
+            .to output(/Usage:/).to_stderr
+        end
+        expect(log).to include('site: unexpected arguments "report.json" "extra"')
+        expect(File).not_to exist(File.join(dir, 'index.html'))
+      end
+    end
+
     it 'exits 3 when the scan document is missing' do
       log = capture_log { expect(run(site_with, ['/nonexistent/scan.json']).first).to eq(3) }
       expect(log).to include('site: /nonexistent/scan.json: No such file or directory')

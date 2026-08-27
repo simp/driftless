@@ -151,6 +151,17 @@ module Driftless
         exit exit_code
       end
 
+      # Stop on positionals beyond the `max` the command declares. A stray
+      # one is usually an optional argument given detached (`--data-file
+      # out.json` reads as the default path plus a positional).
+      def reject_extra_args!(argv, max: 0)
+        extra = argv.drop(max)
+        return if extra.empty?
+
+        fatal!("#{self.class.canonical_name}: unexpected argument#{'s' if extra.size > 1} " \
+               "#{extra.map(&:inspect).join(' ')}", help: true)
+      end
+
       # Subclasses override to add their own options to the parser.
       def configure_parser(_parser); end
 

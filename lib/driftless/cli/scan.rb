@@ -24,7 +24,8 @@ module Driftless
                  about: 'Skip these detector keys'
       desc 'Cross-reference control repo against PuppetDB reports'
 
-      def execute(_argv)
+      def execute(argv)
+        reject_extra_args!(argv)
         begin
           fail_on = ::Driftless::FailOn.parse(@options[:fail_on])
         rescue ArgumentError => e

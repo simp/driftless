@@ -15,6 +15,7 @@ module Driftless
       desc 'Build the static site from `scan --data-file` output (index.html + data.json)'
 
       def execute(argv)
+        reject_extra_args!(argv, max: 1)
         scan_path = File.expand_path(argv.first || ::Driftless::ScanData::DEFAULT_PATH)
         out_dir   = File.expand_path(@options[:output_dir] || File.dirname(scan_path))
 

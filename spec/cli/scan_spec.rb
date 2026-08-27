@@ -45,6 +45,21 @@ RSpec.describe Driftless::CLI::Scan do
     end
   end
 
+  describe 'positional arguments' do
+    # The optional argument of --data-file reads only when attached with `=`;
+    # `--data-file out.json` must not pass as the default path plus a stray.
+    it 'exits 2 with help on an unexpected argument' do
+      s = described_class.new(parent_options: {})
+      s.instance_variable_set(:@options, { fail_on: 'never' })
+      log = capture_log do
+        expect { s.execute(['out.json']) }
+          .to raise_error(SystemExit) { |e| expect(e.status).to eq(2) }
+          .and output(/Usage:/).to_stderr
+      end
+      expect(log).to include('scan: unexpected argument "out.json"')
+    end
+  end
+
   describe '--data-file' do
     def control_repo(dir)
       File.write(File.join(dir, 'hiera.yaml'), <<~YAML)

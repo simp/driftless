@@ -246,10 +246,13 @@ td.count, th.count { text-align: right; }
 .severity-note    { color: var(--note); }
 .quality          { color: var(--quality); }
 
-/* As the text writer colors a finding row: path, line number, message. */
+/* As the text writer colors a finding row: path, line number, message.
+   A linked path keeps its color; the underline appears on hover. */
 .path    { color: var(--path); }
 .line    { color: var(--line-no); }
 .message { color: var(--message); }
+a.path, a.line, a.location { text-decoration: none; }
+a.path:hover, a.line:hover, a.location:hover { text-decoration: underline; }
 
 tr.total td { font-weight: 600; border-bottom: none; }
 

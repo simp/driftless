@@ -2,6 +2,7 @@ require 'time'
 
 require 'driftless/version'
 require 'driftless/json_document'
+require 'driftless/logger'
 
 module Driftless
   # The static site `driftless site` builds from the other commands' documents.
@@ -20,9 +21,11 @@ module Driftless
       # @param scan [Hash] a document from {ScanData.read}
       # @param report [Hash, nil] the report document, once `report` exists;
       #   it contributes `utilization` and must agree with scan on sessions
+      # @param repo_url [String, nil] where the page links a path:line to;
+      #   see {web_template}
       # @param now [Time] stamp for `generated_at`; injectable for specs
       # @raise [JsonDocument::Error] when scan and report disagree
-      def assemble(scan:, report: nil, now: Time.now)
+      def assemble(scan:, report: nil, repo_url: nil, now: Time.now)
         check_agreement!(scan, report) if report
         {
           'document'          => DOCUMENT,
@@ -30,7 +33,7 @@ module Driftless
           'generated_at'      => now.utc.iso8601,
           'driftless_version' => VERSION,
           'sources'           => { 'scan' => stamp(scan), 'report' => report && stamp(report) },
-          'repo'              => scan['repo'],
+          'repo'              => (scan['repo'] || {}).merge('web' => web_template(repo_url, scan.dig('repo', 'git'))),
           'environments'      => scan.fetch('environments', []),
           'overrides'         => scan.fetch('overrides', {}),
           'sessions'          => scan.fetch('sessions', []),
@@ -48,6 +51,33 @@ module Driftless
       # @raise [JsonDocument::Error]
       def read(path)
         JsonDocument.read(path, document: DOCUMENT, schema_version: SCHEMA_VERSION)
+      end
+
+      # The link template for a file in the repo's web interface. Four
+      # variables: `{branch}` and `{sha}` are filled here from the scan
+      # document's revision; `{path}` and `{line}` are left for the page to
+      # fill per finding. A template without `{path}` gets `/{path}#L{line}`
+      # appended — the GitLab/GitHub layout — so the common case is just the
+      # blob base, `https://host/group/project/-/blob/{branch}`.
+      #
+      # A detached checkout (CI) reports its branch as "HEAD", which no host
+      # resolves, so `{branch}` falls back to the sha. With no revision to
+      # fill from, there is no usable link and `web` is null.
+      def web_template(repo_url, git)
+        return nil if repo_url.nil? || repo_url.strip.empty?
+
+        url = repo_url.strip
+        url = "#{url.sub(%r{/+\z}, '')}/{path}#L{line}" unless url.include?('{path}')
+        return url unless url.include?('{branch}') || url.include?('{sha}')
+
+        sha    = git && git['sha']
+        branch = git && git['branch']
+        branch = sha if branch.nil? || branch == 'HEAD'
+        unless sha
+          Driftless.logger.warn('site: --repo-url uses {branch} or {sha}, but the scan document carries no git revision; not linking')
+          return nil
+        end
+        url.gsub('{branch}', branch).gsub('{sha}', sha)
       end
 
       # When and by which version a source document was written.

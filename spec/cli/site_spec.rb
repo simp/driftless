@@ -70,6 +70,15 @@ RSpec.describe Driftless::CLI::Site do
     end
   end
 
+  it 'passes --repo-url into the build data' do
+    Dir.mktmpdir do |dir|
+      scan_path = Driftless::ScanData.write(scan_data, File.join(dir, 'scan.json'))
+      run(site_with(repo_url: 'https://h/g/p/-/blob/production'), [scan_path])
+      data = JSON.parse(File.read(File.join(dir, 'data.json')))
+      expect(data['repo']['web']).to eq('https://h/g/p/-/blob/production/{path}#L{line}')
+    end
+  end
+
   it 'reads public/scan.json relative to the working directory by default' do
     Dir.mktmpdir do |dir|
       Driftless::ScanData.write(scan_data, File.join(dir, 'public', 'scan.json'))

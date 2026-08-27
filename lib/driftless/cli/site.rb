@@ -20,7 +20,8 @@ module Driftless
 
         data =
           begin
-            ::Driftless::Site::BuildData.assemble(scan: ::Driftless::ScanData.read(scan_path))
+            ::Driftless::Site::BuildData.assemble(scan: ::Driftless::ScanData.read(scan_path),
+                                                  repo_url: @options[:repo_url])
           rescue ::Driftless::JsonDocument::Error => e
             fatal!("site: #{e.message}", 3)
           end
@@ -41,6 +42,12 @@ module Driftless
         o.on('-o', '--output-dir=DIR',
              'Write index.html and data.json here',
              'Default: the directory holding <scan.json>') { |v| @options[:output_dir] = v }
+        o.on('--repo-url=URL',
+             'Link each path:line to the repo\'s web interface. A template',
+             'with {branch}, {sha}, {path}, {line}; without {path}, the',
+             'GitLab/GitHub suffix /{path}#L{line} is appended, so',
+             'https://host/group/project/-/blob/{branch} is enough there.',
+             'A detached checkout uses the sha for {branch}') { |v| @options[:repo_url] = v }
       end
     end
   end

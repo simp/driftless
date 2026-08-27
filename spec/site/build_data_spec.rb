@@ -55,10 +55,11 @@ RSpec.describe Driftless::Site::BuildData do
       )
     end
 
-    it 'carries the scan fields through unchanged' do
-      %w[repo environments overrides sessions nodes findings warnings].each do |k|
+    it 'carries the scan fields through unchanged, repo gaining only web' do
+      %w[environments overrides sessions nodes findings warnings].each do |k|
         expect(data[k]).to eq(scan_doc[k]), k
       end
+      expect(data['repo']).to eq(scan_doc['repo'].merge('web' => nil))
     end
 
     it 'leaves utilization null' do
@@ -89,6 +90,55 @@ RSpec.describe Driftless::Site::BuildData do
     it 'ignores session order' do
       report = report_doc('sessions' => [session('west', 'T01'), session('east', 'T02')])
       expect { described_class.assemble(scan: scan_doc, report: report) }.not_to raise_error
+    end
+  end
+
+  describe 'repo.web' do
+    it 'is null when no repo url was given' do
+      expect(described_class.assemble(scan: scan_doc)['repo']['web']).to be_nil
+      expect(described_class.assemble(scan: scan_doc, repo_url: ' ')['repo']['web']).to be_nil
+    end
+
+    it 'appends the GitLab/GitHub path and line form to a blob base, tolerating a trailing slash' do
+      expect(described_class.assemble(scan: scan_doc, repo_url: 'https://h/g/p/-/blob/production')['repo']['web'])
+        .to eq('https://h/g/p/-/blob/production/{path}#L{line}')
+      expect(described_class.assemble(scan: scan_doc, repo_url: 'https://h/g/p/-/blob/production/')['repo']['web'])
+        .to eq('https://h/g/p/-/blob/production/{path}#L{line}')
+    end
+
+    it 'uses a template with {path} as given' do
+      tpl = 'https://h/p/src/branch/main/{path}#n{line}'
+      expect(described_class.assemble(scan: scan_doc, repo_url: tpl)['repo']['web']).to eq(tpl)
+    end
+
+    context 'with {branch} and {sha}' do
+      def with_git(branch, sha = 'abc123')
+        scan_doc('repo' => { 'dir' => '/srv/repo', 'git' => { 'sha' => sha, 'branch' => branch } })
+      end
+
+      it 'fills them from the scan document' do
+        web = described_class.assemble(scan: with_git('production'), repo_url: 'https://h/g/p/-/blob/{branch}')['repo']['web']
+        expect(web).to eq('https://h/g/p/-/blob/production/{path}#L{line}')
+        web = described_class.assemble(scan: with_git('production'), repo_url: 'https://h/g/p/-/blob/{sha}/{path}#L{line}')['repo']['web']
+        expect(web).to eq('https://h/g/p/-/blob/abc123/{path}#L{line}')
+      end
+
+      it 'uses the sha for {branch} on a detached checkout' do
+        web = described_class.assemble(scan: with_git('HEAD'), repo_url: 'https://h/g/p/-/blob/{branch}')['repo']['web']
+        expect(web).to eq('https://h/g/p/-/blob/abc123/{path}#L{line}')
+      end
+
+      it 'does not link, and warns, when the scan document has no revision' do
+        web = nil
+        log = capture_log { web = described_class.assemble(scan: scan_doc, repo_url: 'https://h/g/p/-/blob/{branch}')['repo']['web'] }
+        expect(web).to be_nil
+        expect(log).to include('carries no git revision')
+      end
+    end
+
+    it 'keeps the rest of repo intact' do
+      repo = described_class.assemble(scan: scan_doc, repo_url: 'https://h/b')['repo']
+      expect(repo).to include('dir' => '/srv/repo', 'git' => nil)
     end
   end
 

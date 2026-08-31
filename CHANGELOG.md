@@ -5,29 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.3.0] - 2026-08-31
 
 ### Added
 
 - New subcommand: `driftless site`
   - Builds a self-contained static page (`index.html` + `data.json`) from
     the scan data document; no external assets, opens from `file://` or any
-    static host. Findings with filters, grouping, a count-table sidebar,
-    URL-hash state, Back/ESC and k/p/g shortcuts; a hierarchy view of the
-    declared tiers with findings attached per variable; a utilization view
-    that waits on `driftless report`
-  - `--repo-url` links each path:line into the repo's web interface
-    (`{branch}`, `{sha}`, `{path}`, `{line}` template variables)
-  - Exit status says only whether the site was written; findings never
-    fail it
+    static hosting (e.g., GitLab Pages).
+  - The site currently displays findings, with filters for various things.
+  - When generated with `--repo-url`, links in the findings will link to the
+    path:line into the control repo's web interface
+    - Template variables for these links: `{branch}`, `{sha}`, `{path}`, `{line}`
 - `driftless scan --data-file[=PATH]` writes the scan data document
-  (`public/scan.json`) the site builds from: findings plus the sessions
-  read, node tallies, declared hierarchy, repo revision, relaxed acceptance
-  rules, and run warnings
-- `Reported#sessions`: the loader records which `(collector, session-id)`
-  files it read; `site` refuses to combine documents that read different
-  sessions
-- `Scan#corpus` exposes the read model after a run
+  (`public/scan.json`) that `driftless site` uses to build from
 
 ### Fixed:
 

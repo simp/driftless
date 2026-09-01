@@ -254,7 +254,7 @@ RSpec.describe Driftless::CLI::Base do
 
     it 'logs the message at fatal severity' do
       log = capture_log do
-        expect { leaf_raising.new.run([]) }.to raise_error(SystemExit)
+        expect { leaf_raising.new.run(['--no-color']) }.to raise_error(SystemExit)
       end
       expect(log).to eq("FATAL: it broke\n")
     end

@@ -28,12 +28,12 @@ require 'time'
 require 'uri'
 require 'zlib'
 
-COLLECTOR_VERSION = '0.1.0'
+COLLECTOR_VERSION = '0.2.0'
 
 REPORTS = {
   'all-active-nodes' => {
     kind: :single_shot,
-    pql:  'nodes[certname, catalog_environment] { deactivated is null and expired is null order by certname }',
+    pql:  'nodes[certname, catalog_environment, latest_report_status, report_timestamp] { deactivated is null and expired is null order by certname }',
     file: 'all-active-nodes.ndjson',
   },
   'factsets-for-all-active-nodes' => {
@@ -232,17 +232,23 @@ http.start do
         end
       end
 
+      require 'digest'
       report_summaries[name] = {
-        'file'             => spec[:file],
-        'pql'              => pql_for_summary,
-        'rows'             => rows_written,
-        'duration_seconds' => (Time.now - started).round(2),
-        'status'           => 'ok',
+        'file'               => spec[:file],
+        'file_checksum'      => Digest::SHA256.file(file_path),
+        'file_checksum_type' => 'SHA256',
+        'pql'                => pql_for_summary,
+        'rows'               => rows_written,
+        'duration_seconds'   => (Time.now - started).round(2),
+        'status'             => 'ok',
       }
     rescue => e
       log.error("report #{name} failed: #{e.class}: #{e.message}")
+      require 'digest'
       report_summaries[name] = {
         'file'             => spec[:file],
+        'file_checksum'      => Digest::SHA256.file(file_path),
+        'file_checksum_type' => 'SHA256',
         'pql'              => pql_for_summary,
         'rows'             => rows_written,
         'duration_seconds' => (Time.now - started).round(2),

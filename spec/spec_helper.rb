@@ -24,10 +24,6 @@ RSpec.configure do |config|
 end
 
 # Capture what Driftless logs while the block runs, and return it as a string.
-#
-# The default logger binds $stderr when it is built, so `output(...).to_stderr`
-# never sees a log line — swapping the logger is the only way. The production
-# formatter comes along, so severity labels are exercised, not reimplemented.
 def capture_log(level: Logger::DEBUG)
   captured        = StringIO.new
   original_logger = Driftless.logger
@@ -39,10 +35,10 @@ ensure
   Driftless.logger = original_logger
 end
 
-# Shared factory for Driftless::Corpus. Data.define is strict about missing
-# kwargs, so tests need sensible defaults for every field they don't care
-# about. Centralizing here means adding a new Corpus field only requires
-# updating this helper, not every spec's hand-rolled builder.
+# Shared factory for Driftless::Corpus. 
+#
+# Data.define is strict about missing kwargs, so tests need sensible defaults
+# for every field they don't care about.
 def build_corpus(**overrides)
   defaults = {
     repo_dir:          nil,
@@ -54,4 +50,12 @@ def build_corpus(**overrides)
     data_lookup_calls: [],
   }
   Driftless::Corpus.new(**defaults, **overrides)
+end
+
+# It's really annoying when PuppetDB reports stderr warnings show up in the
+# middle of RSPec test results
+def silence_driftless_logger
+  fake_logger = instance_double(Logger, debug: true, info: true, warn: true, error: true, fatal: true)
+  allow(fake_logger).to receive(:level=)
+  allow(Driftless).to receive(:logger).and_return(fake_logger)
 end

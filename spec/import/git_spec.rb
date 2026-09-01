@@ -152,6 +152,7 @@ RSpec.describe Driftless::Import::Git do
     end
 
     it 'reports 0 branches with a warn log when no branches match' do
+      silence_driftless_logger
       Dir.mktmpdir do |root|
         remote = make_remote(root, {}, extra_branches: ['unrelated/one'])
         target = File.join(root, 'target', 'incoming')

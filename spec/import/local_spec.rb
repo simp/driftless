@@ -124,6 +124,7 @@ RSpec.describe Driftless::Import::Local do
     end
 
     it 'skips (with count) reports whose file is missing at source' do
+      silence_driftless_logger
       Dir.mktmpdir do |tmp|
         session = File.join(tmp, 'sess-abc')
         make_session(session, collector: 'foo', session_id: 'sess-abc',

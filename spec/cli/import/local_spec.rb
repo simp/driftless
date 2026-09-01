@@ -84,6 +84,7 @@ RSpec.describe Driftless::CLI::Import::Local do
   end
 
   it 'skips cleanup and exits 2 if the import itself failed' do
+    silence_driftless_logger
     allow_any_instance_of(Driftless::Import::Local).to receive(:run)
       .and_raise(Driftless::Import::Error, 'source not found')
     expect(Driftless::CLI::Import).not_to receive(:run_cleanup)

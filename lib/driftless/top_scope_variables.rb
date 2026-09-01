@@ -7,14 +7,14 @@ module Driftless
   #
   #   puppet:
   #     top_scope_variables: [site_region, compliance_profile]
-  #     builtin_top_scope_variables: true
+  #     allow_builtin_top_scope_variables: true
   module TopScopeVariables
     extend ConfigKeys::DSL
 
     config_key 'puppet.top_scope_variables', type: :array, default: [],
                about: 'Top-scope variables the codebase sets (site.pp, ENC) that hierarchy tiers ' \
                       'may interpolate; they are not facts, so no factset reports them'
-    config_key 'puppet.builtin_top_scope_variables', type: :boolean, default: true,
+    config_key 'puppet.allow_builtin_top_scope_variables', type: :boolean, default: true,
                about: "Treat Puppet's server variables (environment, servername, serverip, " \
                       'serverversion, server_facts, settings::*) as top-scope variables'
 
@@ -40,7 +40,7 @@ module Driftless
     end
 
     def builtin?
-      value = ::Driftless.config.dig('puppet', 'builtin_top_scope_variables')
+      value = ::Driftless.config.dig('puppet', 'allow_builtin_top_scope_variables')
       value.nil? ? true : value
     end
   end

@@ -64,8 +64,8 @@ RSpec.describe Driftless::TopScopeVariables do
       end
     end
 
-    context 'with puppet.builtin_top_scope_variables: false' do
-      before(:each) { set_config('builtin_top_scope_variables' => false, 'top_scope_variables' => ['site_region']) }
+    context 'with puppet.allow_builtin_top_scope_variables: false' do
+      before(:each) { set_config('allow_builtin_top_scope_variables' => false, 'top_scope_variables' => ['site_region']) }
 
       it 'forgets the server variables' do
         expect(described_class.known?('environment')).to be false

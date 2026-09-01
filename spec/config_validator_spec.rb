@@ -29,11 +29,18 @@ RSpec.describe Driftless::ConfigValidator do
     end
   end
 
-  describe 'keys that moved between subsystems' do
+  describe 'keys that moved or were renamed' do
     it 'rejects scan.incoming_dir with its new location' do
       cfg = Driftless::Config.new(merged: { 'scan' => { 'incoming_dir' => 'incoming' } })
       expect { described_class.new(cfg).validate! }
         .to raise_error(Driftless::ConfigValidationError, /scan\.incoming_dir has moved to reports\.incoming_dir/)
+    end
+
+    it 'rejects puppet.builtin_top_scope_variables with its new name' do
+      cfg = Driftless::Config.new(merged: { 'puppet' => { 'builtin_top_scope_variables' => false } })
+      expect { described_class.new(cfg).validate! }
+        .to raise_error(Driftless::ConfigValidationError,
+                        /puppet\.builtin_top_scope_variables has moved to puppet\.allow_builtin_top_scope_variables/)
     end
 
     it 'accepts the new location' do

@@ -109,8 +109,8 @@ RSpec.describe Driftless::Detectors::HierarchyTiersInterpolatingUnreportedFacts 
         expect(tiers_flagged).to be_empty
       end
 
-      it 'reports the server variables when puppet.builtin_top_scope_variables is false' do
-        set_puppet_config('builtin_top_scope_variables' => false)
+      it 'reports the server variables when puppet.allow_builtin_top_scope_variables is false' do
+        set_puppet_config('allow_builtin_top_scope_variables' => false)
         expect(tiers_flagged).to contain_exactly('Environment', 'Server environment', 'Strict', 'Region')
       end
     end

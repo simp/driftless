@@ -17,10 +17,11 @@ module Driftless
     # rather than declared config keys.
     DETECTORS_SUBSYSTEM = 'detectors'.freeze
 
-    # Keys that moved between subsystems. The old section does not validate its
-    # own keys, so without this a stale key is silently ignored.
+    # Old spellings of keys that moved or were renamed, mapped to where they
+    # went; the error names the destination instead of "unknown key".
     MOVED_KEYS = {
-      %w[scan incoming_dir] => 'reports.incoming_dir',
+      %w[scan incoming_dir]                  => 'reports.incoming_dir',
+      %w[puppet builtin_top_scope_variables] => 'puppet.allow_builtin_top_scope_variables',
     }.freeze
 
     def initialize(config)

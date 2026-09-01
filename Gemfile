@@ -6,7 +6,7 @@ gem 'rake'
 
 group :test do
   gem 'rspec',     '~> 3.12'
-  gem 'rspec-its', '~> 1.3'
+  gem 'rspec-its', '~> 2.0'
 end
 
 group :development do

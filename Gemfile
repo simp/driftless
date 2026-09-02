@@ -2,6 +2,9 @@ source 'https://rubygems.org'
 
 gemspec
 
+# Provided by the host at runtime (openvox-agent AIO); see driftless.gemspec.
+gem 'openvox', '~> 8.28'
+
 gem 'rake'
 
 group :test do

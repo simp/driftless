@@ -21,6 +21,9 @@ Gem::Specification.new do |spec|
   spec.executables   = ['driftless']
   spec.require_paths = ['lib']
 
-  spec.add_runtime_dependency 'openvox',    '~> 8.28'
+  # Puppet/OpenVox is deliberately NOT a runtime dependency. On an openvox-agent
+  # host it lives in vendor_ruby (not a gem), and the AIO's gemspec stub is named
+  # puppet-*.gemspec while declaring name "openvox", so RubyGems cannot resolve
+  # it by name. Treat it as provided by the host; see Gemfile for dev/test.
   spec.add_runtime_dependency 'deep_merge', '~> 1.2'
 end

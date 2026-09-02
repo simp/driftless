@@ -21,6 +21,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- `openvox` is no longer a runtime gem dependency: Puppet/OpenVox is treated as
+  provided by the host (openvox-agent AIO or the `openvox` gem). This lets
+  `gem install --local driftless-*.gem` work offline under
+  `/opt/puppetlabs/puppet/bin/gem`, whose `openvox` stub gemspec is not
+  resolvable by name. A clear `LoadError` is raised if Puppet cannot be loaded.
 - Scans now expect the `classes-for-all-active-nodes` report: the new `code:unused-*`
   detectors require it, so summary-coverage checks and `import cleanup` demand it
   unless those detectors are disabled

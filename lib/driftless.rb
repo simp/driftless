@@ -1,3 +1,5 @@
+require 'driftless/puppet_runtime'
+
 require 'driftless/version'
 require 'driftless/logger'
 require 'driftless/config'

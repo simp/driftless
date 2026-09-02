@@ -147,6 +147,21 @@ RSpec.describe Driftless::CLI::Report do
     expect(status).to eq(2)
   end
 
+  it 'writes the report document when data_file is set' do
+    Dir.mktmpdir do |dir|
+      build_fleet_fixture(dir)
+      out_path = File.join(dir, 'out', 'report.json')
+      status, = run_cli(['classes'], incoming_dir: dir, data_file: out_path)
+      expect(status).to eq(0)
+      data = JSON.parse(File.read(out_path))
+      expect(data['document']).to eq('report')
+      expect(data['utilization']['classes'])
+        .to include(hash_including('name' => 'profile::web', 'nodes' => 2))
+      expect(data['nodes']['total']).to eq(3)
+      expect(data['sessions'].map { |s| s['collector'] }).to eq(%w[east west])
+    end
+  end
+
   it 'fatals on a tree without the classes report' do
     Dir.mktmpdir do |dir|
       write_report(dir, 'all-active-nodes', 'east', 'T01', [nodes_row('web1')])

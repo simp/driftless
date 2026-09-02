@@ -50,6 +50,7 @@ require 'driftless/export/factsets'
 require 'driftless/outputs'
 require 'driftless/json_document'
 require 'driftless/scan_data'
+require 'driftless/report_data'
 require 'driftless/site'
 
 module Driftless

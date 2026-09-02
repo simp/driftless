@@ -5,6 +5,7 @@ require 'driftless/cli/root'
 require 'driftless/control_repo'
 require 'driftless/inputs/report_loader'
 require 'driftless/report'
+require 'driftless/report_data'
 require 'driftless/utilization'
 
 module Driftless
@@ -64,6 +65,7 @@ module Driftless
         end
 
         categories.each { |category| table(category, utilization[category], shape) }
+        write_data_file(reporter) if @options[:data_file]
         exit 0
       end
 
@@ -96,6 +98,14 @@ module Driftless
              'a number (0) or comparisons (">1 <10", all must hold)') { |v| @options[:show_count] = v }
 
         o.separator ''
+        o.separator 'Output:'
+        o.on('--data-file[=PATH]',
+             'Also write the report data document for `driftless site`',
+             "(default PATH: #{::Driftless::ReportData::DEFAULT_PATH})") do |v|
+          @options[:data_file] = v || ::Driftless::ReportData::DEFAULT_PATH
+        end
+
+        o.separator ''
         o.separator 'Environment scoping:'
         o.on('--environments=ENVS', Array,
              'Puppet environment(s) to count, comma-separated (required)') do |v|
@@ -113,6 +123,15 @@ module Driftless
       end
 
       private
+
+      # Writes the report data document `driftless site` builds from.
+      #
+      # @param reporter [::Driftless::Report] populated by {::Driftless::Report#run}
+      def write_data_file(reporter)
+        path = File.expand_path(@options[:data_file])
+        ::Driftless::ReportData.write(::Driftless::ReportData.assemble(reporter), path)
+        ::Driftless.logger.info("report data written: #{path}")
+      end
 
       def config_defaults
         cfg = ::Driftless.config

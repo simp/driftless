@@ -15,13 +15,7 @@ module Driftless
   class Scan
     include ReportedChecks
 
-    attr_reader :repo_dir, :incoming_dir, :only, :skip, :basemodulepath,
-                :environments, :allow_missing_envs, :summary_dir,
-                :accept_partial_report_sessions, :accept_duplicate_certnames
-
-    # @return [Array<String>] warnings this run logged, in emission order, so
-    #   the CLI can replay them after a long findings list
-    attr_reader :warnings
+    attr_reader :repo_dir, :only, :skip, :basemodulepath
 
     # @return [Corpus, nil] the read model the detectors ran against; nil until
     #   {#run} builds it. Findings alone cannot answer node counts or
@@ -42,7 +36,6 @@ module Driftless
       @summary_dir                    = summary_dir
       @accept_partial_report_sessions = accept_partial_report_sessions
       @accept_duplicate_certnames     = accept_duplicate_certnames
-      @warnings                       = []
     end
 
     def run
@@ -154,12 +147,6 @@ module Driftless
     end
 
     private
-
-    # Logs the warning now and records it in {#warnings} for end-of-run replay.
-    def warn(message)
-      @warnings << message
-      Driftless.logger.warn(message)
-    end
 
     def load_manifest_files
       if basemodulepath

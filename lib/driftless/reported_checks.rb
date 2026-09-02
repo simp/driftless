@@ -8,13 +8,7 @@ require 'driftless/reported'
 require 'driftless/scan_error'
 
 module Driftless
-  # Acceptance checks a consumer of the incoming report tree runs before
-  # trusting what {Inputs::ReportLoader} loaded: session coverage, duplicate
-  # certnames, and the environment filter. The includer supplies readers for
-  # incoming_dir, summary_dir, environments, allow_missing_envs,
-  # accept_partial_report_sessions, and accept_duplicate_certnames, plus
-  # #expected_reports (the reports its run needs) and a #warn that records
-  # the message for end-of-run replay.
+  # Acceptance checks on the loaded report tree
   module ReportedChecks
     extend ConfigKeys::DSL
 
@@ -25,17 +19,38 @@ module Driftless
     config_key 'reports.accept_duplicate_certnames', type: :boolean, default: false,
                about: 'Warn instead of erroring when one certname is reported by two collectors'
 
+    attr_reader :incoming_dir, :summary_dir, :environments, :allow_missing_envs,
+                :accept_partial_report_sessions, :accept_duplicate_certnames
+
+    # @return [Array<String>] warnings the run logged, in emission order, so
+    #   the CLI can replay them after its output
+    def warnings
+      @warnings ||= []
+    end
+
     private
 
-    # Compares each collector's latest session summary against the includer's
-    # expected report set. Gaps mean the run would read a tree `import
-    # cleanup` would quarantine.
+    # @return [Array<String>] the reports the run needs; the coverage check
+    #   compares each collector's session summary against them
+    def expected_reports
+      raise NotImplementedError, "#{self.class} must define expected_reports"
+    end
+
+    # Logs the warning now and records it in {#warnings} for end-of-run replay.
+    def warn(message)
+      warnings << message
+      Driftless.logger.warn(message)
+    end
+
+    # Compares each collector's latest session summary against {#expected_reports}.
     #
-    # - No summary_dir wired / missing dir / no summaries → no-op (fresh state
-    #   or all archived is vacuously OK).
-    # - --accept-partial-report-sessions bare → skip entirely.
-    # - --accept-partial-report-sessions=A,B,C → warn on gap, expected = list.
-    # - No flag (strict) → raise ScanError on gap.
+    # No summaries on disk is a no-op: nothing to compare against.
+    # Bare --accept-partial-report-sessions skips the check;
+    # a list (=A,B,C) becomes the expected set and downgrades gaps to
+    # warnings.
+    #
+    # @raise [ScanError] on a gap, unless permittd by
+    #   --accept-partial-report-sessions
     def check_summary_coverage!
       return unless summary_dir
 

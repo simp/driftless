@@ -180,9 +180,10 @@ module Driftless
         }.compact
       end
 
-      # The scan data document is scan's output for `driftless site`: what the
-      # terminal writers cannot carry (sessions, nodes, overrides, warnings,
-      # revision), assembled from the finished scan.
+      # Writes the scan data document `driftless site` builds from.
+      #
+      # @param scanner [::Driftless::Scan] populated by {::Driftless::Scan#run}
+      # @param findings [Array<Finding>] what {::Driftless::Scan#run} returned
       def write_data_file(scanner, findings)
         data = ::Driftless::ScanData.assemble(
           findings:     findings,

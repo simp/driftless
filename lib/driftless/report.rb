@@ -13,13 +13,6 @@ module Driftless
     # The report utilization is computed from.
     CLASSES_REPORT = 'classes-for-all-active-nodes'.freeze
 
-    attr_reader :incoming_dir, :summary_dir, :environments, :allow_missing_envs,
-                :accept_partial_report_sessions, :accept_duplicate_certnames
-
-    # @return [Array<String>] warnings this run logged, in emission order, so
-    #   the CLI can replay them after the tables
-    attr_reader :warnings
-
     # @return [Reported, nil] what the loader read, after the checks and the
     #   environment filter; nil until {#run}
     attr_reader :reported
@@ -36,7 +29,6 @@ module Driftless
       @allow_missing_envs             = allow_missing_envs
       @accept_partial_report_sessions = accept_partial_report_sessions
       @accept_duplicate_certnames     = accept_duplicate_certnames
-      @warnings                       = []
     end
 
     # Loads and checks the incoming tree, then computes utilization.
@@ -61,12 +53,6 @@ module Driftless
     end
 
     private
-
-    # Logs the warning now and records it in {#warnings} for end-of-run replay.
-    def warn(message)
-      @warnings << message
-      Driftless.logger.warn(message)
-    end
 
     def expected_reports
       %w[all-active-nodes classes-for-all-active-nodes]

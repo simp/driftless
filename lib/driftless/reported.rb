@@ -1,3 +1,5 @@
+require 'set'
+
 module Driftless
   # What ReportLoader read from the incoming tree: the rows of each report,
   # the sessions they came from, and the certnames more than one collector
@@ -36,6 +38,17 @@ module Driftless
 
     def missing?(query_name)
       report(query_name).equal?(MissingReport)
+    end
+
+    # @return [Set<String>] every class name an active node is classified
+    #   with, downcased to fqnames; empty when the classes report is missing
+    def all_active_classes
+      @all_active_classes ||=
+        if missing?('classes-for-all-active-nodes')
+          Set.new
+        else
+          report('classes-for-all-active-nodes').flat_map(&:classes).map(&:downcase).to_set
+        end
     end
   end
 end

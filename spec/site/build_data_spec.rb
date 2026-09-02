@@ -55,11 +55,11 @@ RSpec.describe Driftless::Site::BuildData do
       )
     end
 
-    it 'carries the scan fields through unchanged, repo gaining only web' do
+    it 'carries the scan fields through unchanged, repo gaining only web and deployments' do
       %w[environments overrides sessions nodes findings warnings].each do |k|
         expect(data[k]).to eq(scan_doc[k]), k
       end
-      expect(data['repo']).to eq(scan_doc['repo'].merge('web' => nil))
+      expect(data['repo']).to eq(scan_doc['repo'].merge('web' => nil, 'deployments' => {}))
     end
 
     it 'leaves utilization null' do
@@ -151,6 +151,65 @@ RSpec.describe Driftless::Site::BuildData do
     it 'keeps the rest of repo intact' do
       repo = described_class.assemble(scan: scan_doc, repo_url: 'https://h/b')['repo']
       expect(repo).to include('dir' => '/srv/repo', 'git' => nil)
+    end
+
+    context 'derived from the origin remote' do
+      def with_remote(branch, remote = 'git@h:g/p.git')
+        scan_doc('repo' => { 'dir' => '/srv/repo', 'git' => { 'sha' => 'abc123', 'branch' => branch, 'remote' => remote } })
+      end
+
+      it 'links at the branch by the remote host layout' do
+        expect(described_class.assemble(scan: with_remote('production'))['repo']['web'])
+          .to eq('https://h/g/p/-/blob/production/{path}#L{line}')
+      end
+
+      it 'links at the sha on a detached checkout' do
+        expect(described_class.assemble(scan: with_remote('HEAD'))['repo']['web'])
+          .to eq('https://h/g/p/-/blob/abc123/{path}#L{line}')
+      end
+
+      it 'follows the web_links config' do
+        web = described_class.assemble(scan: with_remote('production'), web_links: { 'default' => 'github' })['repo']['web']
+        expect(web).to eq('https://h/g/p/blob/production/{path}#L{line}')
+      end
+
+      it 'is null when the remote is not a host URL, and yields to --repo-url' do
+        expect(described_class.assemble(scan: with_remote('production', '/srv/git/p.git'))['repo']['web']).to be_nil
+        expect(described_class.assemble(scan: with_remote('production'), repo_url: 'https://other/b')['repo']['web'])
+          .to eq('https://other/b/{path}#L{line}')
+      end
+    end
+  end
+
+  describe 'repo.deployments' do
+    def with_deployments(deployments)
+      scan_doc('repo' => { 'dir' => '/srv/repo', 'git' => nil, 'deployments' => deployments })
+    end
+
+    it 'gains a web template per deployment, at its ref, from its own remote' do
+      deployments = {
+        'modules/stdlib'  => { 'remote' => 'git@github.com:puppetlabs/puppetlabs-stdlib.git', 'ref' => 'v9.0.0',
+                               'ref_type' => 'tag', 'sha' => 'abc' },
+        'data'            => { 'remote' => 'https://git.example.com/tenant/data.git', 'ref' => nil,
+                               'ref_type' => nil, 'sha' => 'def' },
+        'modules/local'   => { 'remote' => '/srv/git/local.git', 'ref' => 'main', 'ref_type' => 'branch', 'sha' => nil },
+      }
+      out = described_class.assemble(scan: with_deployments(deployments))['repo']['deployments']
+      expect(out['modules/stdlib']).to eq(deployments['modules/stdlib'].merge(
+        'web' => 'https://github.com/puppetlabs/puppetlabs-stdlib/blob/v9.0.0/{path}#L{line}',
+      ))
+      expect(out['data']['web']).to eq('https://git.example.com/tenant/data/-/blob/def/{path}#L{line}')
+      expect(out['modules/local']['web']).to be_nil
+    end
+
+    it 'is empty for a scan document without any' do
+      expect(described_class.assemble(scan: scan_doc)['repo']['deployments']).to eq({})
+    end
+
+    it 'raises on a config entry naming an unknown layout' do
+      deployments = { 'modules/a' => { 'remote' => 'git@h:o/a.git', 'ref' => 'v1', 'ref_type' => 'tag', 'sha' => nil } }
+      expect { described_class.assemble(scan: with_deployments(deployments), web_links: { 'default' => 'nope' }) }
+        .to raise_error(Driftless::Site::WebLinks::Error)
     end
   end
 

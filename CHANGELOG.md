@@ -26,7 +26,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Manual staging script (`scripts/stage-manual-report-session.rb`)
   - writes a `_summary.json` for a directory of hand-collected `.json`/`.ndjson` report files
   - `.json` reports are rewritten as NDJSON, to fit the importer's expectations
-- Site page's utilization columns are now sortable by clicking on them
+- New `scan` features:
+  - `--data-file` now records git remotes for the control repo and all repos in the `Puppetfile`
+- New `site` features:
+  - New config item: `site.web_links`
+    - Helps determine web urls to view code in git-hosting services for the control repo and each repo in the `Puppetfile`
+    - Every repo's web link is inferred from its git remote
+    - `site.web_links` chooses the URL layout per remote via pattern match.
+    - `--repo-url` still overrides (only the control repo's template)
+    - Example `site.web_links` section in `driftless.yaml`:
+      ```yaml
+      site:
+        web_links:
+          default: gitlab                 # layout for any remote not matched below
+          remotes:                        # <regex on the remote URL>: <layout or mapping>
+            github\.com: github
+            # a Forgejo/Gitea host serving its web UI under a path prefix
+            git\.example\.tld:
+              layout: forgejo
+              base_url: https://git.example.tld:4343/gitea
+            # a host with its own URL layout. vars: {base} {project} {ref} {ref_kind} {path} {line}
+            bitbucket\.example\.com:
+              template: '{base}/projects/{project}/browse/{path}?at={ref}#{line}'
+      ```
+    - built-in layouts: `gitlab`, `github`, `forgejo`
+    - keys for custom mappings: `template`, `layout`, `base_url`
+    - a git remote that matches no `remotes` pattern uses the `default` layout
+      - if `default` isn't set, `github.com` and `codeberg.org` remotes auto-pick their respecitve layouts and any other host gets `gitltab`
+  - `site`-generated pages:
+    - utilization columns are now click-sortable
 
 ### Changed
 
@@ -40,7 +68,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Path-related findings' links now point to the offending line, not the hierarchy tier
 - Broken config files no longer cause `version` or `config new` to fail
-- Site: Clicking on a finding in the hierarachy clears any other filters when jumpoing back to the findings page
+- `site`-generated pages:
+  - Finding web links now support all repos deployed by the `Puppetfile` (was just control repo)
+  - Clicking on a finding in the hierarchy clears any other filters when jumping back to the findings page
 
 ## [0.3.0] - 2026-08-31
 
@@ -55,12 +85,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
         indicated path:line in the control repo's web interface
         - Template variables for these links: `{branch}`, `{sha}`, `{path}`, `{line}`
   - The site build requires data file created by `driftless scan --data-file`
-- New `driftless scan` option: `--data-file[=PATH]` 
+- New `driftless scan` option: `--data-file[=PATH]`
   - writes data file (`public/scan.json`) that `driftless site` uses
 - Support for expanding + scanning `glob`/`globs`in `hiera.yaml` tiers
 - DB report collector script (`scripts/driftless-collect-puppetdb-reports.rb`) features:
   - Now honors `DRIFTLESS_COLLECTOR_REPORTS_DIR` environment variable
-  - Sessions now record SHA256 checksums for all collector script report files 
+  - Sessions now record SHA256 checksums for all collector script report files
     - Added `file_checksum` and `file_checksum_type` to `_summary.json` format
     - Bumped `_summary.json` format's `collector_version` to `0.2.0`
 - CLI-wide ANSI color output (options)
@@ -79,7 +109,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
       there's no known legitimate use (or documentation) for it
 - New detector features:
   - Config `allow_role_profile_keys` for detector `data:codebase_missing_class_param`
-    - Permits `lookup()` calls for Hiera-only keys under role or profile namespaces (default: `false`) 
+    - Permits `lookup()` calls for Hiera-only keys under role or profile namespaces (default: `false`)
   - Findings for `hierarchy:files-missed-by-reported-fact-values` now name the fact(s) that didn't match a missed file
 
 ### Changed

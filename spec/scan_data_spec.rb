@@ -8,6 +8,7 @@ require 'driftless/scan'
 require 'driftless/models/node'
 require 'driftless/models/hiera_tier'
 require 'driftless/reported'
+require 'driftless/inputs/puppetfile'
 require 'driftless/finding'
 
 RSpec.describe Driftless::ScanData do
@@ -185,11 +186,89 @@ RSpec.describe Driftless::ScanData do
       end
     end
 
+    it 'records the origin remote when there is one' do
+      Dir.mktmpdir do |dir|
+        system('git', '-C', dir, 'init', '-q', '-b', 'main', exception: true)
+        system('git', '-C', dir, '-c', 'user.name=t', '-c', 'user.email=t@example.com',
+               'commit', '-q', '--allow-empty', '-m', 'init', exception: true)
+        expect(assemble(corpus: build_corpus(repo_dir: dir, reported: reported_with([])))['repo']['git']['remote']).to be_nil
+        system('git', '-C', dir, 'remote', 'add', 'origin', 'git@h:g/p.git', exception: true)
+        expect(assemble(corpus: build_corpus(repo_dir: dir, reported: reported_with([])))['repo']['git']['remote']).to eq('git@h:g/p.git')
+      end
+    end
+
     it 'has no git revision when git is not installed' do
       allow(Open3).to receive(:capture3).and_raise(Errno::ENOENT)
       Dir.mktmpdir do |dir|
         corpus = build_corpus(repo_dir: dir, reported: reported_with([]))
         expect(assemble(corpus: corpus)['repo']['git']).to be_nil
+      end
+    end
+  end
+
+  describe 'repo deployments' do
+    def puppetfile(modules)
+      Driftless::Inputs::Puppetfile::Result.new(exists: true, modules: modules, error: nil)
+    end
+
+    def mod(name, path:, git:, ref: nil, ref_type: nil)
+      Driftless::Inputs::Puppetfile::Module.new(name: name, path: path, git: git, ref: ref, ref_type: ref_type)
+    end
+
+    it 'is empty without a Puppetfile' do
+      expect(assemble['repo']['deployments']).to eq({})
+      corpus = build_corpus(puppetfile: Driftless::Inputs::Puppetfile::Result.new(exists: false, modules: [], error: nil),
+                            reported: reported_with([]))
+      expect(assemble(corpus: corpus)['repo']['deployments']).to eq({})
+    end
+
+    it 'keys git modules by path with their remote and declared ref, leaving Forge modules out' do
+      Dir.mktmpdir do |dir|
+        pf = puppetfile([mod('org-a', path: 'modules/a', git: 'git@h:o/a.git', ref: 'v1', ref_type: 'tag'),
+                         mod('org-b', path: 'modules/b', git: nil)])
+        corpus = build_corpus(repo_dir: dir, puppetfile: pf, reported: reported_with([]))
+        expect(assemble(corpus: corpus)['repo']['deployments']).to eq(
+          'modules/a' => { 'remote' => 'git@h:o/a.git', 'ref' => 'v1', 'ref_type' => 'tag', 'sha' => nil },
+        )
+      end
+    end
+
+    it 'reads the sha from a deployed clone, but not from a plain directory inside the control repo' do
+      Dir.mktmpdir do |dir|
+        %w[. modules/a].each do |rel|
+          d = File.join(dir, rel)
+          FileUtils.mkdir_p(d)
+          system('git', '-C', d, 'init', '-q', '-b', 'main', exception: true)
+          system('git', '-C', d, '-c', 'user.name=t', '-c', 'user.email=t@example.com',
+                 'commit', '-q', '--allow-empty', '-m', "init #{rel}", exception: true)
+        end
+        FileUtils.mkdir_p(File.join(dir, 'modules/b'))
+        pf = puppetfile([mod('a', path: 'modules/a', git: 'git@h:o/a.git', ref: 'main', ref_type: 'branch'),
+                         mod('b', path: 'modules/b', git: 'git@h:o/b.git', ref: 'main', ref_type: 'branch')])
+        corpus = build_corpus(repo_dir: dir, puppetfile: pf, reported: reported_with([]))
+        deployments = assemble(corpus: corpus)['repo']['deployments']
+        expect(deployments['modules/a']['sha']).to match(/\A[0-9a-f]{40}\z/)
+        expect(deployments['modules/a']['sha']).not_to eq(assemble(corpus: corpus)['repo']['git']['sha'])
+        expect(deployments['modules/b']['sha']).to be_nil
+      end
+    end
+
+    it 'resolves :control_branch to the control repo branch' do
+      Dir.mktmpdir do |dir|
+        system('git', '-C', dir, 'init', '-q', '-b', 'production', exception: true)
+        system('git', '-C', dir, '-c', 'user.name=t', '-c', 'user.email=t@example.com',
+               'commit', '-q', '--allow-empty', '-m', 'init', exception: true)
+        pf = puppetfile([mod('a', path: 'modules/a', git: 'g', ref: :control_branch, ref_type: 'branch')])
+        corpus = build_corpus(repo_dir: dir, puppetfile: pf, reported: reported_with([]))
+        expect(assemble(corpus: corpus)['repo']['deployments']['modules/a']).to include('ref' => 'production', 'ref_type' => 'branch')
+      end
+    end
+
+    it 'leaves :control_branch unresolved when the control repo is not under git' do
+      Dir.mktmpdir do |dir|
+        pf = puppetfile([mod('a', path: 'modules/a', git: 'g', ref: :control_branch, ref_type: 'branch')])
+        corpus = build_corpus(repo_dir: dir, puppetfile: pf, reported: reported_with([]))
+        expect(assemble(corpus: corpus)['repo']['deployments']['modules/a']['ref']).to be_nil
       end
     end
   end

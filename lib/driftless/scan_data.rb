@@ -52,13 +52,42 @@ module Driftless
     end
 
     # The control repo is what a scan is about, so its description sits here:
-    # where it is, which revision, and the hierarchy it declares.
+    # where it is, which revision, what its Puppetfile deployed under it, and
+    # the hierarchy it declares.
     def repo(corpus)
+      git = git_revision(corpus.repo_dir)
       {
-        'dir'       => corpus.repo_dir,
-        'git'       => git_revision(corpus.repo_dir),
-        'hierarchy' => hierarchy(corpus.hiera_tiers),
+        'dir'         => corpus.repo_dir,
+        'git'         => git,
+        'deployments' => deployments(corpus, git),
+        'hierarchy'   => hierarchy(corpus.hiera_tiers),
       }
+    end
+
+    # The repos the Puppetfile deployed under the control repo, keyed by the
+    # repo-relative path each occupies. Forge modules have no remote and are
+    # left out.
+    #
+    # @param git [Hash, nil] the control repo's revision, for `:control_branch`
+    # @return [Hash{String => Hash}] `{ remote, ref, ref_type, sha }`: ref and
+    #   ref_type as the Puppetfile declares them, sha read from the clone at
+    #   that path, nil when there is none
+    def deployments(corpus, git)
+      puppetfile = corpus.puppetfile
+      return {} unless puppetfile&.exists?
+
+      puppetfile.modules.select(&:git).to_h do |m|
+        ref = (m.ref == :control_branch) ? control_branch(git) : m.ref
+        [m.path, { 'remote' => m.git, 'ref' => ref, 'ref_type' => m.ref_type,
+                   'sha' => clone_sha(File.join(corpus.repo_dir, m.path)) }]
+      end
+    end
+
+    # nil on a detached checkout, whose branch reads as HEAD.
+    def control_branch(git)
+      return nil if git.nil? || git['branch'] == 'HEAD'
+
+      git['branch']
     end
 
     # The tiers as hiera.yaml declares them, so a reader can show every tier —
@@ -127,7 +156,16 @@ module Driftless
 
       sha    = git_output(dir, 'rev-parse', 'HEAD')
       branch = git_output(dir, 'rev-parse', '--abbrev-ref', 'HEAD')
-      sha ? { 'sha' => sha, 'branch' => branch } : nil
+      remote = git_output(dir, 'remote', 'get-url', 'origin')
+      sha ? { 'sha' => sha, 'branch' => branch, 'remote' => remote } : nil
+    end
+
+    # Only a directory holding its own `.git` is asked, so a module that is
+    # not a clone does not answer with the enclosing control repo's sha.
+    def clone_sha(dir)
+      return nil unless File.exist?(File.join(dir, '.git'))
+
+      git_output(dir, 'rev-parse', 'HEAD')
     end
 
     def git_output(dir, *args)

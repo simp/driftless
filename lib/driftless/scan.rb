@@ -8,6 +8,7 @@ require 'driftless/scan_error'
 require 'driftless/detectors'
 require 'driftless/inputs/hierarchy_loader'
 require 'driftless/inputs/modulepath_loader'
+require 'driftless/inputs/puppetfile'
 require 'driftless/inputs/datadir_loader'
 require 'driftless/inputs/report_loader'
 
@@ -55,6 +56,10 @@ module Driftless
       manifest_files, mpl_findings = phase('manifest discovery') { load_manifest_files }
       meta_findings.concat(mpl_findings)
       Driftless.logger.info("Discovered #{manifest_files.size} Puppet manifest files")
+
+      puppetfile = phase('Puppetfile load') { Inputs::Puppetfile.load(repo_dir) }
+      warn("Puppetfile not evaluated: #{puppetfile.error}") if puppetfile.error
+      Driftless.logger.info("Read #{puppetfile.modules.size} module declarations from the Puppetfile") if puppetfile.exists?
 
       puppet_classes    = {}
       code_lookup_calls = []
@@ -117,6 +122,7 @@ module Driftless
         reported:          reported,
         code_lookup_calls: code_lookup_calls,
         data_lookup_calls: data_lookup_calls,
+        puppetfile:        puppetfile,
       )
 
       detectors = selected_detectors

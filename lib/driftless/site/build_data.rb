@@ -3,6 +3,7 @@ require 'time'
 require 'driftless/version'
 require 'driftless/json_document'
 require 'driftless/logger'
+require 'driftless/site/web_links'
 
 module Driftless
   # The static site `driftless site` builds from the other commands' documents.
@@ -21,11 +22,14 @@ module Driftless
       # @param report [Hash, nil] a document from {ReportData.read}, when
       #   `report --data-file` wrote one; it contributes `utilization` and
       #   `nodes`, and must agree with scan on sessions
-      # @param repo_url [String, nil] where the page links a path:line to;
-      #   see {web_template}
+      # @param repo_url [String, nil] the control repo's link template, given
+      #   by hand; see {web_template}
+      # @param web_links [Hash, nil] the `site.web_links` config, for
+      #   templates derived from remotes; see {WebLinks}
       # @param now [Time] stamp for `generated_at`; injectable for specs
       # @raise [JsonDocument::Error] when scan and report disagree
-      def assemble(scan:, report: nil, repo_url: nil, now: Time.now)
+      # @raise [WebLinks::Error] on a web_links entry naming an unknown layout
+      def assemble(scan:, report: nil, repo_url: nil, web_links: nil, now: Time.now)
         check_agreement!(scan, report) if report
         {
           'document'          => DOCUMENT,
@@ -33,7 +37,7 @@ module Driftless
           'generated_at'      => now.utc.iso8601,
           'driftless_version' => VERSION,
           'sources'           => { 'scan' => stamp(scan), 'report' => report && stamp(report) },
-          'repo'              => (scan['repo'] || {}).merge('web' => web_template(repo_url, scan.dig('repo', 'git'))),
+          'repo'              => repo_with_links(scan['repo'] || {}, repo_url, web_links),
           'environments'      => scan.fetch('environments', []),
           'overrides'         => scan.fetch('overrides', {}),
           'sessions'          => scan.fetch('sessions', []),
@@ -53,12 +57,35 @@ module Driftless
         JsonDocument.read(path, document: DOCUMENT, schema_version: SCHEMA_VERSION)
       end
 
-      # The link template for a file in the repo's web interface. Four
-      # variables: `{branch}` and `{sha}` are filled here from the scan
-      # document's revision; `{path}` and `{line}` are left for the page to
-      # fill per finding. A template without `{path}` gets `/{path}#L{line}`
-      # appended — the GitLab/GitHub layout — so the common case is just the
-      # blob base, `https://host/group/project/-/blob/{branch}`.
+      # The scan document's repo with a `web` link template on it and on each
+      # deployment: where the page links a path:line under that repo, or nil.
+      #
+      # @param repo_url [String, nil] overrides the control repo's derived
+      #   template
+      def repo_with_links(repo, repo_url, config)
+        deployments = (repo['deployments'] || {}).to_h do |path, d|
+          [path, d.merge('web' => WebLinks.template(remote: d['remote'], ref: d['ref'], ref_type: d['ref_type'],
+                                                    sha: d['sha'], config: config))]
+        end
+        repo.merge('web' => control_web(repo_url, repo['git'], config), 'deployments' => deployments)
+      end
+
+      # The control repo's template: from repo_url when given, else derived
+      # from its remote at its branch (the sha on a detached checkout).
+      def control_web(repo_url, git, config)
+        return web_template(repo_url, git) if repo_url && !repo_url.strip.empty?
+        return nil unless git
+
+        branch = (git['branch'] == 'HEAD') ? nil : git['branch']
+        WebLinks.template(remote: git['remote'], ref: branch, ref_type: 'branch', sha: git['sha'], config: config)
+      end
+
+      # The link template `--repo-url` gives for a file in the control repo's
+      # web interface. Four variables: `{branch}` and `{sha}` are filled here
+      # from the scan document's revision; `{path}` and `{line}` are left for
+      # the page to fill per finding. A template without `{path}` gets
+      # `/{path}#L{line}` appended — the GitLab/GitHub layout — so the common
+      # case is just the blob base, `https://host/group/project/-/blob/{branch}`.
       #
       # A detached checkout (CI) reports its branch as "HEAD", which no host
       # resolves, so `{branch}` falls back to the sha. With no revision to

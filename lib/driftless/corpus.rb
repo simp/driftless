@@ -39,8 +39,17 @@ module Driftless
   #     a default). Kept separate from code_lookup_calls because the code:*
   #     and data:* detector namespaces analyze different artifact domains.
   #
+  # @!attribute [r] puppetfile
+  #   @return [Inputs::Puppetfile::Result, nil] What the control repo's
+  #     Puppetfile declares: each module's deploy path, remote, and ref.
+  #     nil when not loaded (a corpus built without one).
+  #
   Corpus = Data.define(
     :repo_dir, :hiera_tiers, :puppet_classes, :data_files, :reported,
-    :code_lookup_calls, :data_lookup_calls,
-  )
+    :code_lookup_calls, :data_lookup_calls, :puppetfile,
+  ) do
+    def initialize(puppetfile: nil, **rest)
+      super
+    end
+  end
 end

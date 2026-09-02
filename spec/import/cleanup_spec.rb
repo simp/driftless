@@ -420,10 +420,12 @@ RSpec.describe Driftless::Import::Cleanup do
       Dir.mktmpdir do |tmp|
         incoming = File.join(tmp, 'incoming')
         summary  = File.join(tmp, 'summary')
-        # Real detectors declare 'all-active-nodes' and 'factsets-for-all-active-nodes'.
+        # Real detectors declare 'all-active-nodes', 'factsets-for-all-active-nodes',
+        # and 'classes-for-all-active-nodes'.
         make_session(incoming_dir: incoming, summary_dir: summary,
                      collector: 'alpha', session_id: 's1',
-                     reports: { 'all-active-nodes' => nil, 'factsets-for-all-active-nodes' => nil })
+                     reports: { 'all-active-nodes' => nil, 'factsets-for-all-active-nodes' => nil,
+                                'classes-for-all-active-nodes' => nil })
 
         result = described_class.new(incoming_dir: incoming, summary_dir: summary).run
 

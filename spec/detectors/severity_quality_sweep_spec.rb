@@ -9,6 +9,9 @@ require 'driftless/detectors'
 RSpec.describe 'detector severity/quality declarations' do
   EXPECTED = {
     'code:lookup-missing-hiera-keys'                 => { severity: :error,   quality: :wrong },
+    'code:unused-modules'                            => { severity: :warning, quality: :stale },
+    'code:unused-profiles'                           => { severity: :warning, quality: :stale },
+    'code:unused-roles'                              => { severity: :warning, quality: :stale },
     'data:codebase-missing-class'                    => { severity: :error,   quality: :wrong },
     'data:codebase-missing-class-param'              => { severity: :error,   quality: :wrong },
     'data:legacy-facts'                              => { severity: :error,   quality: :wrong },

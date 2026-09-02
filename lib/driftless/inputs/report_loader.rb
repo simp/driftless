@@ -24,6 +24,8 @@ module Driftless
 
       QUERIES = REPORTS.keys.freeze
 
+      NODE_REPORTS = REPORTS.select { |_, shape| shape == :node }.keys.freeze
+
       def self.load(incoming_dir)
         new(incoming_dir).load
       end

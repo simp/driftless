@@ -342,11 +342,11 @@ module Driftless
       require 'set'
 
       # Precedes the env-mismatch loop so an empty inventory reads as
-      # "no reports" rather than as a puppet.environments misconfiguration.
-      if Inputs::ReportLoader::QUERIES.all? { |q| reported.missing?(q) }
-        msg = "no PuppetDB reports loaded from #{incoming_dir} " \
+      # "no node reports" rather than as a puppet.environments misconfiguration.
+      if Inputs::ReportLoader::NODE_REPORTS.all? { |q| reported.missing?(q) }
+        msg = "no PuppetDB node reports loaded from #{incoming_dir} " \
               '(expected <query>/<collector>--<timestamp>.{json,ndjson} ' \
-              "files under at least one of: #{Inputs::ReportLoader::QUERIES.join(', ')})"
+              "files under at least one of: #{Inputs::ReportLoader::NODE_REPORTS.join(', ')})"
         raise ScanError, msg unless allow_missing_envs
         warn(msg)
         return reported

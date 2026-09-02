@@ -370,6 +370,11 @@ RSpec.describe Driftless::Inputs::ReportLoader do
       expect(described_class::QUERIES).to include('classes-for-all-active-nodes')
     end
 
+    it 'is not a node report' do
+      expect(described_class::NODE_REPORTS)
+        .to eq(%w[all-active-nodes factsets-for-all-active-nodes])
+    end
+
     it 'yields Nodes, as the other reports do' do
       expect(classed).to all(be_a(Driftless::Node))
     end

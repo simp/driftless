@@ -354,6 +354,15 @@ RSpec.describe Driftless::Scan do
       expect(result.missing?('all-active-nodes')).to be true
     end
 
+    it 'raises when only the classes report is present (no node reports)' do
+      scan     = filter_scan(environments: ['production'])
+      classed  = Driftless::Node.new(certname: 'web1', environment: 'production',
+                                     classes: ['profile::base'])
+      reported = Driftless::Reported.new(data: { 'classes-for-all-active-nodes' => [classed] })
+      expect { scan.send(:apply_environment_filter, reported) }
+        .to raise_error(Driftless::ScanError, /no PuppetDB node reports/)
+    end
+
     context 'when every report query is MissingReport (empty inventory)' do
       let(:empty_reported) { Driftless::Reported.new(data: {}) }
 
@@ -361,7 +370,7 @@ RSpec.describe Driftless::Scan do
         scan = filter_scan(environments: %w[production staging])
         expect { scan.send(:apply_environment_filter, empty_reported) }
           .to raise_error(Driftless::ScanError) { |e|
-            expect(e.message).to include('no PuppetDB reports loaded from /tmp/incoming')
+            expect(e.message).to include('no PuppetDB node reports loaded from /tmp/incoming')
             expect(e.message).not_to include('puppet.environments')
           }
       end

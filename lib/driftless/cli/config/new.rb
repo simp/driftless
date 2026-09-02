@@ -10,8 +10,9 @@ module Driftless
     class Config
       class New < Base
         register_command name: 'new', subcommand_of: Config
-        desc 'Write a driftless.yaml listing every known key, commented out'
+        desc 'Write a driftless.yaml listing every known key (commented out, or set by key=value arguments)'
         skip_config_load # so a broken driftless.yaml can be replaced
+        positional '[<subsystem.key>=<value> ...]'
 
         # Section order of the generated file; a subsystem not listed here
         # follows alphabetically. detectors renders last, after all of these.
@@ -24,8 +25,9 @@ module Driftless
                          allow_missing_envs allow_builtin_top_scope_variables],
         }.freeze
 
-        def execute(_argv)
-          path = @options[:path] || ::Driftless::Config.project_path
+        def execute(argv)
+          @given = assignments(argv)
+          path   = @options[:path] || ::Driftless::Config.project_path
 
           if path.match?(/\A-+\Z/)
             puts render
@@ -48,9 +50,64 @@ module Driftless
                'Write to PATH instead of ./driftless.yaml',
                "('--' prints to STDOUT)") { |v| @options[:path] = v }
           o.on('--force', 'Overwrite an existing file') { @options[:force] = true }
+          o.separator ''
+          o.separator 'Arguments:'
+          o.separator '    <subsystem.key>=<value>          Render that key set to <value> instead of'
+          o.separator '                                     commented out. Array keys split the value'
+          o.separator '                                     on commas: puppet.environments=production,dr'
         end
 
         private
+
+        # The <subsystem.key>=<value> arguments as a nested hash shaped like
+        # the config file, coerced by each key's declared type and validated.
+        def assignments(argv)
+          given = {}
+          argv.each do |arg|
+            path, eq, raw      = arg.partition('=')
+            subsystem, _, name = path.partition('.')
+            if eq.empty? || subsystem.empty? || name.empty?
+              fatal!("config new: expected <subsystem.key>=<value>, got #{arg.inspect}", help: true)
+            end
+            (given[subsystem] ||= {})[name] = coerce(path, raw)
+          end
+          check_assignments!(given)
+          given
+        end
+
+        # The validator supplies the vocabulary — unknown keys with
+        # suggestions, withheld keys, moved keys — so nothing is rendered
+        # from a rejected assignment.
+        def check_assignments!(given)
+          return if given.empty?
+          cfg = ::Driftless::Config.new(merged: given)
+          ::Driftless::ConfigValidator.new(cfg).validate!
+        rescue ::Driftless::ConfigValidationError => e
+          fatal!("config new: #{e.message}", help: true)
+        end
+
+        # By the key's declared type; an unknown or withheld path keeps the
+        # raw string for check_assignments! to reject by name.
+        def coerce(path, raw)
+          case ::Driftless::ConfigKeys[path]&.type
+          when :array   then raw.split(',')
+          when :boolean then coerce_boolean(path, raw)
+          when :integer then coerce_integer(path, raw)
+          else               raw
+          end
+        end
+
+        def coerce_boolean(path, raw)
+          return true  if raw == 'true'
+          return false if raw == 'false'
+          fatal!("config new: #{path} expects true or false, got #{raw.inspect}", help: true)
+        end
+
+        def coerce_integer(path, raw)
+          Integer(raw)
+        rescue ArgumentError
+          fatal!("config new: #{path} expects an integer, got #{raw.inspect}", help: true)
+        end
 
         # Return commented-out line(s) at `depth` levels of YAML nesting
         def comment(depth, text, cols = 80)
@@ -62,11 +119,28 @@ module Driftless
           lines.map { |t| "#{comment_prefix}#{text_prefix}#{t}".strip }.join("\n")
         end
 
-        # Renders key/value as YAML, then comments every line at `depth`. Multi-line
-        # values (sequences, mappings) keep their relative indentation.
+        # The key/value as YAML body lines, stripped of the document header.
+        # Multi-line values (sequences, mappings) keep their relative
+        # indentation.
+        def yaml_body(key, value)
+          { key.to_s => value }.to_yaml.sub(/\A---\n/, '').chomp.lines.map(&:chomp)
+        end
+
+        # Renders key/value as YAML, then comments every line at `depth`.
         def yaml_lines(key, value, depth)
-          body = { key.to_s => value }.to_yaml.sub(/\A---\n/, '').chomp
-          body.lines.map { |l| comment(depth, l.chomp) }
+          yaml_body(key, value).map { |l| comment(depth, l) }
+        end
+
+        # Renders key/value as YAML indented `depth` levels, left uncommented.
+        def live_lines(key, value, depth)
+          yaml_body(key, value).map { |l| "#{'  ' * depth}#{l}" }
+        end
+
+        # The about text as an active YAML comment at `depth`, for above a
+        # live key — one commenting layer fewer than comment() emits.
+        def live_comment(depth, text, cols = 80)
+          prefix = "#{'  ' * depth}# "
+          wrap_text(text, cols - prefix.size).split("\n").map { |t| "#{prefix}#{t}" }.join("\n")
         end
 
         # Wrap at text at nearest whitespace to <col> characters
@@ -79,11 +153,16 @@ module Driftless
 
         def render
           require 'time'
+          @given ||= {}
           lines = ['## driftless configuration file',
                    '## ' + '-' * 77,
                    "## Generated at #{Time.now} by `driftless config new`",
                    '##',
-                   '## Every key starts commented out, showing its default/an illustrative value.',
+                   if @given.empty?
+                     '## Every key starts commented out, showing its default/an illustrative value.'
+                   else
+                     '## Keys start commented out unless given as <subsystem.key>=<value> arguments.'
+                   end,
                    '##',
                    '## Config file search order:',
                    *::Driftless::Config.search_chain.map { |p| "##   #{p}" },
@@ -114,10 +193,16 @@ module Driftless
         end
 
         def subsystem_section(name)
-          lines = ['', comment(0, "#{name}:")]
+          set   = @given.fetch(name, {})
+          lines = ['', set.empty? ? comment(0, "#{name}:") : "#{name}:"]
           section_keys(name).each do |key|
-            lines << comment(1, "# #{key.about}") if key.about
-            lines.concat(yaml_lines(key.name, sample_value(key), 1))
+            if set.key?(key.name)
+              lines << live_comment(1, key.about) if key.about
+              lines.concat(live_lines(key.name, set[key.name], 1))
+            else
+              lines << comment(1, "# #{key.about}") if key.about
+              lines.concat(yaml_lines(key.name, sample_value(key), 1))
+            end
           end
           lines << '#'
         end
@@ -161,6 +246,7 @@ module Driftless
 
         def detectors_section
           sample = ::Driftless::Detectors.registry.map(&:key).sort.first
+          set    = @given.fetch('detectors', {})
           lines  = ['',
                     '#',
                     '## ' + '-' * 77,
@@ -170,10 +256,15 @@ module Driftless
                     '## = `defaults` applies to every detector',
                     '## - A per-detector key overrides its defaults',
                     '## ' + '-' * 77,
-                    comment(0, 'detectors:')]
+                    set.empty? ? comment(0, 'detectors:') : 'detectors:']
           ::Driftless::ConfigKeys.settable('detectors').each do |key|
-            lines << comment(1, "# #{key.about}") if key.about
-            lines.concat(yaml_lines(key.name, [sample], 1))
+            if set.key?(key.name)
+              lines << live_comment(1, key.about) if key.about
+              lines.concat(live_lines(key.name, set[key.name], 1))
+            else
+              lines << comment(1, "# #{key.about}") if key.about
+              lines.concat(yaml_lines(key.name, [sample], 1))
+            end
           end
           lines << comment(1, 'defaults:')
           base_options.each { |opt| lines.concat(option_lines(opt, 2)) }

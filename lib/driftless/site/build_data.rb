@@ -18,8 +18,9 @@ module Driftless
       module_function
 
       # @param scan [Hash] a document from {ScanData.read}
-      # @param report [Hash, nil] the report document, once `report` exists;
-      #   it contributes `utilization` and must agree with scan on sessions
+      # @param report [Hash, nil] a document from {ReportData.read}, when
+      #   `report --data-file` wrote one; it contributes `utilization` and
+      #   `nodes`, and must agree with scan on sessions
       # @param repo_url [String, nil] where the page links a path:line to;
       #   see {web_template}
       # @param now [Time] stamp for `generated_at`; injectable for specs
@@ -36,7 +37,7 @@ module Driftless
           'environments'      => scan.fetch('environments', []),
           'overrides'         => scan.fetch('overrides', {}),
           'sessions'          => scan.fetch('sessions', []),
-          'nodes'             => scan['nodes'],
+          'nodes'             => (report && report['nodes']) || scan['nodes'],
           'findings'          => scan.fetch('findings', []),
           'utilization'       => report && report['utilization'],
           'warnings'          => scan.fetch('warnings', []),

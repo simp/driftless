@@ -30,6 +30,13 @@ RSpec.describe Driftless::CLI::Site do
     Driftless::Finding.new(key: 'data:missing-nodes', path: 'x.yaml', message: 'gone', severity: :error)
   end
 
+  def report_data(sessions: [], nodes: nil)
+    { 'document' => 'report', 'schema_version' => 1,
+      'generated_at' => '2026-08-26T12:05:00Z', 'driftless_version' => Driftless::VERSION,
+      'overrides' => {}, 'sessions' => sessions, 'nodes' => nodes,
+      'utilization' => { 'modules' => [{ 'name' => 'nginx', 'nodes' => 2 }] } }
+  end
+
   # [exit status, stdout]
   def run(site, argv = [])
     status   = nil
@@ -44,6 +51,32 @@ RSpec.describe Driftless::CLI::Site do
       $stdout = original
     end
     [status, out.string]
+  end
+
+  it 'joins a report.json beside the scan document into the build' do
+    Dir.mktmpdir do |dir|
+      scan_path = Driftless::ScanData.write(scan_data, File.join(dir, 'public', 'scan.json'))
+      report = report_data(nodes: { 'total' => 5, 'by_collector' => {}, 'by_environment' => {} })
+      Driftless::JsonDocument.write(report, File.join(dir, 'public', 'report.json'))
+      status, = run(site_with, [scan_path])
+      expect(status).to eq(0)
+      data = JSON.parse(File.read(File.join(dir, 'public', 'data.json')))
+      expect(data['utilization']).to eq('modules' => [{ 'name' => 'nginx', 'nodes' => 2 }])
+      expect(data['nodes']['total']).to eq(5)
+      expect(data['sources']['report']['generated_at']).to eq('2026-08-26T12:05:00Z')
+    end
+  end
+
+  it 'exits 3 when the report document disagrees with the scan document on sessions' do
+    Dir.mktmpdir do |dir|
+      scan_path = Driftless::ScanData.write(scan_data, File.join(dir, 'public', 'scan.json'))
+      stray = [{ 'collector' => 'east', 'session_id' => 'T09', 'reports' => [] }]
+      Driftless::JsonDocument.write(report_data(sessions: stray), File.join(dir, 'public', 'report.json'))
+      status = nil
+      log = capture_log { status, = run(site_with, [scan_path]) }
+      expect(status).to eq(3)
+      expect(log).to include('disagree on sessions')
+    end
   end
 
   it 'builds index.html and data.json beside the scan document and prints both paths' do

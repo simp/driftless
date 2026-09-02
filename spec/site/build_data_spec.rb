@@ -74,6 +74,18 @@ RSpec.describe Driftless::Site::BuildData do
       expect(data['sources']['report']['generated_at']).to eq('2026-08-26T11:05:00Z')
     end
 
+    it "prefers the report document's nodes tally" do
+      report = report_doc('nodes' => { 'total' => 3, 'by_collector' => { 'east' => 3 },
+                                       'by_environment' => {} })
+      data = described_class.assemble(scan: scan_doc, report: report, now: now)
+      expect(data['nodes']['total']).to eq(3)
+    end
+
+    it 'keeps the scan nodes when the report document carries none' do
+      data = described_class.assemble(scan: scan_doc, report: report_doc, now: now)
+      expect(data['nodes']).to eq(scan_doc['nodes'])
+    end
+
     it 'refuses when the two read different sessions, naming the difference' do
       report = report_doc('sessions' => [session('east', 'T03'), session('west', 'T01')])
       expect { described_class.assemble(scan: scan_doc, report: report) }

@@ -43,8 +43,8 @@ module Driftless
         'environments'      => Array(environments),
         'overrides'         => overrides,
         'sessions'          => sessions(corpus.reported),
-        # Fleet description; carried here until `report` exists, then moves
-        # to the report document.
+        # Fleet description; the report document carries the same tally,
+        # and `site` prefers its copy.
         'nodes'             => nodes(corpus.reported),
         'findings'          => finding_rows(findings),
         'warnings'          => warnings.dup,

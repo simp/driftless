@@ -18,8 +18,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `import.local.source`
 - `driftless config new` uncomments and populates options given in CLI format `subsystem.item=value`
   - Example: `driftless config new puppet.environments=a,b,c`
-- New option for `import git|local|cleanup`: arg `--[no]-archive` or config  `import.archive_old_reports` (default `true`)
-  - When `false`, superseded sessions are deleted instead of moved to `incoming/.archive/`
+- New option `--no-archive` for `import git|local|cleanup`
+  - config file: `import.archive_old_reports` (default `true`)
+  - When `--no-archive`/`false`, deletes superseded sessions instead of moving to `incoming/.archive/`
+- New option: `--purge-archive` for `import cleanup`
+  - Deletes the existing `incoming/.archive/` tree before cleanup (honors `--dry-run`)
 - Manual staging script (`scripts/stage-manual-report-session.rb`)
   - writes a `_summary.json` for a directory of hand-collected `.json`/`.ndjson` report files
   - `.json` reports are rewritten as NDJSON, to fit the importer's expectations

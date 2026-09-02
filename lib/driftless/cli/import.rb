@@ -32,9 +32,11 @@ module Driftless
       # Runs Import::Cleanup and narrates the result with the given
       # caller_prefix (e.g. 'import cleanup', 'import local: cleanup').
       # `archive:` false deletes superseded sessions instead of archiving.
+      # `purge_archive:` removes the existing .archive tree first.
       # Raises Import::Error on failure — callers wrap with their own
       # rescue-and-exit to attribute the error to the right phase.
-      def self.run_cleanup(caller_prefix, incoming_dir:, summary_dir:, dry_run:, override:, archive: true)
+      def self.run_cleanup(caller_prefix, incoming_dir:, summary_dir:, dry_run:, override:,
+                           archive: true, purge_archive: false)
         require 'driftless/import/cleanup'
         expected_reports, accept_missing_summary = translate_accept_partial(override)
         result = ::Driftless::Import::Cleanup.new(
@@ -44,14 +46,16 @@ module Driftless
           expected_reports:       expected_reports,
           accept_missing_summary: accept_missing_summary,
           archive:                archive,
+          purge_archive:          purge_archive,
         ).run
 
         verb = dry_run ? 'would ' : ''
         superseded = result.archive ? 'archived' : 'deleted'
+        purged = result.purged ? ", #{verb}purged #{result.purged} archived file(s)" : ''
         Driftless.logger.info(
           "#{caller_prefix}: #{verb}kept #{result.live.size} live, " \
           "#{verb}#{superseded} #{result.archived.size}, " \
-          "#{verb}quarantined #{result.quarantined.size}",
+          "#{verb}quarantined #{result.quarantined.size}#{purged}",
         )
         result.quarantined.each do |q|
           Driftless.logger.warn(

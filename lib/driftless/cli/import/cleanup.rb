@@ -34,6 +34,7 @@ module Driftless
             dry_run:      @options[:dry_run] || false,
             override:     @options[:accept_partial_report_sessions],
             archive:      @options.fetch(:archive, true),
+            purge_archive: @options[:purge_archive] || false,
           )
           exit 0
         rescue ::Driftless::Import::Error => e
@@ -54,6 +55,8 @@ module Driftless
           o.on('--[no-]archive',
                'Move superseded sessions to .archive/ (default) or delete them',
                'Default: import.archive_old_reports from driftless.yaml') { |v| @options[:archive] = v }
+          o.on('--purge-archive',
+               'Delete the existing .archive/ tree before gardening') { @options[:purge_archive] = true }
           Import.declare_accept_partial(o, @options)
         end
 

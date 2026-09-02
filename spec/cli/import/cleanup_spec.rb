@@ -25,8 +25,8 @@ RSpec.describe Driftless::CLI::Import::Cleanup do
       end
 
       def run
-        Struct.new(:live, :archived, :quarantined, :dry_run, :archive, keyword_init: true)
-          .new(live: [], archived: [], quarantined: [], dry_run: false, archive: true)
+        Struct.new(:live, :archived, :quarantined, :dry_run, :archive, :purged, keyword_init: true)
+          .new(live: [], archived: [], quarantined: [], dry_run: false, archive: true, purged: nil)
       end
     end
     $construction_capture = construction
@@ -88,6 +88,18 @@ RSpec.describe Driftless::CLI::Import::Cleanup do
         run_with(['-c', config_file(dir, false), '--archive'])
         expect(construction[:archive]).to be true
       end
+    end
+  end
+
+  describe 'purge_archive:' do
+    it 'defaults to false' do
+      run_with(['--no-config'])
+      expect(construction[:purge_archive]).to be false
+    end
+
+    it '--purge-archive passes true' do
+      run_with(['--no-config', '--purge-archive'])
+      expect(construction[:purge_archive]).to be true
     end
   end
 end

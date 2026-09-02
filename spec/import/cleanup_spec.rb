@@ -391,6 +391,103 @@ RSpec.describe Driftless::Import::Cleanup do
     end
   end
 
+  describe '#run — purge_archive: true' do
+    def seed_archive(incoming)
+      dir = File.join(incoming, '.archive', 'alpha--s0')
+      FileUtils.mkdir_p(dir)
+      File.write(File.join(dir, 'all-active-nodes.ndjson'), "{}\n")
+      File.write(File.join(dir, '_summary.json'), '{}')
+    end
+
+    it 'removes the whole .archive tree and reports the file count' do
+      Dir.mktmpdir do |tmp|
+        incoming = File.join(tmp, 'incoming')
+        summary  = File.join(tmp, 'summary')
+        seed_archive(incoming)
+        make_session(incoming_dir: incoming, summary_dir: summary,
+                     collector: 'alpha', session_id: 's1', reports: { 'all-active-nodes' => nil })
+
+        result = described_class.new(
+          incoming_dir: incoming, summary_dir: summary,
+          expected_reports: %w[all-active-nodes], purge_archive: true,
+        ).run
+
+        expect(result.purged).to eq(2)
+        expect(File.directory?(File.join(incoming, '.archive'))).to be false
+        expect(result.live.map(&:session_id)).to eq(['s1'])
+        expect(File).to exist(File.join(incoming, 'all-active-nodes', 'alpha--s1.ndjson'))
+      end
+    end
+
+    it 'purges before the pass, so this run\'s superseded session is still archived' do
+      Dir.mktmpdir do |tmp|
+        incoming = File.join(tmp, 'incoming')
+        summary  = File.join(tmp, 'summary')
+        seed_archive(incoming)
+        make_session(incoming_dir: incoming, summary_dir: summary,
+                     collector: 'alpha', session_id: 's1', reports: { 'all-active-nodes' => nil })
+        make_session(incoming_dir: incoming, summary_dir: summary,
+                     collector: 'alpha', session_id: 's2', reports: { 'all-active-nodes' => nil })
+
+        result = described_class.new(
+          incoming_dir: incoming, summary_dir: summary,
+          expected_reports: %w[all-active-nodes], purge_archive: true,
+        ).run
+
+        expect(result.purged).to eq(2)
+        expect(result.archived.map(&:session_id)).to eq(['s1'])
+        expect(Dir.children(File.join(incoming, '.archive'))).to eq(['alpha--s1'])
+      end
+    end
+
+    it 'reports 0 when there is no .archive' do
+      Dir.mktmpdir do |tmp|
+        incoming = File.join(tmp, 'incoming')
+        summary  = File.join(tmp, 'summary')
+        FileUtils.mkdir_p(incoming)
+
+        result = described_class.new(
+          incoming_dir: incoming, summary_dir: summary,
+          expected_reports: [], purge_archive: true,
+        ).run
+
+        expect(result.purged).to eq(0)
+      end
+    end
+
+    it 'is nil when not requested' do
+      Dir.mktmpdir do |tmp|
+        incoming = File.join(tmp, 'incoming')
+        summary  = File.join(tmp, 'summary')
+        seed_archive(incoming)
+
+        result = described_class.new(
+          incoming_dir: incoming, summary_dir: summary, expected_reports: [],
+        ).run
+
+        expect(result.purged).to be_nil
+        expect(File.directory?(File.join(incoming, '.archive'))).to be true
+      end
+    end
+
+    it 'dry_run reports the count without removing anything' do
+      Dir.mktmpdir do |tmp|
+        incoming = File.join(tmp, 'incoming')
+        summary  = File.join(tmp, 'summary')
+        seed_archive(incoming)
+        before = paths(tmp)
+
+        result = described_class.new(
+          incoming_dir: incoming, summary_dir: summary,
+          expected_reports: [], purge_archive: true, dry_run: true,
+        ).run
+
+        expect(result.purged).to eq(2)
+        expect(paths(tmp)).to eq(before)
+      end
+    end
+  end
+
   describe '#run — bare override (accept_missing_summary + expected=[])' do
     it 'accepts a session with no _summary.json (identity from filename)' do
       Dir.mktmpdir do |tmp|

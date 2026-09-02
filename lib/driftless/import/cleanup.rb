@@ -22,6 +22,7 @@ module Driftless
     # detectors' `requires_reports`); `[]` accepts any set.
     # `accept_missing_summary:` treats sessions with no summary as complete
     # for the presence/status checks.
+    # `purge_archive:` removes the existing .archive tree before the pass.
     class Cleanup
       extend ConfigKeys::DSL
 
@@ -30,23 +31,28 @@ module Driftless
 
       SessionResult = Struct.new(:collector, :session_id, :reports_moved,
                                  :summary_moved, :reason, keyword_init: true)
-      Result = Struct.new(:live, :archived, :quarantined, :dry_run, :archive,
+      # `purged` is the count of files removed from .archive, or nil when no
+      # purge was requested.
+      Result = Struct.new(:live, :archived, :quarantined, :dry_run, :archive, :purged,
                           keyword_init: true)
 
       def initialize(incoming_dir:, summary_dir:, dry_run: false,
-                     expected_reports: nil, accept_missing_summary: false, archive: true)
+                     expected_reports: nil, accept_missing_summary: false, archive: true,
+                     purge_archive: false)
         @incoming_dir           = incoming_dir
         @summary_dir            = summary_dir
         @dry_run                = dry_run
         @expected_reports       = expected_reports
         @accept_missing_summary = accept_missing_summary
         @archive                = archive
+        @purge_archive          = purge_archive
       end
 
       def run
         raise Error, 'incoming_dir required' if @incoming_dir.nil? || @incoming_dir.empty?
         raise Error, 'summary_dir required'  if @summary_dir.nil?  || @summary_dir.empty?
 
+        purged       = @purge_archive ? purge_archive : nil
         expected     = (@expected_reports || derive_expected_reports).map(&:to_s).uniq.sort
         summaries    = discover_summaries
         reports_disk = discover_reports_on_disk
@@ -86,7 +92,7 @@ module Driftless
         end
 
         Result.new(live: live, archived: archived, quarantined: quarantined,
-                   dry_run: @dry_run, archive: @archive)
+                   dry_run: @dry_run, archive: @archive, purged: purged)
       end
 
       private
@@ -249,6 +255,23 @@ module Driftless
           "import cleanup: deleted #{label} (#{reports.size} report, #{summary ? 1 : 0} summary)",
         )
         [reports.size, summary ? 1 : 0]
+      end
+
+      # Removes <incoming-dir>/.archive in full. Returns the number of regular
+      # files it held (0 when absent).
+      def purge_archive
+        dir   = File.join(@incoming_dir, '.archive')
+        files = Dir.glob(File.join(dir, '**', '*')).count { |f| File.file?(f) }
+        return 0 unless File.directory?(dir)
+
+        if @dry_run
+          Driftless.logger.info("import cleanup: would purge #{dir} (#{files} file(s))")
+          return files
+        end
+
+        FileUtils.rm_rf(dir)
+        Driftless.logger.info("import cleanup: purged #{dir} (#{files} file(s))")
+        files
       end
     end
   end

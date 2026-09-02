@@ -1,4 +1,5 @@
 require 'spec_helper'
+require 'tmpdir'
 
 require 'driftless/cli/import/git'
 require 'driftless/cli/import'
@@ -32,6 +33,31 @@ RSpec.describe Driftless::CLI::Import::Git do
     described_class.new.run(argv)
   rescue SystemExit => e
     e.status
+  end
+
+  it 'falls back to import.git.repo when no <repo-url> is given' do
+    captured = {}
+    result   = fake_result
+    fake = Class.new do
+      define_method(:initialize) { |**kw| captured.merge!(kw) }
+      define_method(:run) { result }
+    end
+    stub_const('Driftless::Import::Git', fake)
+    allow(Driftless::CLI::Import).to receive(:run_cleanup)
+    Dir.mktmpdir do |dir|
+      cfg = File.join(dir, 'driftless.yaml')
+      File.write(cfg, "import:\n  git:\n    repo: https://cfg.example/reports.git\n")
+      expect(run_with(['-c', cfg, '-i', '/tmp/incoming'])).to eq(0)
+    end
+    expect(captured[:repo_url]).to eq('https://cfg.example/reports.git')
+  end
+
+  it 'fails naming import.git.repo when neither argument nor config supplies it' do
+    log = capture_log do
+      expect { expect(run_with(['--no-config', '-i', '/tmp/incoming'])).to eq(2) }
+        .to output(/Usage:/).to_stderr
+    end
+    expect(log).to include('pass <repo-url> or set import.git.repo')
   end
 
   it 'invokes Import.run_cleanup after a successful import' do

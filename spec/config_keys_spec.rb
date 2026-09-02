@@ -12,6 +12,8 @@ RSpec.describe Driftless::ConfigKeys do
       'puppet.top_scope_variables' => Driftless::TopScopeVariables,
       'puppet.allow_builtin_top_scope_variables' => Driftless::TopScopeVariables,
       'reports.incoming_dir'       => Driftless::Inputs::ReportLoader,
+      'import.git.repo'            => Driftless::Import::Git,
+      'import.local.source'        => Driftless::Import::Local,
       'output.format'              => Driftless::Outputs,
       'output.default_file'        => Driftless::Outputs,
       'output.tabularize'          => Driftless::Outputs,
@@ -48,6 +50,10 @@ RSpec.describe Driftless::ConfigKeys do
   end
 
   describe '.build' do
+    it 'keeps everything after the first dot as the name' do
+      expect(described_class['import.git.repo'].name).to eq('git.repo')
+    end
+
     it 'rejects a path with no subsystem' do
       klass = Class.new { extend Driftless::ConfigKeys::DSL }
       expect { klass.config_key('bare', type: :string) }

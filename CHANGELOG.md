@@ -10,6 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Config file `import` subsystem:
+  - `import.git.repo`
+  - `import.local.source`
 - `driftless config new` uncomments and populates options given in format `subsystem.item=value`
   - Example: `driftless config new puppet.environments=a,b,c`
 

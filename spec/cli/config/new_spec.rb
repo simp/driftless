@@ -141,6 +141,12 @@ RSpec.describe Driftless::CLI::Config::New do
       expect(content).not_to match(/^\#   \# Puppet environment/)
     end
 
+    it 'renders a dotted key live as nested mappings' do
+      _path, content, = generate(['import.git.repo=https://git.example/reports.git'])
+      expect(YAML.safe_load(content))
+        .to eq('import' => { 'git' => { 'repo' => 'https://git.example/reports.git' } })
+    end
+
     it 'still passes the validator once fully uncommented' do
       _path, content, = generate(['puppet.environments=production'])
       cfg = Driftless::Config.new(merged: YAML.safe_load(uncommented(content)))

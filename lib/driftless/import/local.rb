@@ -2,6 +2,7 @@ require 'fileutils'
 require 'json'
 
 require 'driftless/logger'
+require 'driftless/config_keys'
 
 module Driftless
   module Import
@@ -11,6 +12,12 @@ module Driftless
     # ingest layout (<incoming-dir>/<query>/<collector>--<session-id>.ndjson)
     # so `driftless scan -i <incoming-dir>` consumes it directly.
     class Local
+      extend ConfigKeys::DSL
+
+      config_key 'import.local.source', type: :string,
+                 example: '/var/tmp/driftless-collections',
+                 about: 'Session dir or reports root to import from when `import local` gets no <source> argument'
+
       Result = Struct.new(:copied, :skipped_missing, :summary_copied,
                           :collector, :session_id, keyword_init: true)
 

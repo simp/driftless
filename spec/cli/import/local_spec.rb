@@ -1,4 +1,5 @@
 require 'spec_helper'
+require 'tmpdir'
 
 require 'driftless/cli/import/local'
 require 'driftless/cli/import'
@@ -34,6 +35,34 @@ RSpec.describe Driftless::CLI::Import::Local do
     described_class.new.run(argv)
   rescue SystemExit => e
     e.status
+  end
+
+  it 'falls back to import.local.source when no <source> is given' do
+    captured = nil
+    result   = fake_result
+    fake = Class.new do
+      define_method(:initialize) { |**| }
+      define_method(:run) do |src, **|
+        captured = src
+        result
+      end
+    end
+    stub_const('Driftless::Import::Local', fake)
+    allow(Driftless::CLI::Import).to receive(:run_cleanup)
+    Dir.mktmpdir do |dir|
+      cfg = File.join(dir, 'driftless.yaml')
+      File.write(cfg, "import:\n  local:\n    source: /srv/collections\n")
+      expect(run_with(['-c', cfg, '-i', '/tmp/incoming'])).to eq(0)
+    end
+    expect(captured).to eq('/srv/collections')
+  end
+
+  it 'fails naming import.local.source when neither argument nor config supplies it' do
+    log = capture_log do
+      expect { expect(run_with(['--no-config', '-i', '/tmp/incoming'])).to eq(2) }
+        .to output(/Usage:/).to_stderr
+    end
+    expect(log).to include('or set import.local.source')
   end
 
   it 'invokes Import.run_cleanup after a successful import' do

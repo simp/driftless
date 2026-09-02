@@ -29,6 +29,32 @@ RSpec.describe Driftless::ConfigValidator do
     end
   end
 
+  describe 'nested subsystem keys' do
+    it 'accepts a declared dotted key spelled as nested mappings' do
+      cfg = Driftless::Config.new(merged: { 'import' => { 'git' => { 'repo' => 'https://x/r.git' } } })
+      expect { described_class.new(cfg).validate! }.not_to raise_error
+    end
+
+    it 'rejects an unknown nested key with its dotted path' do
+      cfg = Driftless::Config.new(merged: { 'import' => { 'git' => { 'repos' => 'x' } } })
+      expect { described_class.new(cfg).validate! }
+        .to raise_error(Driftless::ConfigValidationError,
+                        /unknown import config key: "git\.repos" \(did you mean "repo"\?\)/)
+    end
+
+    it 'rejects a value where nested keys are declared' do
+      cfg = Driftless::Config.new(merged: { 'import' => { 'git' => 'https://x/r.git' } })
+      expect { described_class.new(cfg).validate! }
+        .to raise_error(Driftless::ConfigValidationError, /import\.git holds nested keys \(repo\), not a value/)
+    end
+
+    it 'rejects a literal dotted key' do
+      cfg = Driftless::Config.new(merged: { 'import' => { 'git.repo' => 'x' } })
+      expect { described_class.new(cfg).validate! }
+        .to raise_error(Driftless::ConfigValidationError, /must be spelled as nested mappings/)
+    end
+  end
+
   describe 'keys that moved or were renamed' do
     it 'rejects scan.incoming_dir with its new location' do
       cfg = Driftless::Config.new(merged: { 'scan' => { 'incoming_dir' => 'incoming' } })

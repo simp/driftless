@@ -8,12 +8,13 @@ module Driftless
       class Local < Base
         register_command name: 'local', subcommand_of: Import
         desc 'Import a collector session from a local directory'
-        positional '<source>'
+        positional '[<source>]'
 
         def execute(argv)
-          source = argv.shift
+          source = argv.shift || @options[:source]
           unless source
-            fatal!('import local: source path required (session dir or reports root)', help: true)
+            fatal!('import local: source path required (pass a session dir or reports root, ' \
+                   'or set import.local.source)', help: true)
           end
 
           @options[:incoming_dir] = File.expand_path(@options[:incoming_dir]) if @options[:incoming_dir]
@@ -81,7 +82,8 @@ module Driftless
 
         def config_defaults
           cfg = ::Driftless.config
-          { incoming_dir: cfg.dig('reports', 'incoming_dir') }.compact
+          { incoming_dir: cfg.dig('reports', 'incoming_dir'),
+            source:       cfg.dig('import', 'local', 'source') }.compact
         end
       end
     end

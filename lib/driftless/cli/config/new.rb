@@ -59,8 +59,14 @@ module Driftless
 
         private
 
-        # The <subsystem.key>=<value> arguments as a nested hash shaped like
-        # the config file, coerced by each key's declared type and validated.
+        # Parses the `<subsystem.key>=<value>` arguments
+        #
+        # Each value is coerced by its key's declared type.
+        #
+        # @param argv [Array<String>] positionals left after option parsing
+        # @return [Hash{String => Hash}] {subsystem => {name => value}},
+        #   names kept dotted
+        # @raise [SystemExit] on a malformed or undeclared argument, via fatal!
         def assignments(argv)
           given = {}
           argv.each do |arg|
@@ -75,12 +81,21 @@ module Driftless
           given
         end
 
-        # The validator supplies the vocabulary — unknown keys with
-        # suggestions, withheld keys, moved keys — so nothing is rendered
-        # from a rejected assignment.
+        # Runs the parsed assignments through ConfigValidator
+        #
+        # @param given [Hash{String => Hash}] from {#assignments}
+        # @return [void]
+        # @raise [SystemExit] on a key that cannot be set
         def check_assignments!(given)
           return if given.empty?
-          cfg = ::Driftless::Config.new(merged: given)
+
+          # Convert dotted names ('git.repo') to nested hashes
+          # ({'git' => {'repo' => ...}}) before validating
+          merged = given.transform_values do |keys|
+            keys.map { |name, value| nested(name, value) }
+              .reduce({}) { |acc, h| ::Driftless::Config.deep_merge(acc, h) }
+          end
+          cfg = ::Driftless::Config.new(merged: merged)
           ::Driftless::ConfigValidator.new(cfg).validate!
         rescue ::Driftless::ConfigValidationError => e
           fatal!("config new: #{e.message}", help: true)
@@ -119,11 +134,17 @@ module Driftless
           lines.map { |t| "#{comment_prefix}#{text_prefix}#{t}".strip }.join("\n")
         end
 
-        # The key/value as YAML body lines, stripped of the document header.
-        # Multi-line values (sequences, mappings) keep their relative
-        # indentation.
+        # {'git' => {'repo' => value}} for a dotted key name; a plain name is
+        # a one-level hash.
+        def nested(name, value)
+          name.to_s.split('.').reverse.reduce(value) { |acc, seg| { seg => acc } }
+        end
+
+        # The key/value as YAML body lines, stripped of the document header;
+        # a dotted key renders as nested mappings. Multi-line values keep
+        # their relative indentation.
         def yaml_body(key, value)
-          { key.to_s => value }.to_yaml.sub(/\A---\n/, '').chomp.lines.map(&:chomp)
+          nested(key, value).to_yaml.sub(/\A---\n/, '').chomp.lines.map(&:chomp)
         end
 
         # Renders key/value as YAML, then comments every line at `depth`.

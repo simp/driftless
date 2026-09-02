@@ -8,12 +8,12 @@ module Driftless
       class Git < Base
         register_command name: 'git', subcommand_of: Import
         desc 'Import collector sessions from a git remote (populated by driftless-store-reports-in-git)'
-        positional '<repo-url>'
+        positional '[<repo-url>]'
 
         def execute(argv)
-          repo_url = argv.shift
+          repo_url = argv.shift || @options[:repo]
           unless repo_url
-            fatal!('import git: repo URL required', help: true)
+            fatal!('import git: repo URL required (pass <repo-url> or set import.git.repo)', help: true)
           end
 
           @options[:incoming_dir] = File.expand_path(@options[:incoming_dir]) if @options[:incoming_dir]
@@ -104,7 +104,8 @@ module Driftless
 
         def config_defaults
           cfg = ::Driftless.config
-          { incoming_dir: cfg.dig('reports', 'incoming_dir') }.compact
+          { incoming_dir: cfg.dig('reports', 'incoming_dir'),
+            repo:         cfg.dig('import', 'git', 'repo') }.compact
         end
       end
     end

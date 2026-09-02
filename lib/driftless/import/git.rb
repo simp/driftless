@@ -4,6 +4,7 @@ require 'shellwords'
 require 'tmpdir'
 
 require 'driftless/logger'
+require 'driftless/config_keys'
 
 module Driftless
   module Import
@@ -20,6 +21,12 @@ module Driftless
     #   DRIFTLESS_REPORT_PULL_TOKEN    - HTTPS token/password, - or -
     #   DRIFTLESS_REPORT_PULL_SSH_KEY  - SSH private key (content, not file)
     class Git
+      extend ConfigKeys::DSL
+
+      config_key 'import.git.repo', type: :string,
+                 example: 'https://git.example.com/reports/store.git',
+                 about: 'Report-store git remote to import from when `import git` gets no <repo-url> argument'
+
       Result = Struct.new(:branches_imported, :reports_copied, :summaries_copied,
                           keyword_init: true)
 

@@ -67,25 +67,55 @@ module Driftless
       end
     end
 
-    # Applies to every subsystem except detectors, whose keys are detector names.
+    # Rejects any key in a subsystem section that no class declared.
+    # Skips detectors, whose keys are detector names checked separately.
     def check_subsystem_keys
       @config.to_h.each do |subsystem, body|
         next if subsystem == DETECTORS_SUBSYSTEM
         next unless body.is_a?(Hash)
 
-        known = ConfigKeys.settable(subsystem).map(&:name)
-        body.each_key do |key|
-          next if known.include?(key)
+        walk_keys(subsystem, [], body, ConfigKeys.settable(subsystem).map { |k| k.name.split('.') })
+      end
+    end
 
-          msg = "unknown #{subsystem} config key: #{key.inspect}"
-          msg +=
-            if (sug = suggest(key, known))
-              " (did you mean #{sug.inspect}?)"
-            else
-              " (known: #{known.join(', ')})"
-            end
-          raise ConfigValidationError, msg
+    # Raises on any key under body that no declared name covers.
+    # A dotted name matches one segment per nesting level.
+    #
+    # @param subsystem [String] the section, for error messages
+    # @param prefix [Array<String>] segments matched so far
+    # @param body [Hash] the mapping under prefix
+    # @param paths [Array<Array<String>>] declared names as segments, with
+    #   prefix segments already trimmed
+    # @raise [ConfigValidationError]
+    def walk_keys(subsystem, prefix, body, paths)
+      body.each do |key, value|
+        dotted = (prefix + [key.to_s]).join('.')
+        deeper = paths.select { |p| p.first == key }
+        next if deeper.any? { |p| p.size == 1 }
+
+        if deeper.any?
+          unless value.is_a?(Hash)
+            raise ConfigValidationError,
+                  "#{subsystem}.#{dotted} holds nested keys " \
+                  "(#{deeper.map { |p| p.drop(1).join('.') }.join(', ')}), not a value"
+          end
+          walk_keys(subsystem, prefix + [key.to_s], value, deeper.map { |p| p.drop(1) })
+          next
         end
+
+        known = paths.map { |p| p.join('.') }
+        if known.include?(key.to_s)
+          raise ConfigValidationError,
+                "#{subsystem} key #{key.inspect} must be spelled as nested mappings, not a dotted key"
+        end
+        msg = "unknown #{subsystem} config key: #{dotted.inspect}"
+        msg +=
+          if (sug = suggest(key.to_s, known))
+            " (did you mean #{sug.inspect}?)"
+          else
+            " (known: #{known.join(', ')})"
+          end
+        raise ConfigValidationError, msg
       end
     end
 

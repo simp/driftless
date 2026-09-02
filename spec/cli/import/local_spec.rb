@@ -103,6 +103,14 @@ RSpec.describe Driftless::CLI::Import::Local do
     run_with(['-i', '/tmp/incoming', '--dry-run', '/tmp/source'])
   end
 
+  it 'propagates --no-archive to cleanup' do
+    expect(Driftless::CLI::Import).to receive(:run_cleanup).with(
+      'import local: cleanup',
+      hash_including(archive: false),
+    )
+    run_with(['-i', '/tmp/incoming', '--no-archive', '/tmp/source'])
+  end
+
   it 'exits 2 with a "cleanup failed" message when cleanup raises Import::Error' do
     allow(Driftless::CLI::Import).to receive(:run_cleanup)
       .and_raise(Driftless::Import::Error, 'permission denied on .archive')

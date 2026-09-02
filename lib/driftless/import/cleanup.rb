@@ -4,6 +4,7 @@ require 'set'
 
 require 'driftless/logger'
 require 'driftless/detectors'
+require 'driftless/config_keys'
 
 module Driftless
   module Import
@@ -13,26 +14,33 @@ module Driftless
     # archived, or quarantined. A session is complete when its summary lists
     # every expected report with status:ok and each has a matching file on
     # disk; anything else quarantines. Per collector, the newest complete
-    # session stays live and older complete ones move to .archive. Whole
-    # sessions move together — no cross-session splicing.
+    # session stays live and older complete ones move to .archive, or are
+    # deleted when `archive:` is false. Whole sessions move together — no
+    # cross-session splicing.
     #
     # `expected_reports:` overrides the default set (union of enabled
     # detectors' `requires_reports`); `[]` accepts any set.
     # `accept_missing_summary:` treats sessions with no summary as complete
     # for the presence/status checks.
     class Cleanup
+      extend ConfigKeys::DSL
+
+      config_key 'import.archive_old_reports', type: :boolean, default: true,
+                 about: 'Keep superseded sessions under incoming/.archive/ (false deletes them)'
+
       SessionResult = Struct.new(:collector, :session_id, :reports_moved,
                                  :summary_moved, :reason, keyword_init: true)
-      Result = Struct.new(:live, :archived, :quarantined, :dry_run,
+      Result = Struct.new(:live, :archived, :quarantined, :dry_run, :archive,
                           keyword_init: true)
 
       def initialize(incoming_dir:, summary_dir:, dry_run: false,
-                     expected_reports: nil, accept_missing_summary: false)
+                     expected_reports: nil, accept_missing_summary: false, archive: true)
         @incoming_dir           = incoming_dir
         @summary_dir            = summary_dir
         @dry_run                = dry_run
         @expected_reports       = expected_reports
         @accept_missing_summary = accept_missing_summary
+        @archive                = archive
       end
 
       def run
@@ -62,7 +70,12 @@ module Driftless
             live << SessionResult.new(collector: session[:collector], session_id: session[:session_id],
                                       reports_moved: 0, summary_moved: 0, reason: nil)
           when :archive
-            r, s = move_session(session, dest_root: File.join(@incoming_dir, '.archive'))
+            r, s =
+              if @archive
+                move_session(session, dest_root: File.join(@incoming_dir, '.archive'))
+              else
+                delete_session(session)
+              end
             archived << SessionResult.new(collector: session[:collector], session_id: session[:session_id],
                                           reports_moved: r, summary_moved: s, reason: nil)
           when :quarantine
@@ -72,7 +85,8 @@ module Driftless
           end
         end
 
-        Result.new(live: live, archived: archived, quarantined: quarantined, dry_run: @dry_run)
+        Result.new(live: live, archived: archived, quarantined: quarantined,
+                   dry_run: @dry_run, archive: @archive)
       end
 
       private
@@ -215,6 +229,26 @@ module Driftless
           "(#{reports_moved} report, #{summary_moved} summary) -> #{dest_dir}",
         )
         [reports_moved, summary_moved]
+      end
+
+      # Removes a session's report and summary files. Returns
+      # [reports_removed, summary_removed] with the same shape as move_session.
+      def delete_session(session)
+        label   = "#{session[:collector]}--#{session[:session_id]}"
+        reports = session[:reports_on_disk]
+        summary = session[:summary]
+
+        if @dry_run
+          Driftless.logger.info("import cleanup: would delete #{label}")
+          return [reports.size, summary ? 1 : 0]
+        end
+
+        reports.each_value { |path| FileUtils.rm_f(path) }
+        FileUtils.rm_f(summary[:summary_path]) if summary
+        Driftless.logger.debug(
+          "import cleanup: deleted #{label} (#{reports.size} report, #{summary ? 1 : 0} summary)",
+        )
+        [reports.size, summary ? 1 : 0]
       end
     end
   end

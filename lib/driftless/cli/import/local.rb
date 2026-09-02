@@ -54,6 +54,7 @@ module Driftless
               summary_dir:  summary_dir,
               dry_run:      @options[:dry_run] || false,
               override:     @options[:accept_partial_report_sessions],
+            archive:      @options.fetch(:archive, true),
             )
           rescue ::Driftless::Import::Error => e
             fatal!("import local: cleanup failed: #{e.message}")
@@ -76,6 +77,9 @@ module Driftless
           end
           o.on('--rm-after', 'Remove the session dir after a successful import') { @options[:rm_after] = true }
           o.on('--dry-run',  'Log what would be copied without touching the filesystem') { @options[:dry_run] = true }
+          o.on('--[no-]archive',
+               'Move superseded sessions to .archive/ (default) or delete them',
+               'Default: import.archive_old_reports from driftless.yaml') { |v| @options[:archive] = v }
           Import.declare_accept_partial(o, @options)
         end
 
@@ -84,7 +88,8 @@ module Driftless
         def config_defaults
           cfg = ::Driftless.config
           { incoming_dir: cfg.dig('reports', 'incoming_dir'),
-            source:       cfg.dig('import', 'local', 'source') }.compact
+            source:       cfg.dig('import', 'local', 'source'),
+            archive:      cfg.dig('import', 'archive_old_reports') }.compact
         end
       end
     end

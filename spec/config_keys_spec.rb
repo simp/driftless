@@ -15,6 +15,7 @@ RSpec.describe Driftless::ConfigKeys do
       'reports.incoming_dir'       => Driftless::Inputs::ReportLoader,
       'import.git.repo'            => Driftless::Import::Git,
       'import.local.source'        => Driftless::Import::Local,
+      'import.archive_old_reports' => Driftless::Import::Cleanup,
       'output.format'              => Driftless::Outputs,
       'output.default_file'        => Driftless::Outputs,
       'output.tabularize'          => Driftless::Outputs,

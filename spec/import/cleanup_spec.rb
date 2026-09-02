@@ -321,6 +321,76 @@ RSpec.describe Driftless::Import::Cleanup do
     end
   end
 
+  describe '#run — archive: false' do
+    it 'deletes the superseded session instead of moving it to .archive' do
+      Dir.mktmpdir do |tmp|
+        incoming = File.join(tmp, 'incoming')
+        summary  = File.join(tmp, 'summary')
+        make_session(incoming_dir: incoming, summary_dir: summary,
+                     collector: 'alpha', session_id: '2026-01-01T00-00-00Z',
+                     reports: { 'all-active-nodes' => nil })
+        make_session(incoming_dir: incoming, summary_dir: summary,
+                     collector: 'alpha', session_id: '2026-06-01T00-00-00Z',
+                     reports: { 'all-active-nodes' => nil })
+
+        result = described_class.new(
+          incoming_dir: incoming, summary_dir: summary,
+          expected_reports: %w[all-active-nodes], archive: false,
+        ).run
+
+        expect(result.archive).to be false
+        expect(result.live.map(&:session_id)).to eq(['2026-06-01T00-00-00Z'])
+        expect(result.archived.map(&:session_id)).to eq(['2026-01-01T00-00-00Z'])
+        expect(result.archived.first.reports_moved).to eq(1)
+        expect(result.archived.first.summary_moved).to eq(1)
+
+        expect(File).to exist(File.join(incoming, 'all-active-nodes', 'alpha--2026-06-01T00-00-00Z.ndjson'))
+        expect(File).not_to exist(File.join(incoming, 'all-active-nodes', 'alpha--2026-01-01T00-00-00Z.ndjson'))
+        expect(File).not_to exist(File.join(summary, 'alpha--2026-01-01T00-00-00Z.json'))
+        expect(File.directory?(File.join(incoming, '.archive'))).to be false
+      end
+    end
+
+    it 'still quarantines incomplete sessions by moving them' do
+      Dir.mktmpdir do |tmp|
+        incoming = File.join(tmp, 'incoming')
+        summary  = File.join(tmp, 'summary')
+        make_session(incoming_dir: incoming, summary_dir: summary,
+                     collector: 'alpha', session_id: 's1',
+                     reports: { 'all-active-nodes' => nil }, summary_present: false)
+
+        result = described_class.new(
+          incoming_dir: incoming, summary_dir: summary,
+          expected_reports: %w[all-active-nodes], archive: false,
+        ).run
+
+        expect(result.quarantined.map(&:session_id)).to eq(['s1'])
+        expect(File).to exist(File.join(incoming, '.quarantine', 'alpha--s1', 'all-active-nodes.ndjson'))
+      end
+    end
+
+    it 'dry_run reports the deletion without touching the filesystem' do
+      Dir.mktmpdir do |tmp|
+        incoming = File.join(tmp, 'incoming')
+        summary  = File.join(tmp, 'summary')
+        make_session(incoming_dir: incoming, summary_dir: summary,
+                     collector: 'alpha', session_id: 's1', reports: { 'all-active-nodes' => nil })
+        make_session(incoming_dir: incoming, summary_dir: summary,
+                     collector: 'alpha', session_id: 's2', reports: { 'all-active-nodes' => nil })
+        before = paths(tmp)
+
+        result = described_class.new(
+          incoming_dir: incoming, summary_dir: summary,
+          expected_reports: %w[all-active-nodes], archive: false, dry_run: true,
+        ).run
+
+        expect(result.archived.map(&:session_id)).to eq(['s1'])
+        expect(result.archived.first.reports_moved).to eq(1)
+        expect(paths(tmp)).to eq(before)
+      end
+    end
+  end
+
   describe '#run — bare override (accept_missing_summary + expected=[])' do
     it 'accepts a session with no _summary.json (identity from filename)' do
       Dir.mktmpdir do |tmp|

@@ -25,8 +25,8 @@ RSpec.describe Driftless::CLI::Import::Cleanup do
       end
 
       def run
-        Struct.new(:live, :archived, :quarantined, :dry_run, keyword_init: true)
-          .new(live: [], archived: [], quarantined: [], dry_run: false)
+        Struct.new(:live, :archived, :quarantined, :dry_run, :archive, keyword_init: true)
+          .new(live: [], archived: [], quarantined: [], dry_run: false, archive: true)
       end
     end
     $construction_capture = construction
@@ -57,5 +57,37 @@ RSpec.describe Driftless::CLI::Import::Cleanup do
     run_with(['--accept-partial-report-sessions=all-active-nodes,factsets-for-all-active-nodes'])
     expect(construction[:expected_reports]).to eq(%w[all-active-nodes factsets-for-all-active-nodes])
     expect(construction[:accept_missing_summary]).to be false
+  end
+
+  describe 'archive:' do
+    def config_file(dir, archive)
+      path = File.join(dir, 'driftless.yaml')
+      File.write(path, "import:\n  archive_old_reports: #{archive}\n")
+      path
+    end
+
+    it 'defaults to true' do
+      run_with(['--no-config'])
+      expect(construction[:archive]).to be true
+    end
+
+    it '--no-archive passes false' do
+      run_with(['--no-config', '--no-archive'])
+      expect(construction[:archive]).to be false
+    end
+
+    it 'reads import.archive_old_reports from config' do
+      Dir.mktmpdir do |dir|
+        run_with(['-c', config_file(dir, false)])
+        expect(construction[:archive]).to be false
+      end
+    end
+
+    it '--archive overrides a false config value' do
+      Dir.mktmpdir do |dir|
+        run_with(['-c', config_file(dir, false), '--archive'])
+        expect(construction[:archive]).to be true
+      end
+    end
   end
 end

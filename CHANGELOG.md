@@ -18,6 +18,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `import.local.source`
 - `driftless config new` uncomments and populates options given in CLI format `subsystem.item=value`
   - Example: `driftless config new puppet.environments=a,b,c`
+- `--no-archive` on `import cleanup`, `import git`, and `import local`, and config key
+  `import.archive_old_reports` (default `true`): when false, superseded sessions are
+  deleted instead of moved to `incoming/.archive/`
 
 ### Changed
 

@@ -59,6 +59,7 @@ module Driftless
                 summary_dir:  summary_dir,
                 dry_run:      @options[:dry_run] || false,
                 override:     @options[:accept_partial_report_sessions],
+              archive:      @options.fetch(:archive, true),
               )
             rescue ::Driftless::Import::Error => e
               fatal!("import git: cleanup failed: #{e.message}")
@@ -89,6 +90,9 @@ module Driftless
                'Import only <branch-prefix>/<NAME>')                                        { |v| @options[:collector] = v }
           o.on('--no-summaries', 'Skip the summary/ tree')                                  { @options[:no_summaries] = true }
           o.on('--dry-run',      'Log what would be copied without touching the filesystem') { @options[:dry_run] = true }
+          o.on('--[no-]archive',
+               'Move superseded sessions to .archive/ (default) or delete them',
+               'Default: import.archive_old_reports from driftless.yaml') { |v| @options[:archive] = v }
           Import.declare_accept_partial(o, @options)
           o.on_tail <<~ENV_VAR_BANNER
 
@@ -106,7 +110,8 @@ module Driftless
         def config_defaults
           cfg = ::Driftless.config
           { incoming_dir: cfg.dig('reports', 'incoming_dir'),
-            repo:         cfg.dig('import', 'git', 'repo') }.compact
+            repo:         cfg.dig('import', 'git', 'repo'),
+            archive:      cfg.dig('import', 'archive_old_reports') }.compact
         end
       end
     end

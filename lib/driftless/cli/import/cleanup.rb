@@ -33,6 +33,7 @@ module Driftless
             summary_dir:  summary_dir,
             dry_run:      @options[:dry_run] || false,
             override:     @options[:accept_partial_report_sessions],
+            archive:      @options.fetch(:archive, true),
           )
           exit 0
         rescue ::Driftless::Import::Error => e
@@ -50,6 +51,9 @@ module Driftless
                'Default: sibling summary/ of --incoming-dir') { |v| @options[:summary_dir] = v }
           o.on('--dry-run',
                'Log what would be moved without touching the filesystem') { @options[:dry_run] = true }
+          o.on('--[no-]archive',
+               'Move superseded sessions to .archive/ (default) or delete them',
+               'Default: import.archive_old_reports from driftless.yaml') { |v| @options[:archive] = v }
           Import.declare_accept_partial(o, @options)
         end
 
@@ -57,7 +61,8 @@ module Driftless
 
         def config_defaults
           cfg = ::Driftless.config
-          { incoming_dir: cfg.dig('reports', 'incoming_dir') }.compact
+          { incoming_dir: cfg.dig('reports', 'incoming_dir'),
+            archive:      cfg.dig('import', 'archive_old_reports') }.compact
         end
       end
     end

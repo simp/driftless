@@ -11,6 +11,7 @@ module Driftless
       class New < Base
         register_command name: 'new', subcommand_of: Config
         desc 'Write a driftless.yaml listing every known key, commented out'
+        skip_config_load # so a broken driftless.yaml can be replaced
 
         # Section order of the generated file; a subsystem not listed here
         # follows alphabetically. detectors renders last, after all of these.

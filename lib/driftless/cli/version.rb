@@ -7,6 +7,7 @@ module Driftless
     class Version < Base
       register_command name: 'version', subcommand_of: Root
       desc 'Print the driftless version'
+      skip_config_load
 
       def execute(_argv)
         puts Driftless::VERSION

@@ -26,12 +26,19 @@ module Driftless
           text.nil? ? @desc : (@desc = text)
         end
 
-        # Positional-arg tokens for this leaf, appended to the Usage: line
-        # after `[options]`. Splat form so a leaf can declare several
-        # (`positional '<src>', '[<dst>]'`) without concatenating strings.
-        # Zero-arg call is the reader.
+        # Positional-arg tokens for this subcommand
+        # Appended to the `Usage:` line after `[options]`
         def positional(*tokens)
           tokens.empty? ? (@positional || []) : (@positional = tokens.map(&:to_s))
+        end
+
+        # Subcommands with this declaration run without loading driftless.yaml
+        def skip_config_load
+          @skip_config_load = true
+        end
+
+        def skip_config_load?
+          @skip_config_load ? true : false
         end
 
         # Getter for the command's names (canonical + aliases). Set via register_command.
@@ -125,10 +132,10 @@ module Driftless
         execute(argv)
       end
 
-      # Loads the config file, then layers its values under whatever the
-      # command line already set.
+      # Loads config file, then layers its values under whatever the command
+      # line already set.
       def after_own_parse
-        load_config!
+        load_config! unless self.class.skip_config_load?
         apply_config_defaults
       end
 

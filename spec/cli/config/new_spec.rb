@@ -111,6 +111,18 @@ RSpec.describe Driftless::CLI::Config::New do
     end
   end
 
+  it 'replaces a malformed driftless.yaml' do
+    Dir.mktmpdir do |dir|
+      path = File.join(dir, 'driftless.yaml')
+      File.write(path, "{\n")
+      Dir.chdir(dir) do
+        expect { capture_stdout { described_class.new.run(['--path', path, '--force']) } }
+          .to raise_error(SystemExit) { |e| expect(e.status).to eq(0) }
+      end
+      expect(File.read(path)).to include('driftless configuration')
+    end
+  end
+
   it 'overwrites when --force is given' do
     Dir.mktmpdir do |dir|
       path = File.join(dir, 'driftless.yaml')

@@ -9,7 +9,7 @@ module Driftless
   # The document `scan --data-file` writes: everything a finished scan knows
   # that the terminal writers cannot carry — which sessions and nodes it
   # read, the overrides it ran under, the repo revision, its warnings —
-  # beside the findings. `site` builds from it (design notes §7).
+  # beside the findings. `site` builds from it.
   module ScanData
     DOCUMENT       = 'scan'.freeze
     SCHEMA_VERSION = 1
@@ -44,7 +44,7 @@ module Driftless
         'overrides'         => overrides,
         'sessions'          => sessions(corpus.reported),
         # Fleet description; carried here until `report` exists, then moves
-        # to the report document (design notes §7).
+        # to the report document.
         'nodes'             => nodes(corpus.reported),
         'findings'          => finding_rows(findings),
         'warnings'          => warnings.dup,

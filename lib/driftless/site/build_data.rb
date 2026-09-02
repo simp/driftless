@@ -10,8 +10,7 @@ module Driftless
     # The data one site build consumes: the scan document and, when present,
     # the report document, munged into a single JSON-ready Hash. The two must
     # describe the same collector sessions; {assemble} refuses otherwise.
-    # Embedded in index.html and written beside it as data.json (design
-    # notes §7).
+    # Embedded in index.html and written beside it as data.json.
     module BuildData
       DOCUMENT       = 'site'.freeze
       SCHEMA_VERSION = 1

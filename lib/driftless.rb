@@ -40,6 +40,7 @@ require 'driftless/detectors/code_lookup_missing_hiera_keys'
 require 'driftless/detectors/data_lookup_missing_hiera_keys'
 
 require 'driftless/scan'
+require 'driftless/report'
 require 'driftless/import/local'
 require 'driftless/import/git'
 require 'driftless/import/cleanup'

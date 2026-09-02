@@ -6,7 +6,7 @@ require 'driftless/site'
 module Driftless
   module CLI
     # `driftless site`: build the static site from the scan data document
-    # that `driftless scan --data-file` wrote (design notes §7). It runs no
+    # that `driftless scan --data-file` wrote. It runs no
     # scan and takes none of scan's options; its exit status says only
     # whether the site was written.
     class Site < Base

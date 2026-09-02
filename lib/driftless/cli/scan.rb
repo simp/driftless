@@ -182,7 +182,7 @@ module Driftless
 
       # The scan data document is scan's output for `driftless site`: what the
       # terminal writers cannot carry (sessions, nodes, overrides, warnings,
-      # revision), assembled from the finished scan (design notes §7).
+      # revision), assembled from the finished scan.
       def write_data_file(scanner, findings)
         data = ::Driftless::ScanData.assemble(
           findings:     findings,

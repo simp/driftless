@@ -2,8 +2,8 @@ require 'fileutils'
 require 'json'
 
 module Driftless
-  # Reading and writing the JSON documents commands hand each other (design
-  # notes §7): `scan` writes one, `report` will write one, `site` reads them
+  # Reading and writing the JSON documents commands hand each other:
+  # `scan` writes one, `report` will write one, `site` reads them
   # and writes the build data. Every document names its kind and schema
   # version in its first two keys, and {read} refuses anything else.
   module JsonDocument

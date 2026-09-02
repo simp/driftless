@@ -28,9 +28,10 @@ module Driftless
             next if excluded_fact?(var)
             next unless seen.add?(var)
 
+            template = tier.path_templates.find { |t| tier.vars_for(t).include?(var) }
             findings << build_finding(
               path:    hiera_yaml_path,
-              line:    tier.source_line,
+              line:    (template && tier.line_for(template)) || tier.source_line,
               message: "#{tier.name.inspect} interpolates bare variable #{var.inspect} ",
               meta:    { tier: tier.name, interpolation: var },
             )

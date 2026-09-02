@@ -55,10 +55,25 @@ RSpec.describe Driftless::Detectors::HierarchyTiersInterpolatingUnreportedFacts 
         expect(findings.first.message).to include('compliance_profile')
       end
 
-      it 'attaches the finding to hiera.yaml with the tier\'s source_line' do
+      it 'attaches the finding to hiera.yaml at the interpolating path\'s line' do
         f = findings.first
         expect(f.path).to eq(File.join(fixture('unresolvable_tier'), 'hiera.yaml'))
-        expect(f.line).to eq(7) # Compliance profile tier is declared at hiera.yaml:7
+        expect(f.line).to eq(8) # the path: under the tier declared at hiera.yaml:7
+      end
+
+      it 'falls back to the tier line when template lines are unavailable' do
+        tier = Driftless::HieraTier.new(
+          name: 'Region', datadir: '/d', backend: :yaml_data,
+          path_templates: ['region/%{region_code}.yaml'],
+          interpolation_vars: ['region_code'],
+          multi_path: false, locator: :path, source_line: 4,
+        )
+        corpus = Driftless::Corpus.new(
+          repo_dir: '/repo', hiera_tiers: [tier], puppet_classes: {}, data_files: [],
+          reported: Driftless::Reported.new(data: { 'factsets-for-all-active-nodes' => [web1] }),
+          code_lookup_calls: [], data_lookup_calls: [],
+        )
+        expect(described_class.new(corpus).call.first.line).to eq(4)
       end
 
       it 'exposes tier and unreported_facts on meta for downstream dedupe' do

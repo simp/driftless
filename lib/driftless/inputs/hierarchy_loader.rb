@@ -63,7 +63,8 @@ module Driftless
         Array(doc['hierarchy']).each_with_index do |entry, i|
           next unless entry.is_a?(Hash)
 
-          line     = entry_lines[i]
+          info     = entry_lines[i] || {}
+          line     = info[:line]
           name     = entry['name'] || '(unnamed)'
           declared = entry['datadir'] || default_datadir
           datadir  = File.expand_path(declared, @repo_dir)
@@ -133,6 +134,7 @@ module Driftless
             multi_path:         multi,
             locator:            locator,
             source_line:        line,
+            template_lines:     info[:templates] || {},
           )
         end
 
@@ -141,9 +143,12 @@ module Driftless
 
       private
 
-      # 1-indexed line numbers per hierarchy: entry, positionally aligned with
-      # Array(doc['hierarchy']). Any parse or shape mismatch → [], in which case
-      # every tier's source_line stays nil (nil-safe downstream).
+      # Per hierarchy: entry, its 1-indexed line and the line of each template
+      # scalar, positionally aligned with Array(doc['hierarchy']). Any parse or
+      # shape mismatch → [], in which case every tier's source_line and
+      # template_lines stay empty (nil-safe downstream).
+      #
+      # @return [Array<Hash>] {line: Integer, templates: {String => Integer}}
       def hierarchy_entry_lines(source)
         ast = Psych.parse(source)
         return [] unless ast
@@ -153,11 +158,28 @@ module Driftless
         root.children.each_slice(2) do |key, value|
           next unless key.is_a?(Psych::Nodes::Scalar) && key.value == 'hierarchy'
           return [] unless value.is_a?(Psych::Nodes::Sequence)
-          return value.children.map { |entry| entry.start_line + 1 }
+          return value.children.map { |entry| entry_lines(entry) }
         end
         []
       rescue Psych::SyntaxError
         []
+      end
+
+      # One entry's lines: its own, and one per scalar under a location key.
+      def entry_lines(entry)
+        info = { line: entry.start_line + 1, templates: {} }
+        return info unless entry.is_a?(Psych::Nodes::Mapping)
+
+        entry.children.each_slice(2) do |k, v|
+          next unless k.is_a?(Psych::Nodes::Scalar) && %w[path paths glob globs].include?(k.value)
+          case v
+          when Psych::Nodes::Scalar
+            info[:templates][v.value] = v.start_line + 1
+          when Psych::Nodes::Sequence
+            v.children.each { |c| info[:templates][c.value] = c.start_line + 1 if c.is_a?(Psych::Nodes::Scalar) }
+          end
+        end
+        info
       end
 
       # Returns [templates, multi_path, locator]. Hiera permits exactly one

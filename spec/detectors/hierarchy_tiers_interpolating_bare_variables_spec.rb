@@ -16,11 +16,11 @@ RSpec.describe Driftless::Detectors::HierarchyTiersInterpolatingBareVariables do
     )
   end
 
-  def tier(name:, interpolation_vars:, source_line: nil)
+  def tier(name:, interpolation_vars:, source_line: nil, path_templates: [], template_lines: nil)
     Driftless::HieraTier.new(
       name: name, datadir: '/tmp/data', backend: :yaml_data,
-      path_templates: [], interpolation_vars: interpolation_vars,
-      multi_path: false, source_line: source_line,
+      path_templates: path_templates, interpolation_vars: interpolation_vars,
+      multi_path: false, source_line: source_line, template_lines: template_lines,
     )
   end
 
@@ -66,6 +66,15 @@ RSpec.describe Driftless::Detectors::HierarchyTiersInterpolatingBareVariables do
         hand_corpus(hiera_tiers: [tier(name: 't', interpolation_vars: ['my_role'])]),
       ).call.first
       expect(f.message).to include('"t"').and include('"my_role"')
+    end
+
+    it 'anchors to the interpolating template line when the loader supplied one' do
+      template = 'roles/%{my_role}.yaml'
+      corpus   = hand_corpus(
+        hiera_tiers: [tier(name: 't', interpolation_vars: ['my_role'], source_line: 7,
+                           path_templates: [template], template_lines: { template => 8 })],
+      )
+      expect(described_class.new(corpus).call.first.line).to eq(8)
     end
 
     it 'attaches findings to hiera.yaml with the tier source line' do

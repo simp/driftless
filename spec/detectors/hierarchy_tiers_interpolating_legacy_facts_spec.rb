@@ -16,15 +16,16 @@ RSpec.describe Driftless::Detectors::HierarchyTiersInterpolatingLegacyFacts do
     )
   end
 
-  def tier(name:, interpolation_vars:, source_line: nil)
+  def tier(name:, interpolation_vars:, source_line: nil, path_templates: [], template_lines: nil)
     Driftless::HieraTier.new(
       name:               name,
       datadir:            '/tmp/data',
       backend:            :yaml_data,
-      path_templates:     [],
+      path_templates:     path_templates,
       interpolation_vars: interpolation_vars,
       multi_path:         false,
       source_line:        source_line,
+      template_lines:     template_lines,
     )
   end
 
@@ -95,6 +96,14 @@ RSpec.describe Driftless::Detectors::HierarchyTiersInterpolatingLegacyFacts do
       findings = described_class.new(hand_corpus(hiera_tiers: tiers)).call
       expect(findings.first.path).to be_nil
       expect(findings.first.line).to eq(12)
+    end
+
+    it 'anchors to the interpolating template line when the loader supplied one' do
+      template = 'os/%{::osfamily}.yaml'
+      tiers    = [tier(name: 'per-os', interpolation_vars: ['::osfamily'], source_line: 12,
+                       path_templates: [template], template_lines: { template => 13 })]
+      findings = described_class.new(hand_corpus(hiera_tiers: tiers)).call
+      expect(findings.first.line).to eq(13)
     end
 
     it 'leaves line nil when the tier has no source_line' do

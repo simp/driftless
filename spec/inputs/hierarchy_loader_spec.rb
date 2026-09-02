@@ -59,6 +59,12 @@ RSpec.describe Driftless::Inputs::HierarchyLoader do
         expect(by_name['Default'].source_line).to eq(11)
       end
 
+      it 'records each path template line in template_lines' do
+        by_name = tiers.each_with_object({}) { |t, h| h[t.name] = t }
+        expect(by_name['Per-host'].template_lines).to eq('hosts/%{trusted.certname}.yaml' => 8)
+        expect(by_name['Default'].template_lines).to eq('default.yaml' => 12)
+      end
+
       it 'leaves source_line nil when the AST walk cannot align (parse-only, no crash)' do
         Dir.mktmpdir do |dir|
           # Valid YAML but unusual: hierarchy is a scalar, not a sequence.
@@ -81,6 +87,14 @@ RSpec.describe Driftless::Inputs::HierarchyLoader do
           'os/family/%{facts.os.family}/%{facts.os.release.major}.yaml',
           'os/family/%{facts.os.family}.yaml',
         ])
+      end
+
+      it 'records a line per template' do
+        multi = tiers.find(&:multi_path?)
+        expect(multi.template_lines).to eq(
+          'os/family/%{facts.os.family}/%{facts.os.release.major}.yaml' => 9,
+          'os/family/%{facts.os.family}.yaml' => 10,
+        )
       end
 
       it 'de-duplicates interpolation vars across templates' do

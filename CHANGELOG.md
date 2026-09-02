@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Path-related findings' links now point to the offending line, not the hierarchy tier
 - Broken config files no longer cause `version` or `config new` to fail
 
 ## [0.3.0] - 2026-08-31

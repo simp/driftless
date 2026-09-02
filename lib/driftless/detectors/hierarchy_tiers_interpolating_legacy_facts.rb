@@ -31,9 +31,10 @@ module Driftless
             next unless seen.add?(legacy)
 
             modern = LegacyFacts::MAP[legacy]
+            template = tier.path_templates.find { |t| tier.vars_for(t).include?(var) }
             findings << build_finding(
               path:    hiera_yaml_path,
-              line:    tier.source_line,
+              line:    (template && tier.line_for(template)) || tier.source_line,
               message: "hierarchy tier #{tier.name.inspect} interpolates legacy fact " \
                        "#{legacy.inspect} (modern equivalent: %{facts.#{modern}})",
               meta:    { tier: tier.name, legacy: legacy, modern: modern, interpolation: var },

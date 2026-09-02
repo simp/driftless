@@ -42,9 +42,10 @@ module Driftless
           noun = 'trusted fact' if unreported.all? { |x| x =~ /^trusted\,/ }
           noun.gsub!(%r{/|$}, 's\0') if unreported.size > 1
 
+          template = tier.path_templates.find { |t| (tier.vars_for(t) & unreported).any? }
           findings << build_finding(
             path:    hiera_yaml_path,
-            line:    tier.source_line,
+            line:    (template && tier.line_for(template)) || tier.source_line,
             message: "tier #{tier.name.inspect} interpolates #{noun} " \
                      'not reported by any active node: ' \
                      "#{unreported.map(&:inspect).join(', ')}",

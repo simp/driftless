@@ -12,8 +12,16 @@ module Driftless
         register_command name: 'new', subcommand_of: Config
         desc 'Write a driftless.yaml listing every known key, commented out'
 
-        # detectors last: it is by far the longest section.
-        SUBSYSTEM_ORDER = ->(name) { [(name == 'detectors') ? 1 : 0, name] }
+        # Section order of the generated file; a subsystem not listed here
+        # follows alphabetically. detectors renders last, after all of these.
+        SUBSYSTEM_ORDER = %w[puppet reports scan output logging].freeze
+
+        # Key order within a section, where it differs from registration
+        # order; a key not listed keeps registration order after these.
+        KEY_ORDER = {
+          'puppet' => %w[environments top_scope_variables role_regex profile_regex
+                         allow_missing_envs allow_builtin_top_scope_variables],
+        }.freeze
 
         def execute(_argv)
           path = @options[:path] || ::Driftless::Config.project_path
@@ -90,12 +98,23 @@ module Driftless
         end
 
         def subsystems
-          (::Driftless::ConfigKeys.subsystems - ['detectors']).sort_by(&SUBSYSTEM_ORDER)
+          (::Driftless::ConfigKeys.subsystems - ['detectors'])
+            .sort_by { |name| [SUBSYSTEM_ORDER.index(name) || SUBSYSTEM_ORDER.size, name] }
+        end
+
+        # sort_by is not stable, so the registration index breaks ties among
+        # keys KEY_ORDER does not list.
+        def section_keys(name)
+          order = KEY_ORDER.fetch(name, [])
+          ::Driftless::ConfigKeys.settable(name)
+            .each_with_index
+            .sort_by { |key, i| [order.index(key.name) || order.size, i] }
+            .map(&:first)
         end
 
         def subsystem_section(name)
           lines = ['', comment(0, "#{name}:")]
-          ::Driftless::ConfigKeys.settable(name).each do |key|
+          section_keys(name).each do |key|
             lines << comment(1, "# #{key.about}") if key.about
             lines.concat(yaml_lines(key.name, sample_value(key), 1))
           end
@@ -158,13 +177,14 @@ module Driftless
           lines << comment(1, 'defaults:')
           base_options.each { |opt| lines.concat(option_lines(opt, 2)) }
 
+          seen = base_options.map { |x| x[:name] }
           ::Driftless::Detectors.registry.sort_by(&:key).each do |klass|
             lines << '#'
             lines << comment(1, "# #{klass.about}")
             lines << comment(1, "#{klass.key}:")
             klass.config_options.each_value do |opt|
-              lines.concat(option_lines(opt, 2,
-                base_options.map { |x| x[:name] }))
+              lines.concat(option_lines(opt, 2, seen))
+              seen << opt[:name]
             end
           end
           lines

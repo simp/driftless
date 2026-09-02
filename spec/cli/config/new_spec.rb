@@ -74,6 +74,28 @@ RSpec.describe Driftless::CLI::Config::New do
     end
   end
 
+  it 'orders the sections puppet, reports, scan, output, logging, detectors' do
+    _path, content, = generate
+    indexes = %w[puppet reports scan output logging detectors].map { |name| content.index(/^# #{name}:/) }
+    expect(indexes).to all(be_an(Integer))
+    expect(indexes).to eq(indexes.sort)
+  end
+
+  it 'orders the puppet keys as KEY_ORDER lists them' do
+    _path, content, = generate
+    indexes = described_class::KEY_ORDER['puppet'].map { |key| content.index(/^\#   #{key}:/) }
+    expect(indexes).to all(be_an(Integer))
+    expect(indexes).to eq(indexes.sort)
+  end
+
+  it 'comments a duplicated detector option only at its first appearance' do
+    _path, content, = generate
+    about = Driftless::Detectors::HierarchyTiersInterpolatingUnreportedFacts
+      .config_options[:exclude_tiers][:about]
+    expect(content.scan(/^\#     exclude_tiers:/).size).to eq(3)
+    expect(content.scan(/^\#     \# #{Regexp.escape(about)}$/).size).to eq(1)
+  end
+
   it 'refuses to clobber an existing file' do
     Dir.mktmpdir do |dir|
       path = File.join(dir, 'driftless.yaml')

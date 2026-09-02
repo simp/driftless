@@ -1,6 +1,7 @@
 require 'driftless/cli/base'
 require 'driftless/cli/import'
 require 'driftless/import/local'
+require 'driftless/inputs/report_loader'
 
 module Driftless
   module CLI
@@ -26,7 +27,7 @@ module Driftless
             if @options[:summary_dir]
               File.expand_path(@options[:summary_dir])
             else
-              File.join(File.dirname(@options[:incoming_dir]), 'summary')
+              ::Driftless::Inputs::ReportLoader.summary_dir_for(@options[:incoming_dir])
             end
 
           begin

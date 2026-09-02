@@ -26,6 +26,11 @@ module Driftless
 
       NODE_REPORTS = REPORTS.select { |_, shape| shape == :node }.keys.freeze
 
+      # The sibling summary/ tree `driftless import` maintains beside incoming_dir.
+      def self.summary_dir_for(incoming_dir)
+        File.join(File.dirname(incoming_dir), 'summary')
+      end
+
       def self.load(incoming_dir)
         new(incoming_dir).load
       end

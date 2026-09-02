@@ -3,6 +3,7 @@ require 'driftless/cli/root'
 require 'driftless/cli/import'
 require 'driftless/config_keys'
 require 'driftless/scan'
+require 'driftless/inputs/report_loader'
 require 'driftless/fail_on'
 require 'driftless/control_repo'
 require 'driftless/outputs'
@@ -65,7 +66,7 @@ module Driftless
           if @options[:summary_dir]
             File.expand_path(@options[:summary_dir])
           else
-            File.join(File.dirname(@options[:incoming_dir]), 'summary')
+            ::Driftless::Inputs::ReportLoader.summary_dir_for(@options[:incoming_dir])
           end
 
         begin

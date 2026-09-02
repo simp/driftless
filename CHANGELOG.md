@@ -26,6 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Manual staging script (`scripts/stage-manual-report-session.rb`)
   - writes a `_summary.json` for a directory of hand-collected `.json`/`.ndjson` report files
   - `.json` reports are rewritten as NDJSON, to fit the importer's expectations
+- Site page's utilization columns are now sortable by clicking on them
 
 ### Changed
 
@@ -39,6 +40,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Path-related findings' links now point to the offending line, not the hierarchy tier
 - Broken config files no longer cause `version` or `config new` to fail
+- Site: Clicking on a finding in the hierarachy clears any other filters when jumpoing back to the findings page
 
 ## [0.3.0] - 2026-08-31
 

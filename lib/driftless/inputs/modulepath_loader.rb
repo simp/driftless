@@ -22,6 +22,12 @@ module Driftless
         new(repo_dir, basemodulepath: basemodulepath).load
       end
 
+      # @return [Array<String>] every module directory on disk under the
+      #   modulepath, in modulepath order
+      def self.module_dirs(repo_dir, basemodulepath: DEFAULT_BASEMODULEPATH)
+        new(repo_dir, basemodulepath: basemodulepath).module_dirs
+      end
+
       def initialize(repo_dir, basemodulepath: DEFAULT_BASEMODULEPATH)
         @repo_dir       = repo_dir
         @basemodulepath = Array(basemodulepath)
@@ -53,6 +59,13 @@ module Driftless
         files.concat(env_manifest_files(manifest_target)) if manifest_target
 
         [files.sort.uniq, findings]
+      end
+
+      def module_dirs
+        env_conf = EnvironmentConf.load(@repo_dir)
+        modulepath_entries(env_conf).flat_map do |entry|
+          Dir[File.join(entry[:path], '*')].sort.select { |d| File.directory?(d) }
+        end
       end
 
       private

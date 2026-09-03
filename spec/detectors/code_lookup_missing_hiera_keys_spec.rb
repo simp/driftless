@@ -7,10 +7,11 @@ require 'driftless/models/hiera_data_file_info'
 require 'driftless/models/lookup_call'
 
 RSpec.describe Driftless::Detectors::CodeLookupMissingHieraKeys do
-  def hand_corpus(data_files: [], code_lookup_calls: [])
+  def hand_corpus(data_files: [], code_lookup_calls: [], module_data_keys: Set.new)
     Driftless::Corpus.new(
       repo_dir: nil, hiera_tiers: [], puppet_classes: {},
-      data_files: data_files, reported: Driftless::Reported.new(data: {}),
+      data_files: data_files, module_data_keys: module_data_keys,
+      reported: Driftless::Reported.new(data: {}),
       code_lookup_calls: code_lookup_calls, data_lookup_calls: [],
     )
   end
@@ -79,6 +80,31 @@ RSpec.describe Driftless::Detectors::CodeLookupMissingHieraKeys do
           ['a.pp', 1, false],
           ['b.pp', 5, true],
         )
+      end
+    end
+
+    context 'with keys defined in module data' do
+      let(:module_keys) { Set['baseline::profile::core::filesystems::default'] }
+
+      it 'does NOT flag a profile lookup of a key its own module data defines' do
+        calls = [Driftless::LookupCall.new(
+          key: 'baseline::profile::core::filesystems::default',
+          file: '/repo/modules/baseline/manifests/profile/core/filesystems.pp',
+          line: 1, has_default: false,
+        )]
+        corpus = hand_corpus(code_lookup_calls: calls, module_data_keys: module_keys)
+        expect(described_class.new(corpus).call).to be_empty
+      end
+
+      it 'still flags a profile lookup of a key no data defines' do
+        calls = [Driftless::LookupCall.new(
+          key: 'baseline::profile::core::filesystems::other',
+          file: '/repo/modules/baseline/manifests/profile/core/filesystems.pp',
+          line: 1, has_default: false,
+        )]
+        corpus = hand_corpus(code_lookup_calls: calls, module_data_keys: module_keys)
+        expect(described_class.new(corpus).call.map { |f| f.meta[:lookup_key] })
+          .to eq(['baseline::profile::core::filesystems::other'])
       end
     end
 

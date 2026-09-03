@@ -1,3 +1,5 @@
+require 'set'
+
 module Driftless
   # The result of scanning a control repo — the shared read model every
   # detector queries against. Immutable (Data.define), populated once by
@@ -22,6 +24,11 @@ module Driftless
   #     any tier's datadir. Carries top_level_keys plus a memoized #source
   #     accessor for on-demand raw text.
   #
+  # @!attribute [r] module_data_keys
+  #   @return [Set<String>] Keys defined by the modules' own Hiera data, for
+  #     every module under the modulepath that has a hiera.yaml. Only keys in
+  #     the module's namespace, which is all Puppet's module layer serves.
+  #
   # @!attribute [r] reported
   #   @return [Reported] Wrapper around whatever PuppetDB report data was
   #     loaded from incoming_dir. Detectors query via #missing?(name) /
@@ -45,10 +52,10 @@ module Driftless
   #     nil when not loaded (a corpus built without one).
   #
   Corpus = Data.define(
-    :repo_dir, :hiera_tiers, :puppet_classes, :data_files, :reported,
+    :repo_dir, :hiera_tiers, :puppet_classes, :data_files, :module_data_keys, :reported,
     :code_lookup_calls, :data_lookup_calls, :puppetfile,
   ) do
-    def initialize(puppetfile: nil, **rest)
+    def initialize(puppetfile: nil, module_data_keys: Set.new, **rest)
       super
     end
   end

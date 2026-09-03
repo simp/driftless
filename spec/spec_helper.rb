@@ -45,6 +45,7 @@ def build_corpus(**overrides)
     hiera_tiers:       [],
     puppet_classes:    {},
     data_files:        [],
+    module_data_keys:  Set.new,
     reported:          Driftless::Reported.new(data: {}),
     code_lookup_calls: [],
     data_lookup_calls: [],

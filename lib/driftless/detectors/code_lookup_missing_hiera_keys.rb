@@ -50,15 +50,13 @@ module Driftless
       def collect_defined_keys
         keys = Set.new
         corpus.data_files.each { |df| keys.merge(df.top_level_keys.keys) }
-        keys
+        keys.merge(corpus.module_data_keys)
       end
 
-      # Determines whether a lookup call is inside a module doing its own
-      # namespace's lookups — the case where the module's own Hiera data
-      # (outside driftless's control-repo scope) is expected to resolve it.
-      # Role/profile classes are exempt: they're arranged in module layout
-      # but conventionally use control-repo Hiera, so their lookups get
-      # checked normally.
+      # Whether a lookup call is inside a module and for that module's own
+      # namespace. Those are the module's concern, not the control repo's.
+      # Role/profile classes are arranged in module layout but are the
+      # control repo's code, so their lookups are checked.
       def skip_as_module_local?(lc)
         return false unless lc.file
         m = MODULE_FILE_RE.match(lc.file)

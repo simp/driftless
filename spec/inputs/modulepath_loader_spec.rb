@@ -206,4 +206,24 @@ RSpec.describe Driftless::Inputs::ModulepathLoader do
       end
     end
   end
+  describe '.module_dirs' do
+    it 'lists every directory under each modulepath entry, in modulepath order' do
+      Dir.mktmpdir do |repo|
+        FileUtils.mkdir_p(File.join(repo, 'site-modules/profile'))
+        FileUtils.mkdir_p(File.join(repo, 'modules/stdlib'))
+        FileUtils.mkdir_p(File.join(repo, 'modules/apache'))
+        FileUtils.touch(File.join(repo, 'modules/README.md'))
+
+        dirs = described_class.module_dirs(repo, basemodulepath: [])
+        rels = dirs.map { |d| d.sub("#{repo}/", '') }
+        expect(rels).to eq(['site-modules/profile', 'modules/apache', 'modules/stdlib'])
+      end
+    end
+
+    it 'skips modulepath entries that do not exist' do
+      Dir.mktmpdir do |repo|
+        expect(described_class.module_dirs(repo, basemodulepath: ['/does/not/exist'])).to eq([])
+      end
+    end
+  end
 end

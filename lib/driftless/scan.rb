@@ -8,6 +8,7 @@ require 'driftless/scan_error'
 require 'driftless/detectors'
 require 'driftless/inputs/hierarchy_loader'
 require 'driftless/inputs/modulepath_loader'
+require 'driftless/inputs/module_data_loader'
 require 'driftless/inputs/puppetfile'
 require 'driftless/inputs/datadir_loader'
 require 'driftless/inputs/report_loader'
@@ -95,6 +96,9 @@ module Driftless
       meta_findings.concat(dl_findings)
       Driftless.logger.info("Loaded #{data_files.size} Hiera data files")
 
+      module_data_keys = phase('module data load') { Inputs::ModuleDataLoader.load(module_dirs) }
+      Driftless.logger.info("Loaded #{module_data_keys.size} keys from module data")
+
       reported, rl_findings = phase('report load') { Inputs::ReportLoader.load(incoming_dir) }
       phase('duplicate certname check') { check_duplicate_certnames!(reported) }
       meta_findings.concat(rl_findings)
@@ -119,6 +123,7 @@ module Driftless
         hiera_tiers:       hiera_tiers,
         puppet_classes:    puppet_classes,
         data_files:        data_files,
+        module_data_keys:  module_data_keys,
         reported:          reported,
         code_lookup_calls: code_lookup_calls,
         data_lookup_calls: data_lookup_calls,
@@ -159,6 +164,14 @@ module Driftless
         Inputs::ModulepathLoader.load(repo_dir, basemodulepath: basemodulepath)
       else
         Inputs::ModulepathLoader.load(repo_dir)
+      end
+    end
+
+    def module_dirs
+      if basemodulepath
+        Inputs::ModulepathLoader.module_dirs(repo_dir, basemodulepath: basemodulepath)
+      else
+        Inputs::ModulepathLoader.module_dirs(repo_dir)
       end
     end
 

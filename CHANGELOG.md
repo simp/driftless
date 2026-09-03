@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- role/profiles own module data is now included in their scans
+  - prevents `code:lookup-missing-hiera-keys` from false positives
 - Limited support for eyaml `lookup_key` tiers in `hiera.yaml`
   - "Limited support:" doesn't attempt to decrypt data and ignores `options:` block
   - allows some detectors to know that keys/data exist, even if it's not known what the data is

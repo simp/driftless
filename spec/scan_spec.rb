@@ -99,6 +99,33 @@ RSpec.describe Driftless::Scan do
         expect(scan.corpus.hiera_tiers.map(&:name)).to eq(['Common'])
       end
     end
+
+    it 'carries the keys each module defines in its own Hiera data' do
+      silence_driftless_logger
+      Dir.mktmpdir do |dir|
+        minimal_repo(dir)
+        mod = File.join(dir, 'modules/baseline')
+        FileUtils.mkdir_p(File.join(mod, 'data'))
+        FileUtils.mkdir_p(File.join(mod, 'manifests/profile'))
+        File.write(File.join(mod, 'hiera.yaml'), <<~YAML)
+          ---
+          version: 5
+          hierarchy:
+            - name: common
+              path: common.yaml
+        YAML
+        File.write(File.join(mod, 'data/common.yaml'), "baseline::profile::x::y: 1\n")
+        File.write(File.join(mod, 'manifests/profile/x.pp'), <<~PP)
+          class baseline::profile::x {
+            $y = lookup('baseline::profile::x::y')
+          }
+        PP
+        scan = described_class.new(repo_dir: dir, incoming_dir: File.join(dir, 'incoming'))
+        findings = scan.run
+        expect(scan.corpus.module_data_keys).to eq(Set['baseline::profile::x::y'])
+        expect(findings.map(&:key)).not_to include('code:lookup-missing-hiera-keys')
+      end
+    end
   end
 
   describe 'detector :enabled config' do

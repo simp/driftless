@@ -14,6 +14,42 @@ RSpec.describe Driftless::TopScopeVariables do
     Driftless.config = Driftless::Config.new(merged: { 'puppet' => puppet })
   end
 
+  describe 'the mapping form' do
+    before(:each) do
+      set_config('top_scope_variables' => { 'site_region' => %w[east west], 'compliance_profile' => nil, 'tier' => 1 })
+    end
+
+    it 'knows every mapped name, with or without values' do
+      expect(described_class.known?('::site_region')).to be true
+      expect(described_class.known?('compliance_profile')).to be true
+      expect(described_class.known?('other')).to be false
+    end
+
+    it 'gives the values as strings, nil for a name without any' do
+      expect(described_class.values('::site_region')).to eq(%w[east west])
+      expect(described_class.values('site_region.zone')).to eq(%w[east west])
+      expect(described_class.values('tier')).to eq(['1'])
+      expect(described_class.values('compliance_profile')).to be_nil
+      expect(described_class.values('other')).to be_nil
+    end
+
+    it 'enumerates every combination of values for a set of interpolations' do
+      expect(described_class.combinations([])).to eq([{}])
+      expect(described_class.combinations(['::site_region'])).to eq([{ '::site_region' => 'east' }, { '::site_region' => 'west' }])
+      expect(described_class.combinations(%w[::site_region tier])).to eq([
+        { '::site_region' => 'east', 'tier' => '1' }, { '::site_region' => 'west', 'tier' => '1' },
+      ])
+    end
+  end
+
+  describe 'the list form' do
+    before(:each) { set_config('top_scope_variables' => ['site_region']) }
+
+    it 'has no values' do
+      expect(described_class.values('::site_region')).to be_nil
+    end
+  end
+
   describe '.known?' do
     context 'with no config' do
       before(:each) { set_config({}) }

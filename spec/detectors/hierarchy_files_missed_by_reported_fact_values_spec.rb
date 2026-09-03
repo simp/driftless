@@ -1,5 +1,8 @@
 require 'spec_helper'
+require 'tmpdir'
+require 'fileutils'
 
+require 'driftless/config'
 require 'driftless/corpus'
 require 'driftless/reported'
 require 'driftless/models/node'
@@ -33,6 +36,68 @@ RSpec.describe Driftless::Detectors::HierarchyFilesMissedByReportedFactValues do
   end
 
   describe '#call' do
+    context 'with top-scope variable values configured' do
+      around(:each) do |ex|
+        original = Driftless.instance_variable_get(:@config)
+        ex.run
+      ensure
+        Driftless.instance_variable_set(:@config, original)
+      end
+
+      let(:repo) { Dir.mktmpdir }
+
+      after(:each) { FileUtils.rm_rf(repo) }
+
+      before(:each) do
+        dir = repo
+        File.write(File.join(dir, 'hiera.yaml'), <<~YAML)
+          ---
+          version: 5
+          defaults:
+            datadir: data
+            data_hash: yaml_data
+          hierarchy:
+            - name: Region
+              path: "regions/%{::site_region}.yaml"
+            - name: Region by OS
+              path: "mixed/%{facts.os.family}/%{::site_region}.yaml"
+            - name: Profile
+              path: "profiles/%{::compliance_profile}.yaml"
+        YAML
+        %w[regions/east regions/mars mixed/RedHat/east mixed/RedHat/mars mixed/Debian/east profiles/stig].each do |rel|
+          path = File.join(dir, 'data', "#{rel}.yaml")
+          FileUtils.mkdir_p(File.dirname(path))
+          File.write(path, "---\n")
+        end
+      end
+
+      def set_top_scope(value)
+        Driftless.config = Driftless::Config.new(merged: { 'puppet' => { 'top_scope_variables' => value } })
+      end
+
+      def missed
+        tiers, = Driftless::Inputs::HierarchyLoader.load(repo)
+        corpus = build_corpus(hiera_tiers: tiers,
+                              reported: Driftless::Reported.new(data: { 'factsets-for-all-active-nodes' => [web1] }))
+        findings = described_class.new(corpus).call.select { |f| f.key == described_class.key }
+        findings.to_h { |f| [f.path.delete_prefix("#{repo}/data/"), f.message] }
+      end
+
+      it 'reports the files no configured value reaches, and nothing under a name with no values' do
+        set_top_scope('site_region' => %w[east west], 'compliance_profile' => nil)
+        expect(missed).to eq(
+          'regions/mars.yaml'      => 'no configured value of ::site_region resolves this path',
+          'mixed/RedHat/mars.yaml' => 'no reported or configured combination of facts.os.family and ::site_region resolves this path',
+          'mixed/Debian/east.yaml' => 'no reported or configured combination of facts.os.family and ::site_region resolves this path',
+        )
+      end
+
+      it 'leaves every such tier alone under the list form, as before' do
+        set_top_scope(%w[site_region compliance_profile])
+        expect(missed).to eq({})
+      end
+    end
+
     context 'with no report:factsets-for-all-active-nodes data' do
       let(:findings) { described_class.new(corpus_for('orphans')).call }
 

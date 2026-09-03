@@ -3,6 +3,7 @@ require 'set'
 require 'driftless/detectors/callable'
 require 'driftless/hierarchy_interpolator'
 require 'driftless/node_grouping'
+require 'driftless/top_scope_variables'
 
 module Driftless
   module Detectors
@@ -55,16 +56,26 @@ module Driftless
         orphans.map { |path|
           tier, vars = interpolated_vars_for(path)
           next unless vars
-          noun = (vars.size > 1) ? 'combination' : 'value'
           build_finding(
             path:    path,
-            message: "no reported #{noun} of #{vars.join(' and ')} resolves this path",
+            message: "no #{source_of(vars)} #{(vars.size > 1) ? 'combination' : 'value'} of " \
+                     "#{vars.join(' and ')} resolves this path",
             meta:    { tier: tier.name, vars: vars },
           )
         }.compact
       end
 
       private
+
+      # Where the values that failed to match came from: factsets, the
+      # `puppet.top_scope_variables` config, or both.
+      def source_of(vars)
+        configured, reported = vars.partition { |var| TopScopeVariables.values(var) }
+        return 'reported' if configured.empty?
+        return 'configured' if reported.empty?
+
+        'reported or configured'
+      end
 
       # The first tier whose interpolated template shape the file matches, and
       # that template's variables. Matched the way
@@ -86,7 +97,10 @@ module Driftless
       end
 
       # Renders each path once per distinct set of values for the variables
-      # that path interpolates.
+      # that path interpolates: reported facts take their values from the
+      # nodes, top-scope variables from `puppet.top_scope_variables`, and a
+      # template mixing the two renders once per node group per configured
+      # combination.
       def reachable_paths_for(tier, grouping)
         paths = Set.new
         tier.path_templates.each do |template|
@@ -96,10 +110,15 @@ module Driftless
             next
           end
 
-          grouping.representatives(vars).each do |node|
-            rendered = HierarchyInterpolator.new(node).render(template)
-            next if HierarchyInterpolator.unresolved?(rendered)
-            paths.merge(locations_for(tier, rendered))
+          configured, reported = vars.partition { |var| TopScopeVariables.values(var) }
+          # With nothing to read from a node, one render per combination.
+          nodes = reported.empty? ? [nil] : grouping.representatives(reported)
+          nodes.each do |node|
+            TopScopeVariables.combinations(configured).each do |overrides|
+              rendered = HierarchyInterpolator.new(node, overrides).render(template)
+              next if HierarchyInterpolator.unresolved?(rendered)
+              paths.merge(locations_for(tier, rendered))
+            end
           end
         end
         paths

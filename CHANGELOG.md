@@ -55,6 +55,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
       - if `default` isn't set, `github.com` and `codeberg.org` remotes auto-pick their respecitve layouts and any other host gets `gitltab`
   - `site`-generated pages:
     - utilization columns are now click-sortable
+- `puppet.top_scope_variables` now also accepts a Hash of variables-to-list-of-possible values:
+  - Example:
+    ```yaml
+    puppet:
+      top_scope_variables:
+        site_region:
+        - east
+        - west
+        compliance_profile:          # name known, values not
+    ```
 
 ### Changed
 

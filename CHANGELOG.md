@@ -10,6 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Limited support for eyaml `lookup_key` tiers in `hiera.yaml`
+  - "Limited support:" doesn't attempt to decrypt data and ignores `options:` block
+  - allows some detectors to know that keys/data exist, even if it's not known what the data is
 - New subcommand: `driftless report`
 - New detectors `code:unused-modules`, `code:unused-roles`, `code:unused-profiles`:
   modules and role/profile classes that no active node is classified with

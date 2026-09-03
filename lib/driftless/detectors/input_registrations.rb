@@ -70,7 +70,7 @@ module Driftless
 
     class HierarchyUnscannableByDriftlessBackend < Registration
       key      'hierarchy:unscannable-by-driftless-backend'
-      about    'a tier uses a lookup_key/data_dig backend, which driftless does not read'
+      about    'a tier uses a lookup_key/data_dig backend other than eyaml_lookup_key, which driftless does not read'
       severity :note
     end
 

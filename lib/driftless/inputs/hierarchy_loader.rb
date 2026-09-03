@@ -7,6 +7,8 @@ module Driftless
   module Inputs
     class HierarchyLoader
       SUPPORTED_DATA_HASH_BACKENDS = %w[yaml_data json_data hocon_data].freeze
+      # The one lookup_key backend read; its data files are yaml_data files.
+      EYAML_BACKEND = 'eyaml_lookup_key'.freeze
       # Hiera 5 location keys driftless does not read; see extract_templates
       # for the ones it does.
       UNSCANNED_LOCATORS = %w[uri uris mapped_paths].freeze
@@ -69,24 +71,28 @@ module Driftless
           declared = entry['datadir'] || default_datadir
           datadir  = File.expand_path(declared, @repo_dir)
 
-          if entry.key?('lookup_key') || entry.key?('data_dig')
+          # An eyaml tier's files are YAML whose values are ENC[...] strings,
+          # so its keys read like a yaml_data tier's.
+          if entry['lookup_key'] == EYAML_BACKEND
+            backend = EYAML_BACKEND
+          elsif entry.key?('lookup_key') || entry.key?('data_dig')
             findings << finding(
               Detectors::HierarchyUnscannableByDriftlessBackend,
               "tier #{name.inspect} uses a lookup_key/data_dig backend " \
-              '(driftless currently only scans data_hash tiers with a datadir)',
+              '(driftless reads data_hash tiers with a datadir, and eyaml_lookup_key)',
               line: line,
             )
             next
-          end
-
-          backend = entry['data_hash'] || default_backend
-          unless SUPPORTED_DATA_HASH_BACKENDS.include?(backend)
-            findings << finding(
-              Detectors::HierarchyUnscannableBackend,
-              "tier #{name.inspect} uses data_hash: #{backend.inspect} (currently unscannable by driftless)",
-              line: line,
-            )
-            next
+          else
+            backend = entry['data_hash'] || default_backend
+            unless SUPPORTED_DATA_HASH_BACKENDS.include?(backend)
+              findings << finding(
+                Detectors::HierarchyUnscannableBackend,
+                "tier #{name.inspect} uses data_hash: #{backend.inspect} (currently unscannable by driftless)",
+                line: line,
+              )
+              next
+            end
           end
 
           templates, multi, locator = extract_templates(entry)

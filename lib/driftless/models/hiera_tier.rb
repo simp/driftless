@@ -8,7 +8,7 @@ module Driftless
   # @!attribute [rw] datadir
   #   @return [String] absolute datadir the templates resolve against
   # @!attribute [rw] backend
-  #   @return [Symbol] the data_hash backend, e.g. :yaml_data
+  #   @return [Symbol] the data_hash backend, e.g. :yaml_data, or :eyaml_lookup_key
   # @!attribute [rw] path_templates
   #   @return [Array<String>] path/glob templates as hiera.yaml spells them
   # @!attribute [rw] interpolation_vars

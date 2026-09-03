@@ -120,6 +120,39 @@ RSpec.describe Driftless::Inputs::HierarchyLoader do
       end
     end
 
+    context 'with an eyaml_lookup_key tier' do
+      let(:result) do
+        Dir.mktmpdir do |dir|
+          FileUtils.mkdir_p(File.join(dir, 'data'))
+          File.write(File.join(dir, 'hiera.yaml'), <<~YAML)
+            ---
+            version: 5
+            hierarchy:
+              - name: 'Secrets'
+                lookup_key: eyaml_lookup_key
+                path: secrets.yaml
+                options:
+                  pkcs7_private_key: /etc/puppetlabs/puppet/keys/private_key.pkcs7.pem
+                  pkcs7_public_key:  /etc/puppetlabs/puppet/keys/public_key.pkcs7.pem
+              - name: Default
+                path: default.yaml
+          YAML
+          break described_class.load(dir)
+        end
+      end
+      let(:tiers)    { result[0] }
+      let(:findings) { result[1] }
+
+      it 'keeps the tier with backend :eyaml_lookup_key' do
+        expect(tiers.map { |t| [t.name, t.backend] })
+          .to eq([['Secrets', :eyaml_lookup_key], ['Default', :yaml_data]])
+      end
+
+      it 'emits no finding' do
+        expect(findings).to be_empty
+      end
+    end
+
     context 'with tiers driftless cannot locate data for' do
       let(:result)   { described_class.load(fixture('unscanned_locator')) }
       let(:tiers)    { result[0] }

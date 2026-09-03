@@ -74,6 +74,15 @@ RSpec.describe Driftless::Inputs::DatadirLoader do
       expect(malformed_findings.length).to eq(1)
     end
 
+    it 'reads .yaml files from an eyaml_lookup_key tier' do
+      eyaml_tier = Driftless::HieraTier.new(
+        name: 'secrets', datadir: datadir, backend: :eyaml_lookup_key,
+        path_templates: [], interpolation_vars: [], multi_path: false,
+      )
+      dfs, = described_class.load([eyaml_tier])
+      expect(dfs.map(&:path)).to eq(data_files.map(&:path))
+    end
+
     it 'skips tiers whose backend is not yaml_data' do
       json_tier = Driftless::HieraTier.new(
         name: 'json', datadir: datadir, backend: :json_data,

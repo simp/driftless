@@ -7,7 +7,7 @@ require 'driftless/models/hiera_data_file_info'
 module Driftless
   module Inputs
     class DatadirLoader
-      SUPPORTED_BACKENDS = [:yaml_data].freeze
+      SUPPORTED_BACKENDS = %i[yaml_data eyaml_lookup_key].freeze
       YAML_EXTENSIONS    = %w[.yaml].freeze
 
       def self.load(tiers)

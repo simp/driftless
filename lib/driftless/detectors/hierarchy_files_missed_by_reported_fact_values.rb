@@ -16,9 +16,10 @@ module Driftless
       requires_reports 'factsets-for-all-active-nodes'
 
       BACKEND_EXT = {
-        yaml_data:  '.yaml',
-        json_data:  '.json',
-        hocon_data: '.conf',
+        yaml_data:        '.yaml',
+        eyaml_lookup_key: '.yaml',
+        json_data:        '.json',
+        hocon_data:       '.conf',
       }.freeze
 
       TEMPLATE_VAR_RE = /%\{[^{}]+\}/.freeze

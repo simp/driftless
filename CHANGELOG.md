@@ -86,6 +86,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `site`-generated pages:
   - Finding web links now support all repos deployed by the `Puppetfile` (was just control repo)
   - Clicking on a finding in the hierarchy clears any other filters when jumping back to the findings page
+- `driftless export factsets` is no longer silent
+  - `-v` reports directory, number of factsets read, globbed, and limited
+  - `-vv` reports one line per file written
 
 ## [0.3.0] - 2026-08-31
 

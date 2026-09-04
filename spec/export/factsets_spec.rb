@@ -237,6 +237,86 @@ RSpec.describe Driftless::Export::Factsets do
     end
   end
 
+  describe 'environment filter' do
+    let(:records) do
+      [
+        record('web01.example.com', {}, environment: 'production'),
+        record('dev01.example.com', {}, environment: 'dev'),
+      ]
+    end
+
+    it 'exports every node when no environments are given' do
+      Dir.mktmpdir do |tmp|
+        seed_factsets(tmp, records)
+        out = File.join(tmp, 'out')
+        described_class.new(incoming_dir: tmp, output_dir: out, profile: 'onceover').run
+        expect(Dir.children(out).sort).to eq(%w[dev01.example.com.json web01.example.com.json])
+      end
+    end
+
+    it 'drops nodes outside the listed environments' do
+      Dir.mktmpdir do |tmp|
+        seed_factsets(tmp, records)
+        out = File.join(tmp, 'out')
+        described_class.new(
+          incoming_dir: tmp, output_dir: out, profile: 'onceover', environments: ['production'],
+        ).run
+        expect(Dir.children(out)).to eq(%w[web01.example.com.json])
+      end
+    end
+
+    it 'raises ScanError when a listed environment has no reports' do
+      Dir.mktmpdir do |tmp|
+        seed_factsets(tmp, records)
+        exporter = described_class.new(
+          incoming_dir: tmp, output_dir: File.join(tmp, 'out'), profile: 'onceover',
+          environments: %w[production staging],
+        )
+        expect { exporter.run }.to raise_error(Driftless::ScanError, /"staging" listed in puppet.environments/)
+      end
+    end
+
+    it 'warns instead when allow_missing_envs is set' do
+      Dir.mktmpdir do |tmp|
+        seed_factsets(tmp, records)
+        out = File.join(tmp, 'out')
+        exporter = described_class.new(
+          incoming_dir: tmp, output_dir: out, profile: 'onceover',
+          environments: %w[production staging], allow_missing_envs: true,
+        )
+        allow(Driftless.logger).to receive(:warn)
+        expect(exporter.run.written).to eq(1)
+        expect(exporter.warnings).to contain_exactly(a_string_matching(/"staging" listed in puppet.environments/))
+      end
+    end
+  end
+
+  describe 'log narration' do
+    let(:captured) { StringIO.new }
+
+    around(:each) do |example|
+      original_logger = Driftless.logger
+      Driftless.logger = Logger.new(captured, level: Logger::DEBUG)
+      Driftless.logger.formatter = Driftless::Logging.formatter
+      example.run
+    ensure
+      Driftless.logger = original_logger
+    end
+
+    it 'says what was read and written' do
+      Dir.mktmpdir do |tmp|
+        seed_factsets(tmp, [record('web01.example.com', {})])
+        out = File.join(tmp, 'out')
+
+        described_class.new(incoming_dir: tmp, output_dir: out, profile: 'onceover').run
+
+        expect(captured.string).to include("info: export factsets: reading #{tmp}")
+        expect(captured.string).to include('info: export factsets: loaded 1 factsets from coll--2026-08-14T00-00-00Z')
+        expect(captured.string).to include("debug: export factsets: wrote #{File.join(out, 'web01.example.com.json')}")
+      end
+    end
+  end
+
   describe 'error cases' do
     it 'raises Error when the factsets report is missing' do
       Dir.mktmpdir do |tmp|

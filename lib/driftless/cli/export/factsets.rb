@@ -21,6 +21,8 @@ module Driftless
             serialization:  @options[:serialization],
             certname_globs: @options[:certname_globs],
             limit:          @options[:limit],
+            environments:   @options[:environments],
+            allow_missing_envs: @options[:allow_missing_envs] || false,
           ).run
 
           extra = result.skipped_no_certname.zero? ? '' : " (#{result.skipped_no_certname} skipped, no certname)"
@@ -29,7 +31,7 @@ module Driftless
             "#{@options[:output_dir]} [#{@options[:profile]}:#{@options[:serialization]}]#{extra}",
           )
           exit 0
-        rescue ::Driftless::Export::Error => e
+        rescue ::Driftless::Export::Error, ::Driftless::ScanError => e
           fatal!("export factsets: #{e.message}")
         end
 
@@ -54,6 +56,18 @@ module Driftless
             (@options[:certname_globs] ||= []) << v
           end
           o.on('--limit=N', Integer, 'Cap emitted files (after filter, sorted by certname)') { |v| @options[:limit] = v }
+
+          o.separator ''
+          o.separator 'Environment scoping:'
+          o.on('--environments=ENVS', Array,
+               'Export only nodes in these Puppet environment(s), comma-separated',
+               'Default: puppet.environments from driftless.yaml; unset exports every node') do |v|
+            @options[:environments] = v
+          end
+          o.on('--allow-missing-envs',
+               'Warn instead of error when a listed environment has no reports') do
+            @options[:allow_missing_envs] = true
+          end
         end
 
         private
@@ -89,7 +103,11 @@ module Driftless
 
         def config_defaults
           cfg = ::Driftless.config
-          { incoming_dir: cfg.dig('reports', 'incoming_dir') }.compact
+          {
+            incoming_dir:       cfg.dig('reports', 'incoming_dir'),
+            environments:       cfg.dig('puppet',  'environments'),
+            allow_missing_envs: cfg.dig('puppet',  'allow_missing_envs'),
+          }.compact
         end
       end
     end

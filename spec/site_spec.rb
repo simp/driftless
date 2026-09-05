@@ -87,7 +87,7 @@ RSpec.describe Driftless::Site do
     end
 
     it 'flags relaxed acceptance rules in the summary line' do
-      html = described_class.render(build_data(overrides: { 'allow_missing_envs' => true }))
+      html = described_class.render(build_data(overrides: { 'proceed_with_subset_of_configured_envs' => true }))
       expect(html[%r{<summary>(.*?)</summary>}m, 1]).to include('acceptance rules relaxed')
     end
 
@@ -107,7 +107,7 @@ RSpec.describe Driftless::Site do
     end
 
     it 'names the acceptance rules the scan relaxed, and says nothing when none were' do
-      relaxed = { 'accept_partial_report_sessions' => %w[a b], 'accept_duplicate_certnames' => true, 'allow_missing_envs' => false }
+      relaxed = { 'accept_partial_report_sessions' => %w[a b], 'accept_duplicate_certnames' => true, 'proceed_with_subset_of_configured_envs' => false }
       expect(described_class.render(build_data(overrides: relaxed)))
         .to include('<code>accept_partial_report_sessions=a,b accept_duplicate_certnames</code>')
       expect(described_class.render(build_data)).not_to include('Acceptance rules relaxed')

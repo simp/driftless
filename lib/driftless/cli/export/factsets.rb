@@ -25,7 +25,7 @@ module Driftless
             selector:           node_selector,
             limit:              @options[:limit],
             environments:       @options[:environments],
-            allow_missing_envs: @options[:allow_missing_envs] || false,
+            proceed_with_subset_of_configured_envs: @options[:proceed_with_subset_of_configured_envs] || false,
           ).run
 
           extra = result.skipped_no_certname.zero? ? '' : " (#{result.skipped_no_certname} skipped, no certname)"
@@ -61,9 +61,10 @@ module Driftless
                'Default: puppet.environments from driftless.yaml; unset exports every node') do |v|
             @options[:environments] = v
           end
-          o.on('--allow-missing-envs',
-               'Warn instead of error when a listed environment has no reports') do
-            @options[:allow_missing_envs] = true
+          o.on('-b', '--proceed-with-subset-of-configured-envs',
+               'Proceed with the reports for the environments present, even when they',
+               'do not cover every environment in puppet.environments') do
+            @options[:proceed_with_subset_of_configured_envs] = true
           end
         end
 
@@ -103,7 +104,7 @@ module Driftless
           {
             incoming_dir:       cfg.dig('reports', 'incoming_dir'),
             environments:       cfg.dig('puppet',  'environments'),
-            allow_missing_envs: cfg.dig('puppet',  'allow_missing_envs'),
+            proceed_with_subset_of_configured_envs: cfg.dig('puppet', 'proceed_with_subset_of_configured_envs'),
           }.compact
         end
       end

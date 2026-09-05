@@ -29,7 +29,7 @@ RSpec.describe Driftless::ScanData do
   end
 
   NO_OVERRIDES = {
-    'accept_partial_report_sessions' => nil, 'accept_duplicate_certnames' => false, 'allow_missing_envs' => false
+    'accept_partial_report_sessions' => nil, 'accept_duplicate_certnames' => false, 'proceed_with_subset_of_configured_envs' => false
   }.freeze
 
   def assemble(**overrides)
@@ -57,10 +57,10 @@ RSpec.describe Driftless::ScanData do
 
   it 'carries the warnings, environments, and overrides through' do
     data = assemble(warnings: %w[w1 w2], environments: %w[production staging],
-                    overrides: NO_OVERRIDES.merge('allow_missing_envs' => true))
+                    overrides: NO_OVERRIDES.merge('proceed_with_subset_of_configured_envs' => true))
     expect(data['warnings']).to eq(%w[w1 w2])
     expect(data['environments']).to eq(%w[production staging])
-    expect(data['overrides']['allow_missing_envs']).to be(true)
+    expect(data['overrides']['proceed_with_subset_of_configured_envs']).to be(true)
   end
 
   it 'renders nil environments as an empty list' do
@@ -70,7 +70,7 @@ RSpec.describe Driftless::ScanData do
   describe '.overrides_from' do
     def scanner(**attrs)
       instance_double(Driftless::Scan, { accept_partial_report_sessions: nil, accept_duplicate_certnames: false,
-                                         allow_missing_envs: false }.merge(attrs))
+                                         proceed_with_subset_of_configured_envs: false }.merge(attrs))
     end
 
     it 'records nothing relaxed as nil and false' do
@@ -85,8 +85,8 @@ RSpec.describe Driftless::ScanData do
     end
 
     it 'normalizes the booleans' do
-      expect(described_class.overrides_from(scanner(accept_duplicate_certnames: true, allow_missing_envs: nil)))
-        .to include('accept_duplicate_certnames' => true, 'allow_missing_envs' => false)
+      expect(described_class.overrides_from(scanner(accept_duplicate_certnames: true, proceed_with_subset_of_configured_envs: nil)))
+        .to include('accept_duplicate_certnames' => true, 'proceed_with_subset_of_configured_envs' => false)
     end
   end
 

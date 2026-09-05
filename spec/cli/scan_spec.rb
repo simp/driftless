@@ -84,7 +84,7 @@ RSpec.describe Driftless::CLI::Scan do
         s = described_class.new(parent_options: {})
         s.instance_variable_set(:@options, {
           fail_on: 'none', repo_dir: repo, incoming_dir: File.join(repo, 'incoming'),
-          environments: ['production'], allow_missing_envs: true,
+          environments: ['production'], proceed_with_subset_of_configured_envs: true,
           format: 'json', output_file: File.join(repo, 'findings.json'),
           data_file: data_path
         })
@@ -93,7 +93,7 @@ RSpec.describe Driftless::CLI::Scan do
         data = JSON.parse(File.read(data_path))
         expect(data).to include('document' => 'scan', 'schema_version' => 1)
         expect(data['overrides']).to eq('accept_partial_report_sessions' => nil, 'accept_duplicate_certnames' => false,
-                                        'allow_missing_envs' => true)
+                                        'proceed_with_subset_of_configured_envs' => true)
         expect(data['repo']['dir']).to eq(repo)
         expect(data['environments']).to eq(['production'])
         expect(data['findings']).to eq(JSON.parse(File.read(File.join(repo, 'findings.json'))))

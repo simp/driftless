@@ -183,11 +183,11 @@ RSpec.describe Driftless::ConfigValidator do
   end
 
   describe 'puppet section keys' do
-    it 'accepts known keys (environments, allow_missing_envs)' do
+    it 'accepts known keys (environments, proceed_with_subset_of_configured_envs)' do
       expect {
         validate('puppet' => {
-          'environments'       => ['production'],
-          'allow_missing_envs' => false,
+          'environments' => ['production'],
+          'proceed_with_subset_of_configured_envs' => false,
         })
       }.not_to raise_error
     end

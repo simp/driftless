@@ -21,12 +21,12 @@ module Driftless
     attr_reader :utilization
 
     def initialize(incoming_dir:, summary_dir: nil, environments: nil,
-                   allow_missing_envs: false, accept_partial_report_sessions: nil,
+                   proceed_with_subset_of_configured_envs: false, accept_partial_report_sessions: nil,
                    accept_duplicate_certnames: false)
       @incoming_dir                   = incoming_dir
       @summary_dir                    = summary_dir
       @environments                   = environments
-      @allow_missing_envs             = allow_missing_envs
+      @proceed_with_subset_of_configured_envs = proceed_with_subset_of_configured_envs
       @accept_partial_report_sessions = accept_partial_report_sessions
       @accept_duplicate_certnames     = accept_duplicate_certnames
     end

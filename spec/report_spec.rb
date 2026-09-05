@@ -90,7 +90,7 @@ RSpec.describe Driftless::Report do
     end
   end
 
-  it 'raises when a listed environment has no reports' do
+  it 'raises when a configured environment has no reports' do
     Dir.mktmpdir do |dir|
       populated_tree(dir)
       expect { described_class.new(incoming_dir: dir, environments: %w[production dr]).run }

@@ -14,12 +14,15 @@ module Driftless
 
     config_key 'puppet.environments', type: :array, default: [],
                 about: 'Puppet environment(s) to scan.  Generally your main production environment; multiple values are accepted to acommodate multi-tenant/site variations'
-    config_key 'puppet.allow_missing_envs', type: :boolean, default: false,
-               about: 'Warn instead of erroring when a listed environment has no reports'
+    config_key 'puppet.proceed_with_subset_of_configured_envs', type: :boolean, default: false,
+               about: 'Proceed with the reports for the environments present, even when they ' \
+                      'do not cover every environment in puppet.environments'
     config_key 'reports.accept_duplicate_certnames', type: :boolean, default: false,
                about: 'Warn instead of erroring when one certname is reported by two collectors'
 
-    attr_reader :incoming_dir, :summary_dir, :environments, :allow_missing_envs,
+    FLAG_HINT = 'pass --proceed-with-subset-of-configured-envs to continue with the environments that have reports'.freeze
+
+    attr_reader :incoming_dir, :summary_dir, :environments, :proceed_with_subset_of_configured_envs,
                 :accept_partial_report_sessions, :accept_duplicate_certnames
 
     # @return [Array<String>] warnings the run logged, in emission order, so
@@ -121,7 +124,7 @@ module Driftless
         msg = "no PuppetDB node reports loaded from #{incoming_dir} " \
               '(expected <query>/<collector>--<timestamp>.{json,ndjson} ' \
               "files under at least one of: #{Inputs::ReportLoader::NODE_REPORTS.join(', ')})"
-        raise ScanError, msg unless allow_missing_envs
+        raise ScanError, "#{msg} (#{FLAG_HINT})" unless proceed_with_subset_of_configured_envs
         warn(msg)
         return reported
       end
@@ -149,9 +152,9 @@ module Driftless
       end
 
       (env_set - seen_envs).each do |env|
-        msg = "environment #{env.inspect} listed in puppet.environments but has no reports in #{incoming_dir}"
-        raise ScanError, msg unless allow_missing_envs
-        warn(msg)
+        msg = "environment #{env.inspect} is configured in puppet.environments but has no reports in #{incoming_dir}"
+        raise ScanError, "#{msg} (#{FLAG_HINT})" unless proceed_with_subset_of_configured_envs
+        warn("#{msg}; proceeding with the environments that have reports")
       end
 
       Reported.new(data: filtered_data, duplicate_certnames: reported.duplicate_certnames,

@@ -18,12 +18,12 @@ module Driftless
 
       # @param environments [Array<String>, nil] environments to keep; nil or
       #   empty keeps every node
-      # @param allow_missing_envs [Boolean] warn instead of raising when a
-      #   listed environment has no reports
-      def initialize(incoming_dir:, environments: nil, allow_missing_envs: false)
+      # @param proceed_with_subset_of_configured_envs [Boolean] warn instead of
+      #   raising when a configured environment has no reports
+      def initialize(incoming_dir:, environments: nil, proceed_with_subset_of_configured_envs: false)
         @incoming_dir       = incoming_dir
         @environments       = environments
-        @allow_missing_envs = allow_missing_envs
+        @proceed_with_subset_of_configured_envs = proceed_with_subset_of_configured_envs
       end
 
       # @return [Array<Node>] rows of the factsets report

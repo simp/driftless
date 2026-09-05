@@ -46,17 +46,17 @@ module Driftless
       #   every node
       # @param environments [Array<String>, nil] environments to keep; nil or
       #   empty exports every node
-      # @param allow_missing_envs [Boolean] warn instead of raising when a
-      #   listed environment has no reports
+      # @param proceed_with_subset_of_configured_envs [Boolean] warn instead of
+      #   raising when a configured environment has no reports
       def initialize(incoming_dir:, output_dir:, profile:,
                      serialization: nil, selector: nil, limit: nil,
-                     environments: nil, allow_missing_envs: false)
+                     environments: nil, proceed_with_subset_of_configured_envs: false)
         raise Error, "unknown profile: #{profile.inspect} (known: #{PROFILES.keys.join(', ')})" unless PROFILES.key?(profile)
         ser = serialization || PROFILES.fetch(profile)[:default_serialization]
         raise Error, "unknown serialization: #{ser.inspect} (known: #{SERIALIZATIONS.join(', ')})" unless SERIALIZATIONS.include?(ser)
 
         @loader = Inputs::FactsetsLoader.new(
-          incoming_dir: incoming_dir, environments: environments, allow_missing_envs: allow_missing_envs,
+          incoming_dir: incoming_dir, environments: environments, proceed_with_subset_of_configured_envs: proceed_with_subset_of_configured_envs,
         )
         @output_dir    = output_dir
         @profile       = profile

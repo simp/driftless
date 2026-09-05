@@ -265,28 +265,28 @@ RSpec.describe Driftless::Export::Factsets do
       end
     end
 
-    it 'raises ScanError when a listed environment has no reports' do
+    it 'raises ScanError when a configured environment has no reports' do
       Dir.mktmpdir do |tmp|
         seed_factsets(tmp, records)
         exporter = described_class.new(
           incoming_dir: tmp, output_dir: File.join(tmp, 'out'), profile: 'onceover',
           environments: %w[production staging],
         )
-        expect { exporter.run }.to raise_error(Driftless::ScanError, /"staging" listed in puppet.environments/)
+        expect { exporter.run }.to raise_error(Driftless::ScanError, /"staging" is configured in puppet.environments/)
       end
     end
 
-    it 'warns instead when allow_missing_envs is set' do
+    it 'warns instead when proceed_with_subset_of_configured_envs is set' do
       Dir.mktmpdir do |tmp|
         seed_factsets(tmp, records)
         out = File.join(tmp, 'out')
         exporter = described_class.new(
           incoming_dir: tmp, output_dir: out, profile: 'onceover',
-          environments: %w[production staging], allow_missing_envs: true,
+          environments: %w[production staging], proceed_with_subset_of_configured_envs: true,
         )
         allow(Driftless.logger).to receive(:warn)
         expect(exporter.run.written).to eq(1)
-        expect(exporter.warnings).to contain_exactly(a_string_matching(/"staging" listed in puppet.environments/))
+        expect(exporter.warnings).to contain_exactly(a_string_matching(/"staging" is configured in puppet.environments/))
       end
     end
   end

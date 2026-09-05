@@ -18,7 +18,7 @@ RSpec.describe Driftless::Site::BuildData do
       'repo' => { 'dir' => '/srv/repo', 'git' => nil },
       'environments' => ['production'],
       'overrides' => { 'accept_partial_report_sessions' => nil, 'accept_duplicate_certnames' => false,
-                       'allow_missing_envs' => false },
+                       'proceed_with_subset_of_configured_envs' => false },
       'sessions' => [session('east', 'T02'), session('west', 'T01')],
       'nodes' => { 'total' => 2, 'by_collector' => { 'east' => 1, 'west' => 1 }, 'by_environment' => { 'production' => 2 } },
       'findings' => [{ 'key' => 'data:missing-nodes', 'severity' => 'warning', 'quality' => nil,

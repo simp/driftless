@@ -55,7 +55,7 @@ module Driftless
             incoming_dir:                   @options[:incoming_dir],
             summary_dir:                    summary_dir,
             environments:                   @options[:environments],
-            allow_missing_envs:             @options[:allow_missing_envs] || false,
+            proceed_with_subset_of_configured_envs: @options[:proceed_with_subset_of_configured_envs] || false,
             accept_duplicate_certnames:     @options[:accept_duplicate_certnames] || false,
             accept_partial_report_sessions: @options[:accept_partial_report_sessions],
           )
@@ -115,9 +115,10 @@ module Driftless
              'Warn instead of erroring when one certname is reported by two collectors') do
           @options[:accept_duplicate_certnames] = true
         end
-        o.on('--allow-missing-envs',
-             'Warn instead of error when a listed environment has no reports') do
-          @options[:allow_missing_envs] = true
+        o.on('-b', '--proceed-with-subset-of-configured-envs',
+             'Proceed with the reports for the environments present, even when they',
+             'do not cover every environment in puppet.environments') do
+          @options[:proceed_with_subset_of_configured_envs] = true
         end
         Import.declare_accept_partial(o, @options)
       end
@@ -136,8 +137,8 @@ module Driftless
       def config_defaults
         cfg = ::Driftless.config
         {
-          environments:               cfg.dig('puppet',  'environments'),
-          allow_missing_envs:         cfg.dig('puppet',  'allow_missing_envs'),
+          environments:               cfg.dig('puppet', 'environments'),
+          proceed_with_subset_of_configured_envs: cfg.dig('puppet', 'proceed_with_subset_of_configured_envs'),
           accept_duplicate_certnames: cfg.dig('reports', 'accept_duplicate_certnames'),
           incoming_dir:               cfg.dig('reports',  'incoming_dir'),
         }.compact

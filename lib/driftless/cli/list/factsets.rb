@@ -24,7 +24,7 @@ module Driftless
           loader = ::Driftless::Inputs::FactsetsLoader.new(
             incoming_dir:       File.expand_path(@options[:incoming_dir]),
             environments:       @options[:environments],
-            allow_missing_envs: @options[:allow_missing_envs] || false,
+            proceed_with_subset_of_configured_envs: @options[:proceed_with_subset_of_configured_envs] || false,
           )
           nodes    = loader.load
           selector = node_selector
@@ -54,9 +54,10 @@ module Driftless
                'Default: puppet.environments from driftless.yaml; unset lists every node') do |v|
             @options[:environments] = v
           end
-          o.on('--allow-missing-envs',
-               'Warn instead of error when a listed environment has no reports') do
-            @options[:allow_missing_envs] = true
+          o.on('-b', '--proceed-with-subset-of-configured-envs',
+               'Proceed with the reports for the environments present, even when they',
+               'do not cover every environment in puppet.environments') do
+            @options[:proceed_with_subset_of_configured_envs] = true
           end
         end
 
@@ -72,7 +73,7 @@ module Driftless
           {
             incoming_dir:       cfg.dig('reports', 'incoming_dir'),
             environments:       cfg.dig('puppet',  'environments'),
-            allow_missing_envs: cfg.dig('puppet',  'allow_missing_envs'),
+            proceed_with_subset_of_configured_envs: cfg.dig('puppet', 'proceed_with_subset_of_configured_envs'),
           }.compact
         end
 

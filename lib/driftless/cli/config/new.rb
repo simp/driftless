@@ -22,7 +22,7 @@ module Driftless
         # order; a key not listed keeps registration order after these.
         KEY_ORDER = {
           'puppet' => %w[environments top_scope_variables role_regex profile_regex
-                         allow_missing_envs allow_builtin_top_scope_variables],
+                         proceed_with_subset_of_configured_envs allow_builtin_top_scope_variables],
         }.freeze
 
         def execute(argv)

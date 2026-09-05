@@ -106,7 +106,7 @@ module Driftless
       {
         'accept_partial_report_sessions' => (partial == :bare) ? 'bare' : partial,
         'accept_duplicate_certnames'     => scanner.accept_duplicate_certnames ? true : false,
-        'allow_missing_envs'             => scanner.allow_missing_envs ? true : false,
+        'proceed_with_subset_of_configured_envs' => scanner.proceed_with_subset_of_configured_envs ? true : false,
       }
     end
 

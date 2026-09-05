@@ -8,7 +8,7 @@ RSpec.describe Driftless::ConfigKeys do
       'puppet.role_regex'          => Driftless::RoleProfile,
       'puppet.profile_regex'       => Driftless::RoleProfile,
       'puppet.environments'        => Driftless::ReportedChecks,
-      'puppet.allow_missing_envs'  => Driftless::ReportedChecks,
+      'puppet.proceed_with_subset_of_configured_envs' => Driftless::ReportedChecks,
       'puppet.top_scope_variables' => Driftless::TopScopeVariables,
       'puppet.allow_builtin_top_scope_variables' => Driftless::TopScopeVariables,
       'reports.accept_duplicate_certnames' => Driftless::ReportedChecks,

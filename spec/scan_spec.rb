@@ -284,12 +284,12 @@ RSpec.describe Driftless::Scan do
       Driftless::Reported.new(data: { 'all-active-nodes' => nodes })
     end
 
-    def filter_scan(environments:, allow_missing_envs: false)
+    def filter_scan(environments:, proceed_with_subset_of_configured_envs: false)
       described_class.new(
         repo_dir:           '/tmp',
         incoming_dir:       '/tmp/incoming',
         environments:       environments,
-        allow_missing_envs: allow_missing_envs,
+        proceed_with_subset_of_configured_envs: proceed_with_subset_of_configured_envs,
       )
     end
 
@@ -303,7 +303,7 @@ RSpec.describe Driftless::Scan do
     # Every report is a list of Nodes, so the same filter drops a node's class
     # list when it drops the node.
     it 'filters the classes report alongside the node reports' do
-      scan     = filter_scan(environments: ['production'], allow_missing_envs: true)
+      scan     = filter_scan(environments: ['production'], proceed_with_subset_of_configured_envs: true)
       reported = Driftless::Reported.new(data: {
         'all-active-nodes' => [
           make_node(certname: 'web1', environment: 'production'),
@@ -321,7 +321,7 @@ RSpec.describe Driftless::Scan do
     end
 
     it 'excludes nodes whose environment is not listed' do
-      scan     = filter_scan(environments: ['production'], allow_missing_envs: true)
+      scan     = filter_scan(environments: ['production'], proceed_with_subset_of_configured_envs: true)
       reported = make_reported([
         make_node(certname: 'web1', environment: 'production'),
         make_node(certname: 'dev1', environment: 'dev'),
@@ -332,29 +332,29 @@ RSpec.describe Driftless::Scan do
 
     it 'passes nodes with nil environment through unconditionally' do
       silence_driftless_logger
-      scan     = filter_scan(environments: ['production'], allow_missing_envs: true)
+      scan     = filter_scan(environments: ['production'], proceed_with_subset_of_configured_envs: true)
       reported = make_reported([make_node(certname: 'legacy', environment: nil)])
       result   = scan.send(:apply_environment_filter, reported)
       expect(result.report('all-active-nodes').map(&:certname)).to eq(['legacy'])
     end
 
-    it 'raises ScanError when a listed env has no reports and allow_missing_envs is false' do
+    it 'raises ScanError when a configured env has no reports and proceed_with_subset_of_configured_envs is false' do
       scan     = filter_scan(environments: %w[production staging])
       reported = make_reported([make_node(certname: 'web1', environment: 'production')])
       expect { scan.send(:apply_environment_filter, reported) }
         .to raise_error(Driftless::ScanError, /staging/)
     end
 
-    it 'warns instead of raising when allow_missing_envs is true' do
+    it 'warns instead of raising when proceed_with_subset_of_configured_envs is true' do
       silence_driftless_logger
-      scan     = filter_scan(environments: %w[production staging], allow_missing_envs: true)
+      scan     = filter_scan(environments: %w[production staging], proceed_with_subset_of_configured_envs: true)
       reported = make_reported([make_node(certname: 'web1', environment: 'production')])
       expect { scan.send(:apply_environment_filter, reported) }.not_to raise_error
     end
 
     it 'records the warning in #warnings for end-of-run replay' do
       silence_driftless_logger
-      scan     = filter_scan(environments: %w[production staging], allow_missing_envs: true)
+      scan     = filter_scan(environments: %w[production staging], proceed_with_subset_of_configured_envs: true)
       reported = make_reported([make_node(certname: 'web1', environment: 'production')])
       scan.send(:apply_environment_filter, reported)
       expect(scan.warnings).to contain_exactly(a_string_including('staging'))
@@ -375,7 +375,7 @@ RSpec.describe Driftless::Scan do
 
     it 'keeps MissingReport queries absent from the filtered result' do
       silence_driftless_logger
-      scan     = filter_scan(environments: ['production'], allow_missing_envs: true)
+      scan     = filter_scan(environments: ['production'], proceed_with_subset_of_configured_envs: true)
       reported = Driftless::Reported.new(data: {})
       result   = scan.send(:apply_environment_filter, reported)
       expect(result.missing?('all-active-nodes')).to be true
@@ -402,9 +402,9 @@ RSpec.describe Driftless::Scan do
           }
       end
 
-      it 'warns and returns the (still-empty) reported when allow_missing_envs is true' do
+      it 'warns and returns the (still-empty) reported when proceed_with_subset_of_configured_envs is true' do
         silence_driftless_logger
-        scan   = filter_scan(environments: ['production'], allow_missing_envs: true)
+        scan   = filter_scan(environments: ['production'], proceed_with_subset_of_configured_envs: true)
         result = scan.send(:apply_environment_filter, empty_reported)
         expect(result.missing?('all-active-nodes')).to be true
         expect(result.missing?('factsets-for-all-active-nodes')).to be true
@@ -470,7 +470,7 @@ RSpec.describe Driftless::Scan do
           repo_dir:     dir,
           incoming_dir: File.join(dir, 'incoming'),
           environments: ['production'],
-          allow_missing_envs: true,
+          proceed_with_subset_of_configured_envs: true,
         ).run
 
         paths = findings.map(&:path).compact

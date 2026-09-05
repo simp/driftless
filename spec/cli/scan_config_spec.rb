@@ -58,9 +58,9 @@ RSpec.describe Driftless::CLI::Scan do
       expect(opts_after_parse[:environments]).to eq(%w[production staging])
     end
 
-    it 'reads puppet.allow_missing_envs' do
-      set_config('puppet' => { 'allow_missing_envs' => true })
-      expect(opts_after_parse[:allow_missing_envs]).to be(true)
+    it 'reads puppet.proceed_with_subset_of_configured_envs' do
+      set_config('puppet' => { 'proceed_with_subset_of_configured_envs' => true })
+      expect(opts_after_parse[:proceed_with_subset_of_configured_envs]).to be(true)
     end
   end
 

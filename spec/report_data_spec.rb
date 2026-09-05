@@ -7,7 +7,7 @@ require 'driftless/report_data'
 
 RSpec.describe Driftless::ReportData do
   FakeReporter = Struct.new(:reported, :utilization, :accept_partial_report_sessions,
-                            :accept_duplicate_certnames, :allow_missing_envs,
+                            :accept_duplicate_certnames, :proceed_with_subset_of_configured_envs,
                             keyword_init: true)
 
   def reported
@@ -25,7 +25,7 @@ RSpec.describe Driftless::ReportData do
       utilization:                    { 'modules' => [{ 'name' => 'apache', 'nodes' => 1 }] },
       accept_partial_report_sessions: nil,
       accept_duplicate_certnames:     false,
-      allow_missing_envs:             false,
+      proceed_with_subset_of_configured_envs: false,
     }, **overrides)
   end
 
@@ -61,7 +61,7 @@ RSpec.describe Driftless::ReportData do
       expect(data['overrides']).to eq(
         'accept_partial_report_sessions' => nil,
         'accept_duplicate_certnames'     => false,
-        'allow_missing_envs'             => false,
+        'proceed_with_subset_of_configured_envs' => false,
       )
     end
 

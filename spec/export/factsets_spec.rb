@@ -189,7 +189,7 @@ RSpec.describe Driftless::Export::Factsets do
 
         result = described_class.new(
           incoming_dir: tmp, output_dir: out, profile: 'onceover',
-          certname_globs: ['web*.example.com'],
+          selector: Driftless::NodeSelector.new(certname_globs: ['web*.example.com']),
         ).run
 
         expect(result.written).to eq(2)
@@ -208,7 +208,7 @@ RSpec.describe Driftless::Export::Factsets do
 
         result = described_class.new(
           incoming_dir: tmp, output_dir: out, profile: 'onceover',
-          certname_globs: ['web*', 'db*'],
+          selector: Driftless::NodeSelector.new(certname_globs: ['web*', 'db*']),
         ).run
 
         expect(result.written).to eq(2)
@@ -310,21 +310,21 @@ RSpec.describe Driftless::Export::Factsets do
 
         described_class.new(incoming_dir: tmp, output_dir: out, profile: 'onceover').run
 
-        expect(captured.string).to include("info: export factsets: reading #{tmp}")
-        expect(captured.string).to include('info: export factsets: loaded 1 factsets from coll--2026-08-14T00-00-00Z')
+        expect(captured.string).to include("info: factsets: reading #{tmp}")
+        expect(captured.string).to include('info: factsets: loaded 1 from coll--2026-08-14T00-00-00Z')
         expect(captured.string).to include("debug: export factsets: wrote #{File.join(out, 'web01.example.com.json')}")
       end
     end
   end
 
   describe 'error cases' do
-    it 'raises Error when the factsets report is missing' do
+    it 'raises ScanError when the factsets report is missing' do
       Dir.mktmpdir do |tmp|
         expect {
           described_class.new(
             incoming_dir: tmp, output_dir: File.join(tmp, 'out'), profile: 'onceover',
           ).run
-        }.to raise_error(Driftless::Export::Error, /no report:factsets-for-all-active-nodes data/)
+        }.to raise_error(Driftless::ScanError, /no report:factsets-for-all-active-nodes data/)
       end
     end
 

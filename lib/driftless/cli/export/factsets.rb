@@ -1,11 +1,14 @@
 require 'driftless/cli/base'
 require 'driftless/cli/export'
+require 'driftless/cli/node_selection'
 require 'driftless/export/factsets'
 
 module Driftless
   module CLI
     class Export
       class Factsets < Base
+        include NodeSelection
+
         register_command name: 'factsets', subcommand_of: Export
         desc 'Export reported factsets for onceover or puppet-lookup'
 
@@ -15,13 +18,13 @@ module Driftless
           require_incoming_dir!
 
           result = ::Driftless::Export::Factsets.new(
-            incoming_dir:   File.expand_path(@options[:incoming_dir]),
-            output_dir:     File.expand_path(@options[:output_dir]),
-            profile:        @options[:profile],
-            serialization:  @options[:serialization],
-            certname_globs: @options[:certname_globs],
-            limit:          @options[:limit],
-            environments:   @options[:environments],
+            incoming_dir:       File.expand_path(@options[:incoming_dir]),
+            output_dir:         File.expand_path(@options[:output_dir]),
+            profile:            @options[:profile],
+            serialization:      @options[:serialization],
+            selector:           node_selector,
+            limit:              @options[:limit],
+            environments:       @options[:environments],
             allow_missing_envs: @options[:allow_missing_envs] || false,
           ).run
 
@@ -37,10 +40,6 @@ module Driftless
 
         protected
 
-        def option_defaults
-          { certname_globs: [] }
-        end
-
         def configure_parser(o)
           o.on('-f', '--format=PROFILE[:SER]',
                'Consumer profile and serialization',
@@ -51,11 +50,9 @@ module Driftless
           o.on('-i', '--incoming-dir=DIR',
                'Ingest dir holding factsets-for-all-active-nodes/',
                'Default: reports.incoming_dir from driftless.yaml') { |v| @options[:incoming_dir] = v }
-          o.on('--certname=GLOB',
-               'Export only certnames matching GLOB (repeatable; File.fnmatch syntax)') do |v|
-            (@options[:certname_globs] ||= []) << v
-          end
-          o.on('--limit=N', Integer, 'Cap emitted files (after filter, sorted by certname)') { |v| @options[:limit] = v }
+          o.on('--limit=N', Integer, 'Cap emitted files (after selection, sorted by certname)') { |v| @options[:limit] = v }
+
+          declare_node_selection(o)
 
           o.separator ''
           o.separator 'Environment scoping:'

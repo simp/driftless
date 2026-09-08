@@ -11,7 +11,8 @@ require 'driftless/utilization'
 module Driftless
   module CLI
     # `driftless report`: print fleet utilization tables from the incoming
-    # report tree, shaped by --group-by / --sort-by / --show / --show-count.
+    # report tree, shaped by --group-by / --sort-by / --show / --show-count,
+    # with --show-nodes listing each row's certnames under it.
     class Report < Base
       register_command name: 'report', subcommand_of: Root
       desc 'Summarize fleet utilization from PuppetDB reports'
@@ -28,6 +29,7 @@ module Driftless
           group_bys:  (@options[:group_by] || []).map { |t| resolve(t, GROUP_BYS, '--group-by') },
           matchers:   compile_matchers(@options[:show] || []),
           count_test: parse_count_expr(@options[:show_count]),
+          show_nodes: @options[:show_nodes] || false,
         }
         shape[:sort_key], shape[:reversed] = resolve_sort(@options[:sort_by])
 
@@ -64,7 +66,8 @@ module Driftless
           fatal!("report error: #{e.message}")
         end
 
-        categories.each { |category| table(category, utilization[category], shape) }
+        nodes = reporter.reported.report(::Driftless::Report::CLASSES_REPORT)
+        categories.each { |category| table(category, utilization[category], shape, nodes) }
         write_data_file(reporter) if @options[:data_file]
         exit 0
       end
@@ -96,6 +99,9 @@ module Driftless
         o.on('--show-count=EXPR',
              'Show only rows whose node count satisfies EXPR:',
              'a number (0) or comparisons (">1 <10", all must hold)') { |v| @options[:show_count] = v }
+        o.on('--show-nodes',
+             'List the certnames under each row shown',
+             '(with --group-by, each certname carries its breakdown values)') { @options[:show_nodes] = true }
 
         o.separator ''
         o.separator 'Output:'
@@ -198,9 +204,13 @@ module Driftless
       # Prints one category's table: name | nodes | one column per breakdown
       # value. Breakdown columns come from every entry in the category, not
       # only the shown rows, so the columns match the site page's.
-      def table(category, entries, shape)
+      #
+      # @param nodes [Array<Node>] rows of the classes report, read for the
+      #   certnames under each row when shape[:show_nodes] is set
+      def table(category, entries, shape, nodes)
         columns = shape[:group_bys].map { |by| [by, breakdown_values(entries, by)] }
         rows    = shown(entries, shape)
+        members = shape[:show_nodes] ? ::Driftless::Utilization.members(nodes, category) : {}
 
         heading = ::Driftless::Ansi.enabled?($stdout) ? ::Driftless::Ansi.wrap(category, :bold) : category
         puts heading
@@ -220,8 +230,21 @@ module Driftless
         widths = header.each_index.map { |i| ([header[i]] + body.map { |r| r[i] }).map(&:length).max }
         puts "  #{align(header, widths)}"
         puts "  #{widths.map { |w| '-' * w }.join('-+-')}"
-        body.each { |r| puts "  #{align(r, widths)}" }
+        rows.zip(body).each do |entry, r|
+          puts "  #{align(r, widths)}"
+          next unless shape[:show_nodes]
+          member_lines(members.fetch(entry['name'], []), shape[:group_bys]).each { |line| puts "      #{line}" }
+        end
         puts
+      end
+
+      # One line per member, certname-sorted, the breakdown values in
+      # --group-by order after it.
+      def member_lines(using, group_bys)
+        using.sort_by { |n| n.certname.to_s }.map do |node|
+          values = group_bys.map { |by| node.public_send(by) || ::Driftless::Utilization::UNKNOWN }
+          values.empty? ? node.certname.to_s : "#{node.certname}  (#{values.join(', ')})"
+        end
       end
 
       def shown(entries, shape)

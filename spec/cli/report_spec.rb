@@ -126,6 +126,18 @@ RSpec.describe Driftless::CLI::Report do
     expect(out).not_to include('profile::web')
   end
 
+  it 'lists certnames under each row with --show-nodes' do
+    _status, out = run_cli_on_fleet_fixture(['classes'], show: ['web'], show_nodes: true)
+    expect(out).to match(/^  profile::web \| {5}2$\n {6}web1$\n {6}web2$/)
+    expect(out).to match(/^  role::web {4}\| {5}1$\n {6}web2$/)
+  end
+
+  it 'appends breakdown values to each certname when --group-by is given' do
+    _status, out = run_cli_on_fleet_fixture(['profiles'], group_by: %w[collector environment], show_nodes: true)
+    expect(out).to include("      db1  (west, staging)\n")
+    expect(out).to include("      web1  (east, production)\n")
+  end
+
   it 'rejects an invalid --show regex' do
     status, = run_cli_on_fleet_fixture([], show: ['('])
     expect(status).to eq(2)

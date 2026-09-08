@@ -77,4 +77,15 @@ RSpec.describe Driftless::Utilization do
       expect(util['classes'].map { |e| e['name'] }).to eq(%w[apache mysql zebra])
     end
   end
+
+  describe '.members' do
+    it 'lists the nodes using each name, name-sorted, nodes in input order' do
+      b = node('b', ['Profile::Web'])
+      a = node('a', ['Profile::Web', 'Role::Web'])
+      members = described_class.members([b, a], 'classes')
+      expect(members.keys).to eq(%w[profile::web role::web])
+      expect(members['profile::web']).to eq([b, a])
+      expect(members['role::web']).to eq([a])
+    end
+  end
 end

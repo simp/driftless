@@ -21,16 +21,25 @@ module Driftless
     end
 
     def entries(nodes, category)
-      users = Hash.new { |h, k| h[k] = [] }
-      nodes.each do |node|
-        names(node, category).each { |name| users[name] << node }
-      end
-      users.sort.map do |name, using|
+      members(nodes, category).map do |name, using|
         { 'name'           => name,
           'nodes'          => using.length,
           'by_collector'   => tally(using, &:collector),
           'by_environment' => tally(using, &:environment) }
       end
+    end
+
+    # The nodes using each name in one category.
+    #
+    # @param nodes [Array<Node>] rows of `classes-for-all-active-nodes`
+    # @param category [String] one of CATEGORIES
+    # @return [Hash{String => Array<Node>}] name-sorted; nodes in input order
+    def members(nodes, category)
+      users = Hash.new { |h, k| h[k] = [] }
+      nodes.each do |node|
+        names(node, category).each { |name| users[name] << node }
+      end
+      users.sort.to_h
     end
 
     # Lists the names a node's class list contributes to one category.

@@ -1,0 +1,96 @@
+#!/bin/bash
+
+ssh_agent_idempotent() {
+  if [ -d ~/.ssh ]; then
+    local agent_pid_dir="$HOME/.ssh/agent-pid-scripts"
+    local agent_pid_file_prefix="${agent_pid_dir}/${HOSTNAME}__"
+    [ -d "$agent_pid_dir" ] || mkdir -p "$agent_pid_dir"
+
+    local latest_pid_file
+    IFS='' read -r -d '' latest_pid_file < <(ls --zero -1t "$agent_pid_file_prefix"*)
+    if [ -f "$latest_pid_file" ]; then
+      source "$latest_pid_file" > /dev/null
+    fi
+
+    local rc=0                              # rc: guard for `set -e` (exit on any failure)
+    ssh-add -l 2>&1 > /dev/null || rc="$?"  # exit 2 = "Could not open a connection..."
+    if [ $rc -eq 2 ]; then
+      rm -f "${agent_pid_file_prefix}"*.sh
+      local agent_pid_file="${agent_pid_file_prefix}$(date +%Y-%m-%d--%H-%M-%S).sh"
+      ssh-agent > "$agent_pid_file"
+      source "$agent_pid_file"
+    fi
+  else
+    >&2 echo 'WARNING: no ~/.ssh directory'
+  fi
+}
+
+sanitize_gem_path__remove_gem_home() {
+  local rc=0
+  gem env user_gemhome >& /dev/null || rc="$?"
+  if [[ $rc -eq 0 ]]; then
+    export GEM_PATH=$(echo "$(gem env path 2>/dev/null)" | sed -e "s@:\?$(gem env user_gemhome 2>/dev/null):\?@@g")
+  fi
+}
+
+function pbinpaths_setup()
+{
+   command -v rvm >/dev/null 2>&1 && type rvm | grep -q "function" && rvm use system
+   export PATH="/opt/puppetlabs/puppet/bin:$PATH"
+   echo "Using puppet AIO bin path without rvm"
+}
+
+function bbinpaths_setup()
+{
+   command -v rvm >/dev/null 2>&1 && type rvm | grep -q "function" && rvm use system
+   export PATH="/opt/puppetlabs/bolt/bin:$PATH"
+   echo "Using puppet AIO bin path without rvm"
+}
+
+# Open grep 'file:line' + rspec 'file:line:char:' results with 'vim file +line'
+v() {
+  local arg="$1"
+  arg="${arg#│}" # clip off the U+2502 character from a tmux pane divider
+
+  if [[ "$arg" == *":"* ]]; then
+    local IFS=:
+    local parts=($arg)
+    local file="${parts[0]}"
+    local line="${parts[1]}"
+    vim "$file" +"$line"
+  else
+    vim "$1"
+  fi
+}
+
+# grep files copy/pasted from grep 'file:line' or rspec 'file:line:char:' result
+g() {
+  local first_args=("${@:1:$#-1}")
+  local last_arg="${@: -1}"
+  last_arg="${last_arg#│}" # clip off the U+2502 character from a tmux pane divider
+
+  if [[ "$last_arg" == *":"* ]]; then
+    local IFS=:
+    local parts=($last_arg)
+    local file="${parts[0]}"
+    local line="${parts[1]}"
+    grep "${first_args[@]}" "$file"
+  else
+    grep "${@}"
+  fi
+}
+
+
+grepr() {
+  grep -n -r --include=\*.{pp,yaml,rb} "$@" lib
+}
+
+# add local user paths
+# ------------------------------------------------------------------------------
+for _binpath in ~/bin; do
+  if [ -d $_binpath ];  then
+    export PATH="$PATH:$_binpath"
+  fi
+done
+unset _binpath
+# vim: set filetype=bash:

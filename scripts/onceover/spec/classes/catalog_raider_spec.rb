@@ -7,17 +7,49 @@
 #
 require 'spec_helper'
 require 'onceover/controlrepo'
+require 'onceover/testconfig'
 
 filepaths_to_raid = ENV['ONCEOVER_CATALOG_RAIDER_FILES'].to_s
 skip_reason = 'To enable: define env var ONCEOVER_CATALOG_RAIDER_FILES with a comma-delimited list of file paths to extract'
 
-Onceover::Controlrepo.new.spec_tests do |class_name, node_name, facts, trusted_facts, trusted_external_data, pre_conditions|
+onceover = Onceover::Controlrepo.new
+
+
+
+onceover.spec_tests do |class_name, node_name, node_facts, trusted_facts, trusted_external_data, pre_conditions|
+
+  testconfig = Onceover::TestConfig.new(onceover.onceover_yaml, onceover.opts)
+
   describe class_name, skip: (filepaths_to_raid.empty? ? skip_reason : false) do
+
     context "on #{node_name}" do
-      let(:facts) { facts }
+
+      before :each do
+        testconfig.before_conditions.each { |line| 
+          instance_eval( line ) 
+        }
+        if testconfig.mock_functions
+          Puppet::Parser::Functions.newfunction(:onceover_from_json, :type => :rvalue) { |args|
+              require 'multi_json'
+              MultiJson.load(args[0])
+          }
+        end
+      end
+
+      let(:node) { trusted_facts.fetch('certname') }
+      let(:facts) { node_facts }
       let(:trusted_facts) { trusted_facts }
       let(:trusted_external_data) { trusted_external_data }
-      let(:pre_condition) { pre_conditions }
+      let(:pre_condition) { 
+        if testconfig.mock_functions
+          require 'multi_json'
+          functions = testconfig.mock_functions.map do |function,params|
+            json = params['returns'].is_a?(String) ? params['returns'].dump[1..-2].to_json : params['returns'].to_json
+            "function #{function} (*$args) { onceover_from_json('#{json}') }"
+          end
+        end
+        "#{functions.join("\n\n")}\n\n#{pre_conditions}"
+      }
 
       # Directory to contain the catalogs and files extracted from each host
       let(:catalog_output_top_dir) { File.join( ENV.fetch('HOME'), '_catalogs') }

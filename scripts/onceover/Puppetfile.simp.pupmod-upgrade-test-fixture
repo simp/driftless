@@ -1,0 +1,626 @@
+moduledir 'modules'
+
+## SIMP Modules ##
+mod 'puppet-augeasproviders_core',
+  :git => 'https://github.com/simp/augeasproviders_core',
+  :tag => 'v4.2.0'
+#  :tag => 'v5.0.0' # NOTE newset puppet-augeasproviders_ssh wants < 5.0.0
+#  :tag => 'v4.1.0'
+
+mod 'puppet-augeasproviders_grub',
+  :git => 'https://github.com/simp/augeasproviders_grub',
+  :tag => 'v6.0.0' # CHA: -el7, drop grub < 2,
+  #:tag => '088b2348' # DONE <-- SITE ref; commented "~5.13-rc0" on 2026-02-26, no tag exists in upstream for 5.13 (latest 5 is 5.1.2/2024-09-22, so probably a mis-spel), v6.0.0 was released on 2026-04-22
+
+
+mod 'puppet-augeasproviders_ssh',
+  :git => 'https://github.com/simp/augeasproviders_ssh',
+  :tag => 'v7.0.0' # TODO: WARNING +3 maj version jump!' CHA: -el7,+pup8,+rocky9
+#  :tag => '4.0.0'
+
+mod 'puppet-augeasproviders_sysctl',
+  :git => 'https://github.com/simp/augeasproviders_sysctl',
+  :tag => 'v4.1.0' # TODO: WARNING +2 maj version jump!'
+#  :tag => '2.6.2'
+
+mod 'onyxpoint-gpasswd',
+  :git => 'https://github.com/simp/puppet-gpasswd',
+  :tag => '1.1.2'
+
+mod 'puppetlabs-apache',
+  :git => 'https://github.com/simp/puppetlabs-apache',
+  :tag => 'v7.0.0'
+
+mod 'puppetlabs-concat',
+  :git => 'https://github.com/simp/puppetlabs-concat',
+  :tag => 'v9.1.0' # TODO: WARNING +2 maj version jump!'
+#  :tag => 'v10.0.0' # TODO: WARNING +3 maj version jump!'
+#  :tag => 'v7.2.0'
+
+mod 'voxpupuli-chrony',
+  :git => 'https://github.com/simp/pupmod-voxpupuli-chrony',
+   :tag => 'v5.0.0' # FIXME: resolve site fork  #NOTE currently upstream doesn't claim el10
+##  :tag => 'v1.0.0'  # FIXME: v2.4.0-forked-v1
+
+mod 'puppetlabs-hocon',
+  :git => 'https://github.com/simp/pupmod-puppetlabs-hocon',
+  :tag => 'v2.0.0'
+
+mod 'puppetlabs-inifile',
+  :git => 'https://github.com/simp/puppetlabs-inifile',
+  :tag => 'v6.4.0'
+
+mod 'puppetlabs-motd',
+  :git => 'https://github.com/simp/puppetlabs-motd',
+  :tag => 'v7.3.0'
+#  :tag => 'v6.2.0'
+
+mod 'puppetlabs-postgresql',
+  :git => 'https://github.com/simp/puppetlabs-postgresql',
+  :tag => 'v10.6.1'
+#  :tag => 'v10.0.2'
+
+mod 'puppetlabs-puppetdb',
+  :git => 'https://github.com/simp/pupmod-puppetlabs-puppetdb',
+  :tag => 'v8.1.0'
+#  :tag => '7.10.0'
+
+mod 'puppetlabs-puppet_authorization',
+  :git => 'https://github.com/simp/puppetlabs-puppet_authorization.git',
+  :tag => 'v1.0.0'
+#  :tag => '0.5.1'
+
+mod 'puppetlabs-stdlib',
+  :git => 'https://github.com/simp/puppetlabs-stdlib',
+#  :tag => 'v10.1.0' # CHA: 10:-pup7, support Sensitive values in more functions, 10.1:+pup9
+  :tag => 'v9.7.0' # CHA: NOTE these aren't breaking but will require code updates:[add namespaced pup4.x functions, `deprecate validate_legacy()` function]
+#  :tag => 'v8.4.0' # NOTE SITE used this, on Puppet 8/OpenVox 8+ the long-deprecated Puppet::Parser::Functions::PSON is now removed, but it is referenced by stdlib v8
+
+mod 'puppetlabs-translate',
+  :git => 'https://github.com/simp/pupmod-puppetlabs-translate',
+  :tag => 'v2.2.0'
+
+# NOTE: Commented out at SITE
+###mod 'saz-locales',
+###  :git => 'https://github.com/simp/pupmod-saz-locales',
+###  :tag => 'v2.5.1'
+
+mod 'saz-timezone',
+  :git => 'https://github.com/simp/pupmod-simp-timezone',
+  :tag => 'v6.3.0'
+#  :tag => 'v6.2.0'
+
+mod 'simp-acpid',
+  :git => 'https://github.com/simp/pupmod-simp-acpid',
+  :tag => '2.0.2'  # CHA: -pup7-el7, update module dep ranges
+#  :tag => '1.6.0'
+
+mod 'simp-aide',
+  :git => 'https://github.com/simp/pupmod-simp-aide',
+  :tag => '9.0.3' # CHA: WARNING 2+ maj version jump!  # Updates module dependencies  # - BREAKING: A bare `include aide` now installs the `aide` package only. It no longer overwrites `/etc/aide.conf`, writes default rules, creates the database/log/rule directories, or initializes the AIDE database.
+#  :tag => '6.11.1'
+
+mod 'simp-at',
+  :git => 'https://github.com/simp/pupmod-simp-at',
+  :tag => '2.0.0'
+
+mod 'simp-auditd',
+  :git => 'https://github.com/simp/pupmod-simp-auditd',
+  :tag => '10.1.3'  # CHA: 10: -el7,update module dep ranges, 10.1: Decouple log and config permissions, add new config_group parameter, Leave the permissions of `/etc/audit/audit.rules` and `/etc/audit/audit.rules.prev` unmanaged by default to prevent flapping, Manage `owner` and `group` on every file the module declares in `/etc/audit/rules.d,  Ownership and mode now come from a single `$auditd::config::rule_file_attributes` hash,  `group` follows the existing `config_group` parameter
+#  :tag => '9.0.2' # CHA: 9:+el10, 9.0.2: Fixes broken kernel_parameter call with latest augeasproviders_grub
+#  :tag => '8.14.4'
+
+
+mod 'simp-autofs',
+  :git => 'https://github.com/simp/pupmod-simp-autofs',
+  :tag => '8.0.1'  # CHA: -pup7, update module dep ranges
+#  :tag => '7.4.0'
+
+mod 'simp-compliance_markup',
+  :git => 'https://github.com/simp/pupmod-simp-compliance_markup',
+  :tag => '4.0.1' # CHA: -el7-pup7+el10, update module dep ranges
+#  :tag => '3.9.0'
+#  :tag => '3.8.1'
+
+mod 'simp-cron',
+  :git => 'https://github.com/simp/pupmod-simp-cron',
+  :tag => '2.0.2'  # CHA: fix deprecated stdlib function
+  #:tag => '2.0.1'  # CHA: "BREAKING" CHANGE: /etc/cron.deny` is now left unmanaged by default instead of being removed. Sites that relied on the module removing the file must set `cron::cron_deny_ensure: 'absent'` to restore the previous behavior.
+#  :tag => '1.0.1' # CHA: -el7
+#  :tag => '0.8.0'
+
+mod 'simp-crypto_policy',
+  :git => 'https://github.com/simp/pupmod-simp-crypto_policy',
+  :tag => '3.1.0'  # CHA: 3: -el7-pup7 
+#  :tag => '2.0.3'  # CHA: 2: made sub policy def safer, 3: -pup7, updates simp mod deps << REVIEW
+  #:tag => '1.0.1'   # CHA: 1: +el10
+
+mod 'simp-dconf',
+  :git => 'https://github.com/simp/pupmod-simp-dconf',
+  :tag => '2.0.1' # update dep ranges, -pup7
+#  :tag => '1.0.0' # -el7+el10
+#  :tag => '0.5.0'
+
+mod 'simp-deferred_resources',
+  :git => 'https://github.com/simp/pupmod-simp-deferred_resources',
+  :tag => '1.0.2'  # update module deps, -pup7
+#  :tag => '0.8.1'
+#  :tag => '0.4.0'
+
+mod 'simp-dhcp',
+  :git => 'https://github.com/simp/pupmod-simp-dhcp',
+  :tag => '7.0.0'
+#  :tag => '6.8.0'
+
+
+
+mod 'simp-fips',
+  :git => 'https://github.com/simp/pupmod-simp-fips',
+  :tag => '2.0.2'  # updates to modern dep ranges
+#  :tag => '1.0.0' # CHA: -el7+el10
+#  :tag => '0.10.0'
+
+
+mod 'voxpupuli-firewalld',
+  :git => 'https://github.com/simp/pupmod-voxpupuli-firewalld',
+  :tag => 'v5.1.0' # CHA: 5:-pup6+pup8, allow dep stdlib 9, add eb-family for creating bridge-rules, support for policy objects, individual_calls parameter to set IndividualCalls, parameter protocols to the firewalld_zone resource , priority on rich rules, ability to set default_zone and log_denied when firewalld is offline, 5.1: fix ordering+ipv6 with ipsets
+#  :tag => 'v4.3.0'  # TODO: SITE pf version; upstream pf was v4.4.0
+
+mod 'simp-gdm',
+  :git => 'https://github.com/simp/pupmod-simp-gdm',
+  :tag => '8.1.2' # CHA: 8: remove deprecated fonts in el9/el10, 8.1.2: update module dep ranges
+#  :tag => '7.9.0'
+
+
+#mod 'simp-haveged', # WARNING: BREAKING CHANGE: REMOVED (no use in el9+, use rngd if needed)  WARNING: requires hiera updates: stunnel::haveged: false, pupmod::haveged: false
+#  :git => 'https://github.com/simp/pupmod-simp-haveged',
+#  :tag => '0.15.0'
+#  :tag => '0.14.0'
+
+
+
+mod 'simp-iptables',
+  :git => 'https://github.com/simp/pupmod-simp-iptables',
+  :tag => '9.0.0' # CHA: 8: -pup7, allow simp_firewalld 2.x, update module dep ranges, 9: BREAKING CHANGE: Select the firewall backend exclusively via the new `iptables::backend` TODO check if/how site configures firewalls parameter (`firewalld` or `iptables`, default `firewalld`); no system autodetection is performed
+#  :tag => '7.1.2' # CHA: 7: -el7, use firewalld by default, Drop use of `iptables::use_firewalld` function, deprecate  `iptables::use_firewalld` function, 7.1: +el10
+#  :tag => '6.13.1'
+
+mod 'simp-issue',
+  :git => 'https://github.com/simp/pupmod-simp-issue',
+  :tag => '1.0.1'  # CHA: 1: -el7-pup7, update module dep ranges
+#  :tag => '0.7.0'
+
+mod 'puppet-kmod',
+  :git => 'https://github.com/simp/pupmod-voxpupuli-kmod.git',
+  :tag => 'v5.0.0'  # CHA: 4:-pup6+pup8, allow dep stdlib 9.x, 4.1:+el9, 5:-pup7  WARNING 2 maj version jump!
+#  :tag => 'v3.2.0'
+
+mod 'simp-krb5',
+  :git => 'https://github.com/simp/pupmod-simp-krb5',
+  :tag => '8.0.2' # CHA: -el7-pup7, update module dep ranges
+#  :tag => '7.7.1'
+
+mod 'simp-logrotate',
+  :git => 'https://github.com/simp/pupmod-simp-logrotate',
+  :tag => '7.0.2'  # CHA: 7:-pup7-el7, 7.0.2: update module dep ranges
+#  :tag => '6.9.0'
+
+
+mod 'simp-named',
+  :git => 'https://github.com/simp/pupmod-simp-named',
+  :tag => '7.0.2'  # CHA: 7:-pup7, 7.0.2: update module dep ranges
+#  :tag => '6.11.0'
+#  :tag => '6.9.0'
+
+mod 'simp-nfs',
+  :git => 'https://github.com/simp/pupmod-simp-nfs',
+  :tag => '8.0.2'  # CHA: 8.0:-pup7, 8.1: update dep ranges
+#  :tag => '7.6.0'
+
+mod 'puppet-nsswitch',
+  :git => 'https://github.com/simp/pupmod-puppet-nsswitch',
+  :tag => 'v4.0.0' # CHA: 3:+pup8, 3.2: support `subid`, 4: -pup7-el7, support `initgroups`
+#  :tag => '2.2.0'  # WARNING site uses old trlinkin version, git URL changed  FIXME update site git repo url
+
+mod 'simp-oath',
+  :git => 'https://github.com/simp/pupmod-simp-oath',
+  :tag => '1.0.2' # CHA: -pup7, update module dep ranges
+#  :tag => '0.6.0'
+
+mod 'simp-oddjob',
+  :git => 'https://github.com/simp/pupmod-simp-oddjob',
+  :tag => '3.0.2' # CHA: -pup7, update module dep ranges
+#  :tag => '2.8.0'
+
+mod 'simp-pam',
+  :git => 'https://github.com/simp/pupmod-simp-pam',
+  :tag => '9.4.0' # CHA: 9:-pup7, add pam_ssh_agent_auth support for sudo, changes smartcard-auth pam_sss.so control fla to align with STIG
+#  :tag => '7.1.0' # FIXME <-- SITE FORK: 7.1.0-forked-v1 (adds spaces around the '=' token in `faillock.conf.epp` so Nessus will pass)
+
+mod 'simp-pki',
+  :git => 'https://github.com/simp/pupmod-simp-pki',
+  :tag => '7.0.2'  # CHA: -pup7, relaxes assert_optional_dependency that prevents auditd 10+, update module dep ranges
+#  :tag => '6.8.1' # CHA: Made the creation of /etc/pki/simp/x509 possible if pki::pki isn't 'simp'
+#  :tag => '6.7.0'
+
+mod 'simp-polkit',
+  :git => 'https://github.com/simp/pupmod-simp-polkit',
+  :tag => '7.0.3' # CHA: 7: -el8-pup7, update module dep ranges  7.0.3: fix deprecated stdlib function, require dep stdlib >= 9
+#  :tag => '6.9.0' 
+#  :tag => '6.8.0'
+
+mod 'simp-postfix',
+  :git => 'https://github.com/simp/pupmod-simp-postfix',
+  :tag => '7.0.2' # CHA: 7: -pup7, 7.0.2 update module dep ranges
+#  :tag => '6.0.0' # CHA: -el7+el10, support dep simp-simplib 5.x
+#  :tag => '5.11.0'
+
+mod 'simp-pupmod',
+  :git => 'https://github.com/simp/pupmod-simp-pupmod',
+  :tag => '12.3.0' # CHA: 9:+el10, 10: fix el10, 12:-pup7,  12.1.0: FIXED site fork issue, 12.2: prevent cron timer w/agent, 12.2.1: update module dep ranges, 12.3: selboolean fixes
+# SITE FORK: "v8.9.0-forked-v1", latest '12.0.0'
+
+mod 'simp-resolv',
+  :git => 'https://github.com/simp/pupmod-simp-resolv',
+  :tag => '1.0.2' # CHA: -pup7, update module dep ranges
+#  :tag => '0.11.0'
+
+
+mod 'simp-rngd',  # NOTE NEW MODULE, replaces haveged if entropy is still a problem in el9+   WARNING netiher haveged or rngd work in fips mode (https://access.redhat.com/solutions/7051438, uses slower jitterentropy source instead of the interrupt driven LRNG, https://github.com/nhorman/rng-tools/issues/109#issuecomment-739253146 suggests you can force hwrng [if you have one] via rngd `-x jitter` to disable jitterentropy [not handled by 0.1.0 module, would presuambly be via systemd module])
+  :git => 'https://github.com/simp/pupmod-simp-rngd',
+  :tag => '0.1.0'
+
+mod 'simp-rsync',
+  :git => 'https://github.com/simp/pupmod-simp-rsync',
+  :tag => '8.0.1' # CHA: -pup7, update module dep ranges
+#  :tag => '7.0.1' # CHA: +el10, -el7
+#  :tag => '6.9.1'
+
+mod 'simp-rsyslog',
+  :git => 'https://github.com/simp/pupmod-simp-rsyslog',
+  :tag => '10.0.1'  # BREAKING CHANGE:  Sites setting `rsyslog::server::enable_tcpwrappers` MUST remove the key, rsyslog::rule::remote::max_error_messages is deprecated (accepted, but has no effect),  relaxes assert_optional_dependency that prevented pki 7+, update module dep ranges 
+#  :tag => '8.10.1'
+#  :tag => '8.8.0'
+
+mod 'simp-selinux',
+  :git => 'https://github.com/simp/pupmod-simp-selinux',
+  :tag => '4.0.2' # CHA:4.0: update deps, 4.0.2: fix deprecated function
+#  :tag => '3.0.1'
+
+mod 'simp-simp',
+  :git => 'https://github.com/simp/pupmod-simp-simp',
+  :tag => '9.0.1'  # CHA: 5:+el10, fix sssd, 6: safer tmp remounts, 7: update module dep ranges, 8: "BREAKING" CHANGE: Default `simp::mail_server` to `false` so Postfix is opt-in rather than installed on every node;  set `simp::mail_server: true` to restore prior behavior.  +`simp::sysctl::unmanaged_sysctls` to let sites opt individual sysctl keys out of management without re-specifying the other defaults, 9: remove (deprecated) ntpd, legacy facts, 9.0.1: update module dep ranges  # WARNINGi +2 maj version jump! (+5 maj version jump!)
+
+# :tag => '4.22.0'  
+
+mod 'simp-simpkv',
+  :git => 'https://github.com/simp/pupmod-simp-simpkv',
+  :tag => '0.14.1'
+#  :tag => '0.13.0'
+
+mod 'simp-simplib',
+  :git => 'https://github.com/simp/pupmod-simp-simplib',
+  :tag => '6.0.2'  # warning: 2+ maj version jump!
+# 5.0: 5.0.3: fix tmp_mnt* facts error
+# 6.0:  newer simp module deps
+# 7.0: "breaking changes" actually bugfixes
+
+# coder update from 5.0.1: 7.0.1
+
+mod 'simp-simp_apache',
+  :git => 'https://github.com/simp/pupmod-simp-simp_apache',
+  :tag => '7.6.1'
+#  :tag => '7.4.0'
+
+mod 'simp-simp_banners',
+  :git => 'https://github.com/simp/pupmod-simp-simp_banners',
+  :tag => '0.5.1'
+#  :tag => '0.5.0'
+
+mod 'simp-simp_firewalld',
+  :git => 'https://github.com/simp/pupmod-simp-simp_firewalld',
+  :tag => '3.0.0' # CHA: 1:-el7+el10, 2:-pup7,update module dep ranges, 3: MAYBE-BREAKING CHANGE: Enable firewalld management by default: `simp_firewalld::enable` now defaults to `true` instead of being derived from the `simplib__firewalls` fact; disable it explicitly via class parameter or Hiera where needed [TODO verify if/how site does firewalls], always pass `firewall_backend` (from module data or Hiera) through to the `firewalld` class instead of gating it on detection of an `nft` binary
+#  :tag => '0.6.0' # FIXME SITE FORK? '0.6.0-masquerade', 0.7.0+ supports puppet 8
+mod 'simp-simp_options',
+  :git => 'https://github.com/simp/pupmod-simp-simp_options',
+  :tag => '2.0.2' # -el7
+#  :tag => '1.6.0'
+mod 'simp-simp_rsyslog',
+  :git => 'https://github.com/simp/pupmod-simp-simp_rsyslog',
+  :tag => '0.10.1'
+#  :tag => '0.10.0'
+
+mod 'simp-ssh',
+  :git => 'https://github.com/simp/pupmod-simp-ssh',
+  :tag => '8.1.1' # Update module dep ranges  WARNING +2 maj version jump!  NOTE: latest is 9.2.0, but it has a lot of recent changes (sept) I haven't evaluated
+#  :tag => '6.18.0'
+
+mod 'simp-sssd',
+  :git => 'https://github.com/simp/pupmod-simp-sssd',
+  :tag => '10.2.0' # 10: WARNING: BREAKING CHANGE for LDAP users: Rename the ldap provider parameter `ldap_user_cert` to `ldap_user_certificate`, 10.1: support multiple & backup servers in sssd::provider::krb5, update module dep ranges, 10.2:+`sssd::app_pki_group` to control the group ownership of the certificates copied by `pki::copy so that the value is emitted under the correct `sssd-ldap(5)` key, fix el10 user permissions to TLS private key, relaxes assert_optional_dependency that prevents auditd 10+
+#  :tag => '9.0.1' # TODO: WARNING +2 maj version jump! 
+#  :tag => '7.10.0'
+
+mod 'simp-stunnel',
+  :git => 'https://github.com/simp/pupmod-simp-stunnel',
+  :tag => '9.0.2'  # update module dep ranges
+#  :tag => '8.0.0' # 7:+el10, 9:-pup7
+#  :tag => '6.11.0'
+mod 'simp-sudo',
+  :git => 'https://github.com/simp/pupmod-simp-sudo',
+  :tag => '5.9.1' #  :tag => '5.9.0'
+
+mod 'simp-svckill',
+  :git => 'https://github.com/simp/pupmod-simp-svckill',
+  :tag => '4.0.0' #   '3.11.0'
+
+mod 'simp-swap',
+  :git => 'https://github.com/simp/pupmod-simp-swap',
+  :tag => '1.0.2' # update module dep ranges
+#  :tag => '0.7.0'
+
+mod 'puppet-systemd',
+  :git => 'https://github.com/simp/puppet-systemd.git',
+  :tag => 'v9.4.0' #  :tag => 'v3.10.0'
+mod 'simp-tftpboot',
+  :git => 'https://github.com/simp/pupmod-simp-tftpboot',
+  :tag => '7.0.1' #  :tag => '6.8.1'
+
+mod 'simp-tlog',
+  :git => 'https://github.com/simp/pupmod-simp-tlog',
+  :tag => '1.0.3' # fix deprecated stdlib function
+#  :tag => '1.0.2'
+#  :tag => '0.7.0'
+
+mod 'simp-tuned',
+  :git => 'https://github.com/simp/pupmod-simp-tuned',
+  :tag => '1.0.2' # +el10, update module dep ranges
+#  :tag => '0.7.0'
+
+mod 'simp-useradd',
+  :git => 'https://github.com/simp/pupmod-simp-useradd',
+  :tag => '3.1.2' # WARNING +2 maj version jump!  3.1: add login_defs::mode (no need for v1.0.0-forked-v1 fork), 3.1.2: update module dep ranges
+#  :tag => '1.0.0' # FIXME <-- SITE FORK: "v1.0.0-forked-v1"
+
+
+
+# We have forked voxpupuli/selinux temporarily, renaming
+# their selinux namespace to vox_selinux.  This change
+# allows us to use their module in simp/selinux, as its
+# capabililites are orthogonal to simp/selinux.  The long
+# term plan is to get our functionality merged into
+# voxpupuli/selinux.
+# Our changes are on simp-master.
+mod 'simp-vox_selinux',
+  :git => 'https://github.com/simp/pupmod-voxpupuli-selinux',
+  :tag => 'simp-6.0.0'
+#  :tag => 'simp-3.1.0'  # TODO: SITE is simp-3.1.0, upstream pf was simp-3.4.0
+
+mod 'treydock-kdump',
+  :git => 'https://github.com/simp/pupmod-treydock-kdump',
+  :tag => 'v2.0.4'  # 2.0: support pup8, el9, update module deps
+#  :tag => 'v1.0.0'
+
+
+
+
+# ------------------------------------------------------------------------------
+# Modules commented out at site that may now be relevant
+# ------------------------------------------------------------------------------
+
+#mod 'simp-clamav',
+#  :git => "#{git_remote_url_base}/clamav.git",
+#  :tag => '6.9.0'
+####  :branch => '2.0.0'
+#
+# ------------------------------------------------------------------------------
+# New modules of interest
+# ------------------------------------------------------------------------------
+
+mod 'puppetlabs-augeas_core',
+  :git => "https://github.com/simp/pupmod-puppetlabs-augeas_core.git",
+  :tag => 'v2.0.1'
+
+mod 'simp-simp_authselect',
+  :git => 'https://github.com/simp/pupmod-simp-simp_authselect',
+  :tag => '1.0.1'
+
+# ------------------------------------------------------------------------------
+# Modules present at site in Puppetfile.simp that are not in the product PF
+# ------------------------------------------------------------------------------
+
+# FIXME Present at SITE Puppetfile.simp (left over from upgrade from 6.5.0?)
+### mod 'simp-xinetd',
+###   :git => ''
+###   :tag => '4.7.9'
+
+
+# FIXME: SITE contained
+###mod 'augeasproviders',
+###  :git => 'https://github.com/simp/augeasproviders',
+###  :tag => 'simp-2.1.3'
+
+# ------------------------------------------------------------------------------
+# _core modules
+# ------------------------------------------------------------------------------
+mod 'puppetlabs-cron_core',
+  :git => "https://github.com/simp/pupmod-puppetlabs-cron_core",
+  :tag => 'v2.0.2'
+
+mod 'puppetlabs-host_core',
+  :git => "https://github.com/simp/pupmod-puppetlabs-host_core",
+  :tag => 'v2.0.1'
+
+mod 'puppetlabs-mount_core',
+  :git => "https://github.com/simp/pupmod-puppetlabs-mount_core",
+  :tag => 'v2.0.1'
+
+mod 'puppetlabs-selinux_core',
+  :git => "https://github.com/simp/pupmod-puppetlabs-selinux_core",
+  :tag => 'v2.0.1'
+# ------------------------------------------------------------------------------
+# obsolete
+###mod 'simp-upstart',  WARNING: removing (obsolete)
+###  :git => 'https://github.com/simp/pupmod-simp-upstart',
+###  :tag => '6.3.0'
+
+# NOTE: Commented out at SITE
+#mod 'simp-simp_snmpd',
+#  :git => 'https://github.com/simp/pupmod-simp-simp_snmpd',
+#  :tag => '1.8.1'
+
+###  :branch => 'master'
+# NOTE: Commented out at SITE
+#mod 'puppetlabs-java',
+#  :git => 'https://github.com/simp/puppetlabs-java',
+#  :tag => 'v7.0.2'
+#
+# FIXME: Absent at SITE
+###mod 'simp-ds389',
+###  :git => 'https://github.com/simp/pupmod-simp-ds389',
+###  :branch => 'master'
+
+# NOTE: Commented out at SITE
+###mod 'simp-freeradius',
+###  :git => 'https://github.com/simp/pupmod-simp-freeradius',
+###  :branch => 'master'
+#
+# NOTE: Commented out at SITE
+###mod 'simp-gnome',
+###  :git => 'https://github.com/simp/pupmod-simp-gnome',
+###  :branch => 'master'
+
+# NOTE: Missing, but SITE had commented out
+###mod 'simp-hirs_provisioner',
+###  :git => ''
+###  :tag -> '0.1.4'
+
+# NOTE: Commented out at SITE
+###mod 'simp-ima',
+###  :git => 'https://github.com/simp/pupmod-simp-ima',
+###  :branch => 'master'
+
+# FIXME Present at SITE Puppetfile.simp (left over from upgrade from 6.5.0?)
+# NOTE: incron is removed from SITE in hiera because it's not in el9
+# NOTE: simp-simp 5.0.0 removes incron
+### mod 'simp-incron',
+###   :git => ''
+###   :tag => '0.10.0'
+
+#FIXME: not mirrored under github.com/simp/
+mod 'jcpunk-authselect',
+  :git => "https://github.com/voxpupuli/puppet-authselect.git",
+  :tag => '1.1.2'
+
+# NOTE: Commented out at SITE
+###mod 'simp-libreswan',
+###  :git => 'https://github.com/simp/pupmod-simp-libreswan',
+###  :branch => 'master'
+
+# NOTE: Commented out at SITE
+###mod 'simp-libvirt',
+###  :git => 'https://github.com/simp/pupmod-simp-libvirt',
+###  :branch => 'master'
+
+# NOTE: Commented out at SITE
+###mod 'simp-mate',
+###  :git => 'https://github.com/simp/pupmod-simp-mate',
+###  :branch => 'master'
+
+# NOTE: Commented out at SITE
+###mod 'simp-mozilla',
+###  :git => 'https://github.com/simp/pupmod-simp-mozilla',
+###  :branch => 'master'
+
+# NOTE: Commented out at SITE
+###mod 'simp-openscap',
+###  :git => 'https://github.com/simp/pupmod-simp-openscap',
+###  :branch => 'master'
+
+
+# NOTE: Commented out at SITE
+###mod 'simp-simp_gitlab',
+###  :git => 'https://github.com/simp/pupmod-simp-simp_gitlab',
+###  :branch => 'master'
+
+# NOTE: Commented out at SITE
+###mod 'simp-simp_grub',
+###  :git => 'https://github.com/simp/pupmod-simp-simp_grub',
+###  :branch => 'master'
+
+# NOTE: Commented out at SITE
+###mod 'simp-simp_nfs',
+###  :git => 'https://github.com/simp/pupmod-simp-simp_nfs',
+###  :branch => 'master'
+
+# FIXME Present at SITE Puppetfile.simp (left over from upgrade from 6.5.0?)
+### mod 'simp-simp_openldap',
+###   :git => ''
+###   :tag => '6.10.0'
+
+
+# FIXME Present at SITE Puppetfile.simp (left over from upgrade from 6.5.0?)
+### mod 'simp-simp_pki_service',
+###   :git => ''
+###   :tag => '0.3.1'
+
+
+# FIXME Present at SITE Puppetfile.simp (left over from upgrade from 6.5.0?)
+### mod 'simp-sudosh',
+###   :git => ''
+###   :tag => '6.5.0'
+
+
+# FIXME Present at SITE Puppetfile.simp (left over from upgrade from 6.5.0?), removed from simp-core after pupmod-simp-tcpwrappers was archived (el8 removed tcpwrappers).  However, some modules appear to have tcpwrappers-related cruft (simp_options still supports it, and other classes  like ssh::server::conf respond to it.  Setting simp_options::tcpwrappers to `false`
+#mod 'simp-tcpwrappers',
+#  :git => 'https://github.com/simp/pupmod-simp-tcpwrappers',
+#  :tag => '6.5.0'
+
+# NOTE: Commented out at SITE
+###mod 'simp-tpm2',
+###  :git => 'https://github.com/simp/pupmod-simp-tpm2',
+###  :branch => 'master'
+
+
+# NOTE: Commented out at SITE
+###mod 'simp-vnc',
+###  :git => 'https://github.com/simp/pupmod-simp-vnc',
+###  :branch => 'master'
+
+# NOTE: Commented out at SITE
+###mod 'simp-vsftpd',
+###  :git => 'https://github.com/simp/pupmod-simp-vsftpd',
+###  :branch => 'master'
+
+# NOTE: Commented out at SITE
+###mod 'simp-x2go',
+###  :git => 'https://github.com/simp/pupmod-simp-x2go',
+###  :branch => 'master'
+
+# ------------------------------------------------------------------------------
+
+# NOTE: Commented out at SITE
+###mod 'voxpupuli-posix_acl',
+###  :git => 'https://github.com/simp/pupmod-voxpupuli-posix_acl',
+###  :tag => 'v1.0.1'
+
+# NOTE: Commented out at SITE
+###mod 'voxpupuli-gitlab',
+###  :git => 'https://github.com/simp/puppet-gitlab.git',
+###  :tag => 'v7.1.0'
+
+# NOTE: Commented out at SITE
+###mod 'voxpupuli-snmp',
+###  :git => 'https://github.com/simp/puppet-snmp',
+###  :tag => 'v5.1.1'
+
+# NOTE: Commented out at SITE
+###mod 'puppetlabs-ruby_task_helper',
+###  :git => 'https://github.com/simp/pupmod-puppetlabs-ruby_task_helper.git',
+###  :tag => '0.6.0'
+
+# REMOVE: el7 was last os to support ntpd
+###mod 'simp-ntpd',
+###  :git => 'https://github.com/simp/pupmod-simp-ntpd',
+###  :tag => '6.12.1'
+####  :tag => '6.11.0'

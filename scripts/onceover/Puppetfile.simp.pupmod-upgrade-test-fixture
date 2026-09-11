@@ -3,8 +3,8 @@ moduledir 'modules'
 ## SIMP Modules ##
 mod 'puppet-augeasproviders_core',
   :git => 'https://github.com/simp/augeasproviders_core',
-  :tag => 'v4.2.0'
-#  :tag => 'v5.0.0' # NOTE newset puppet-augeasproviders_ssh wants < 5.0.0
+  :tag => 'v5.0.0' # CHA:-pup7-el7 NOTE newset puppet-augeasproviders_ssh (v7.0.0) wants dep  < 5.0.0
+#  :tag => 'v4.2.0'
 #  :tag => 'v4.1.0'
 
 mod 'puppet-augeasproviders_grub',
@@ -15,17 +15,18 @@ mod 'puppet-augeasproviders_grub',
 
 mod 'puppet-augeasproviders_ssh',
   :git => 'https://github.com/simp/augeasproviders_ssh',
-  :tag => 'v7.0.0' # TODO: WARNING +3 maj version jump!' CHA: -el7,+pup8,+rocky9
+  :tag => 'v7.0.0' # CHA: -el7,+pup8,+rocky9  TODO: WARNING +3 maj version jump!'
 #  :tag => '4.0.0'
 
 mod 'puppet-augeasproviders_sysctl',
   :git => 'https://github.com/simp/augeasproviders_sysctl',
-  :tag => 'v4.1.0' # TODO: WARNING +2 maj version jump!'
+  :tag => 'v4.1.0' # CHA: 3.1:-pup6+pup8, 3.3:+el9, 4:-pup7  TODO: WARNING +2 maj version jump!'
 #  :tag => '2.6.2'
 
 mod 'onyxpoint-gpasswd',
   :git => 'https://github.com/simp/puppet-gpasswd',
-  :tag => '1.1.2'
+  :tag => '2.0.0' # CHA: -el7+el8+el9+el10+pup8, update module dep ranges
+#  :tag => '1.1.2'
 
 mod 'puppetlabs-apache',
   :git => 'https://github.com/simp/puppetlabs-apache',
@@ -419,7 +420,7 @@ mod 'treydock-kdump',
 
 mod 'puppetlabs-augeas_core',
   :git => "https://github.com/simp/pupmod-puppetlabs-augeas_core.git",
-  :tag => 'v2.0.1'
+  :tag => 'v2.0.1'  # 1.5.0 in openvox-agent 8.28 AIO
 
 mod 'simp-simp_authselect',
   :git => 'https://github.com/simp/pupmod-simp-simp_authselect',
@@ -458,6 +459,10 @@ mod 'puppetlabs-mount_core',
 mod 'puppetlabs-selinux_core',
   :git => "https://github.com/simp/pupmod-puppetlabs-selinux_core",
   :tag => 'v2.0.1'
+
+mod 'puppetlabs-yumrepo_core',
+  :git => "https://github.com/simp/pupmod-puppetlabs-yumrepo_core",
+  :tag => 'v3.0.1'
 # ------------------------------------------------------------------------------
 # obsolete
 ###mod 'simp-upstart',  WARNING: removing (obsolete)

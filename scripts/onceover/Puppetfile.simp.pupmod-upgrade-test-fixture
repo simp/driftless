@@ -15,12 +15,12 @@ mod 'puppet-augeasproviders_grub',
 
 mod 'puppet-augeasproviders_ssh',
   :git => 'https://github.com/simp/augeasproviders_ssh',
-  :tag => 'v7.0.0' # CHA: -el7,+pup8,+rocky9  TODO: WARNING +3 maj version jump!'
+  :tag => 'v7.0.0' # CHA: -el7,+pup8,+rocky9  TODO: WARNING +3 maj version jump!
 #  :tag => '4.0.0'
 
 mod 'puppet-augeasproviders_sysctl',
   :git => 'https://github.com/simp/augeasproviders_sysctl',
-  :tag => 'v4.1.0' # CHA: 3.1:-pup6+pup8, 3.3:+el9, 4:-pup7  TODO: WARNING +2 maj version jump!'
+  :tag => 'v4.1.0' # CHA: 3.1:-pup6+pup8, 3.3:+el9, 4:-pup7  TODO: WARNING +2 maj version jump!
 #  :tag => '2.6.2'
 
 mod 'onyxpoint-gpasswd',
@@ -30,12 +30,13 @@ mod 'onyxpoint-gpasswd',
 
 mod 'puppetlabs-apache',
   :git => 'https://github.com/simp/puppetlabs-apache',
-  :tag => 'v7.0.0'
+  :tag => 'v13.4.0' # CHA: 8:-mod_fastcgi,-suphup,-apache2.0 9:-apache2.2,-a2mod type/providers, 10:-pup6+pup8, 11: BREAKING CHANGE -deprecated classes, -deprecated params from `mod::userdir`,scriptaliases,passenger, 13:-pup7, 13.2:+el10, allow concat 10.x,stdlib 10.x, 13.4:+pup9 TODO: WARNING: +6 maj version jump!
+#  :tag => 'v7.0.0'
 
 mod 'puppetlabs-concat',
   :git => 'https://github.com/simp/puppetlabs-concat',
-  :tag => 'v9.1.0' # TODO: WARNING +2 maj version jump!'
-#  :tag => 'v10.0.0' # TODO: WARNING +3 maj version jump!'
+  :tag => 'v9.1.0' # TODO: WARNING +2 maj version jump!
+#  :tag => 'v10.0.0' # TODO: WARNING +3 maj version jump!
 #  :tag => 'v7.2.0'
 
 mod 'voxpupuli-chrony',
@@ -150,7 +151,7 @@ mod 'simp-deferred_resources',
 
 mod 'simp-dhcp',
   :git => 'https://github.com/simp/pupmod-simp-dhcp',
-  :tag => '7.0.0'
+  :tag => '8.0.2' # CHA: 7:-el7, 8:-pup7, 8.0.2:update module dep ranges
 #  :tag => '6.8.0'
 
 
@@ -182,7 +183,8 @@ mod 'simp-gdm',
 
 mod 'simp-iptables',
   :git => 'https://github.com/simp/pupmod-simp-iptables',
-  :tag => '9.0.0' # CHA: 8: -pup7, allow simp_firewalld 2.x, update module dep ranges, 9: BREAKING CHANGE: Select the firewall backend exclusively via the new `iptables::backend` TODO check if/how site configures firewalls parameter (`firewalld` or `iptables`, default `firewalld`); no system autodetection is performed
+  :tag => '9.0.0' # 9: BREAKING CHANGE: Select the firewall backend exclusively via the new `iptables::backend` TODO check if/how site configures firewalls parameter (`firewalld` or `iptables`, default `firewalld`); no system autodetection is performed  # FIXME other modules have yet to update their deps to allow iptables 9.x
+#  :tag => '8.0.4' # CHA: 8: -pup7, allow simp_firewalld 2.x, update module dep ranges
 #  :tag => '7.1.2' # CHA: 7: -el7, use firewalld by default, Drop use of `iptables::use_firewalld` function, deprecate  `iptables::use_firewalld` function, 7.1: +el10
 #  :tag => '6.13.1'
 
@@ -347,17 +349,22 @@ mod 'simp-stunnel',
   :tag => '9.0.2'  # update module dep ranges
 #  :tag => '8.0.0' # 7:+el10, 9:-pup7
 #  :tag => '6.11.0'
-mod 'simp-sudo',
+
+mod 'simp-sudo', 
   :git => 'https://github.com/simp/pupmod-simp-sudo',
-  :tag => '5.9.1' #  :tag => '5.9.0'
+  :tag => '6.0.2' # CHA: 6:-pup7,update module dep ranges
+#  :tag => '7.0.0' # CHA: 6:-pup7,update module dep ranges, 7: BREAKING CHANGE: a bare `include sudo` includes the package and nothing else.  `sudo::package_ensure` no longer follows `simp_options::package_ensure` (defaults to `installed`), Managed aliases, defaults, user specifications, and `#includedir` lines are now written as individual drop-in files under `/etc/sudoers.d/` (configurable via the new `sudo::content_dir` parameter)  # FIXME investigate codebase before upgrading
+#  :tag => '5.9.0'
 
 mod 'simp-svckill',
   :git => 'https://github.com/simp/pupmod-simp-svckill',
-  :tag => '4.0.0' #   '3.11.0'
+  :tag => '5.1.1'  # CHA: 4:-ce data, 5:-pup7-el7,update module dep ranges
+#  :tag => '4.0.0' 
+#  :tag => '3.11.0'
 
 mod 'simp-swap',
   :git => 'https://github.com/simp/pupmod-simp-swap',
-  :tag => '1.0.2' # update module dep ranges
+  :tag => '1.0.2' # CHA: -pup7-el7,update module dep ranges
 #  :tag => '0.7.0'
 
 mod 'puppet-systemd',

@@ -326,7 +326,7 @@ mod 'simp-simp_options',
 #  :tag => '1.6.0'
 mod 'simp-simp_rsyslog',
   :git => 'https://github.com/simp/pupmod-simp-simp_rsyslog',
-  :tag => '0.10.1'
+  :tag => '1.0.1' # CHA: -ce-pup7-el7+el10, update module dep ranges
 #  :tag => '0.10.0'
 
 mod 'simp-ssh',
@@ -368,7 +368,8 @@ mod 'puppet-systemd',
   :tag => 'v9.4.0' #  :tag => 'v3.10.0'
 mod 'simp-tftpboot',
   :git => 'https://github.com/simp/pupmod-simp-tftpboot',
-  :tag => '7.0.1' #  :tag => '6.8.1'
+  :tag => '8.0.1'  # CHA: 7:-el7+el10-xinted dep,update module dep ranges
+  #  :tag => '6.8.1'
 
 mod 'simp-tlog',
   :git => 'https://github.com/simp/pupmod-simp-tlog',

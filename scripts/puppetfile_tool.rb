@@ -24,9 +24,10 @@
 # A module's canonical name (and so its owner, the 'group' in 'group-modulename')
 # is the 'name' key of its metadata.json at the declared ref.  'list' and
 # 'compare' read metadata.json from the checkout under --basedir when that
-# checkout is at the declared ref, and otherwise fetch it from the git repo
-# (cached under --cache-dir).  Forge modules are identified by their slug, so
-# the declared name is used unless a checkout is present.
+# checkout is at the declared ref, and with --fetch also from the git repo
+# (cached under --cache-dir).  Without either, the name declared in the
+# Puppetfile is used.  Forge modules are identified by their slug, so the
+# declared name is used unless a checkout is present.
 
 require 'optparse'
 require 'json'
@@ -250,6 +251,11 @@ module PuppetfileTool
       @repo ||= type == :git ? RepoUrl.new(url) : nil
     end
 
+    # URL with a trailing '.git' removed; 'a/b' and 'a/b.git' name the same repository
+    def url_normalized
+      url && url.sub(/\.git\z/, '')
+    end
+
     def install_path
       base = opts.key?(:install_path) ? opts[:install_path].to_s : moduledir
       File.join(base, basename)
@@ -259,6 +265,13 @@ module PuppetfileTool
     def git_ref
       k = %i[tag ref commit branch].find { |key| opts[key] }
       (k ? opts[k] : (opts[:default_branch] || 'HEAD')).to_s
+    end
+
+    # Number of major versions between this module and +other+ (positive = upgrade), or nil
+    def major_delta_from(other)
+      ov = other.semver
+      nv = semver
+      ov && nv ? nv[0] - ov[0] : nil
     end
 
     # ['tag', 'v1.2.3'], ['version', '1.2.3'], ['branch', 'main'], ['version', 'latest'], ...
@@ -443,37 +456,30 @@ module PuppetfileTool
   module Metadata
     Options = Struct.new(:basedir, :fetch, :cache_dir, :concurrency, :timeout, keyword_init: true) do
       def self.defaults
-        new(basedir: nil, fetch: true, cache_dir: DEFAULT_CACHE_DIR, concurrency: 4, timeout: 60)
+        new(basedir: nil, fetch: false, cache_dir: DEFAULT_CACHE_DIR, concurrency: 4, timeout: 60)
       end
     end
 
-    # Populates Mod#metadata for every module in +pf+.
+    # Populates Mod#metadata for every module in +pf+.  Modules whose metadata.json
+    # was never looked for (no --basedir, no --fetch) keep metadata = nil and get no note.
     def self.resolve_all(pf, options, io: $stderr)
-      pf.modules.each { |m| m.metadata = from_disk(m, options.basedir) if options.basedir }
-      pending = pf.modules.select { |m| m.metadata.nil? }
-      remote = pending.select { |m| m.type == :git }
-      if options.fetch && remote.any?
-        uncached = remote.reject { |m| cache_file(options.cache_dir, m) && File.file?(cache_file(options.cache_dir, m)) }
-        io.puts "#{pf.path}: fetching metadata.json for #{uncached.length} git module(s)" if uncached.any?
+      if options.basedir
+        pf.modules.each do |m|
+          result = from_disk(m, options.basedir)
+          m.metadata = result if result && (result.data || !options.fetch)
+        end
       end
-      Cmd.parallel_each(pending, options.concurrency) { |m| m.metadata = resolve(m, options) }
+      return pf unless options.fetch
+
+      pending = pf.modules.select { |m| m.metadata.nil? && m.type == :git }
+      uncached = pending.reject { |m| cache_file(options.cache_dir, m) && File.file?(cache_file(options.cache_dir, m)) }
+      io.puts "#{pf.path}: fetching metadata.json for #{uncached.length} git module(s)" if uncached.any?
+      Cmd.parallel_each(pending, options.concurrency) { |m| m.metadata = from_git(m, options) }
       pf
     end
 
-    def self.resolve(mod, options)
-      case mod.type
-      when :git
-        return MetadataResult.new(error: 'fetching disabled (--no-fetch)') unless options.fetch
-
-        from_git(mod, options)
-      when :forge
-        MetadataResult.new(data: nil, source: 'forge slug', error: nil)
-      else
-        MetadataResult.new(error: "#{mod.type} modules are not inspected")
-      end
-    end
-
-    # Reads <basedir>/<install_path>/metadata.json if that checkout is at the declared ref/version.
+    # Reads <basedir>/<install_path>/metadata.json.  Returns nil when there is no checkout,
+    # and a MetadataResult with an error when the checkout is not at the declared ref/version.
     def self.from_disk(mod, basedir)
       dir = File.join(basedir, mod.install_path)
       file = File.join(dir, 'metadata.json')
@@ -487,14 +493,17 @@ module PuppetfileTool
 
       case mod.type
       when :git
-        return nil unless File.exist?(File.join(dir, '.git'))
+        return MetadataResult.new(error: "#{dir} is not a git checkout") unless File.exist?(File.join(dir, '.git'))
 
         head, = Cmd.git(%w[rev-parse HEAD], chdir: dir)
         want, err = Cmd.git(['rev-parse', '--verify', '--quiet', "#{mod.git_ref}^{commit}"], chdir: dir)
-        return nil if err || head.strip.empty? || head.strip != want.strip
+        return MetadataResult.new(error: "#{dir} does not contain #{mod.git_ref}") if err
+        return MetadataResult.new(error: "#{dir} is at #{head.strip[0, 12]}, not #{mod.git_ref}") if head.strip != want.strip
       when :forge
         declared = mod.version[1]
-        return nil unless declared == 'latest' || data['version'] == declared
+        unless declared == 'latest' || data['version'] == declared
+          return MetadataResult.new(error: "#{dir} is version #{data['version']}, not #{declared}")
+        end
       end
       MetadataResult.new(data: data, source: file)
     end
@@ -550,19 +559,42 @@ module PuppetfileTool
           new: new && new.to_h,
         }
       end
+
+      def mod
+        new || old
+      end
+
+      def change(field)
+        changes.find { |c| c[0] == field }
+      end
+
+      def major_delta
+        old && new ? new.major_delta_from(old) : nil
+      end
     end
 
-    FLAG_LABELS = {
-      major_upgrade: 'Major version upgrades',
-      major_downgrade: 'Major version downgrades',
-      owner_change: 'Ownership changes (group in metadata.json name)',
-      type_change: 'Source type changes (forge/git/...)',
-      transport_change: 'URL transport changes (https/ssh/...)',
+    # Output sections, in display order.  Status sections list modules by what happened to
+    # them; flag sections list modules that deserve attention regardless of status.
+    SECTIONS = {
+      added: { title: 'Added', status: :added, default: true },
+      removed: { title: 'Removed', status: :removed, default: true },
+      changed: { title: 'Changed', status: :changed, default: true },
+      moved: { title: 'Moved', status: :moved, default: true },
+      unchanged: { title: 'Unchanged', status: :unchanged, default: false },
+      upgrades: { title: 'Major version upgrades', flag: :major_upgrade, default: true },
+      downgrades: { title: 'Major version downgrades', flag: :major_downgrade, default: true },
+      owners: { title: 'Ownership changes (group in metadata.json name, or declared name without metadata)', flag: :owner_change, default: true },
+      types: { title: 'Source type changes (forge/git/...)', flag: :type_change, default: true },
+      transports: { title: 'URL transport changes (https/ssh/...)', flag: :transport_change, default: true },
+      notes: { title: 'Notes', default: true },
     }.freeze
+
+    DEFAULT_SECTIONS = SECTIONS.select { |_, s| s[:default] }.keys.freeze
 
     attr_reader :entries
 
-    def initialize(old_pf, new_pf)
+    def initialize(old_pf, new_pf, strict_urls: false)
+      @strict_urls = strict_urls
       @entries = build(old_pf, new_pf)
     end
 
@@ -580,41 +612,76 @@ module PuppetfileTool
       { summary: counts, entries: entries.map(&:to_h) }
     end
 
-    def to_text(show_unchanged: false)
+    def to_text(sections: DEFAULT_SECTIONS)
       out = []
       c = counts
       out << "Summary: #{%i[added removed changed moved unchanged].map { |s| "#{c[s]} #{s}" }.join(', ')}"
 
-      section(out, 'Added', :added) { |e| ["  #{e.install_path}  #{e.new.summary}"] + note_lines(e) }
-      section(out, 'Removed', :removed) { |e| ["  #{e.install_path}  #{e.old.summary}"] }
-      section(out, 'Changed', :changed) { |e| changed_lines(e) }
-      section(out, 'Moved', :moved) { |e| changed_lines(e) }
-      section(out, 'Unchanged', :unchanged) { |e| ["  #{e.install_path}  #{e.new.summary}"] + note_lines(e) } if show_unchanged
+      sections.each do |key|
+        spec = SECTIONS.fetch(key)
+        lines =
+          if spec[:status]
+            status_section(spec[:status])
+          elsif spec[:flag]
+            flag_section(spec[:flag])
+          else
+            notes_section
+          end
+        next if lines.empty?
 
-      FLAG_LABELS.each do |flag, label|
-        flagged = entries.select { |e| e.flags.include?(flag) }
-        next if flagged.empty?
-
-        out << '' << "#{label}:"
-        flagged.each { |e| out << "  #{e.install_path}  (#{e.new.name})" }
-      end
-
-      noted = entries.reject { |e| e.notes.empty? }
-      unless noted.empty?
-        out << '' << 'Notes:'
-        noted.each { |e| e.notes.each { |n| out << "  #{e.install_path}  #{n}" } }
+        out << '' << "#{spec[:title]}:"
+        out.concat(lines)
       end
       "#{out.join("\n")}\n"
     end
 
     private
 
-    def section(out, title, status)
-      selected = entries.select { |e| e.status == status }
-      return if selected.empty?
+    # -- text rendering
 
-      out << '' << "#{title}:"
-      selected.each { |e| out.concat(yield(e)) }
+    def status_section(status)
+      entries.select { |e| e.status == status }.flat_map do |e|
+        case status
+        when :added, :unchanged then ["  #{e.install_path}  #{e.new.summary}"] + note_lines(e)
+        when :removed then ["  #{e.install_path}  #{e.old.summary}"]
+        else changed_lines(e)
+        end
+      end
+    end
+
+    def flag_section(flag)
+      rows = entries.select { |e| e.flags.include?(flag) }.map do |e|
+        [e.install_path, e.mod.name] + flag_columns(flag, e)
+      end
+      columns(rows)
+    end
+
+    # The 'from -> to' summary (and any extra column) for one flagged entry
+    def flag_columns(flag, e)
+      case flag
+      when :major_upgrade, :major_downgrade
+        d = e.major_delta
+        ["#{e.old.version[1]} -> #{e.new.version[1]}", format('%+d major', d)]
+      when :owner_change
+        ["#{e.old.canonical_owner} -> #{e.new.canonical_owner}", "#{e.old.canonical_name} -> #{e.new.canonical_name}"]
+      when :type_change
+        ["#{e.old.type} -> #{e.new.type}", "#{e.old.url || 'forge'} -> #{e.new.url || 'forge'}"]
+      when :transport_change
+        ["#{e.old.repo.transport} -> #{e.new.repo.transport}", "#{e.old.url} -> #{e.new.url}"]
+      else
+        []
+      end
+    end
+
+    def notes_section
+      columns(entries.reject { |e| e.notes.empty? }.flat_map { |e| e.notes.map { |n| [e.install_path, n] } })
+    end
+
+    def columns(rows, indent: '  ')
+      return [] if rows.empty?
+
+      widths = rows.first.each_index.map { |i| rows.map { |r| r[i].to_s.length }.max }
+      rows.map { |r| indent + r.each_with_index.map { |c, i| c.to_s.ljust(widths[i]) }.join('  ').rstrip }
     end
 
     def flag_suffix(e)
@@ -629,10 +696,16 @@ module PuppetfileTool
     def changed_lines(e)
       lines = ["  #{e.install_path}  (#{e.new.name})#{flag_suffix(e)}"]
       e.changes.each do |field, o, n, note|
-        lines << "    #{field}: #{o.inspect.delete('"')} -> #{n.inspect.delete('"')}#{note ? "  (#{note})" : ''}"
+        lines << "    #{field}: #{plain(o)} -> #{plain(n)}#{note ? "  (#{note})" : ''}"
       end
       lines + note_lines(e)
     end
+
+    def plain(v)
+      v.nil? ? '(none)' : v.to_s
+    end
+
+    # -- comparison
 
     def build(old_pf, new_pf)
       olds = old_pf.by_install_path
@@ -664,6 +737,10 @@ module PuppetfileTool
       entries.sort_by(&:install_path)
     end
 
+    def url_changed?(o, n)
+      @strict_urls ? o.url != n.url : o.url_normalized != n.url_normalized
+    end
+
     def pair(k, o, n)
       changes = []
       flags = []
@@ -681,11 +758,11 @@ module PuppetfileTool
         flags << :type_change
       end
 
-      if o.url != n.url
+      if url_changed?(o, n)
         notes = []
         if o.repo && n.repo
           notes << "transport #{o.repo.transport} -> #{n.repo.transport}" if o.repo.transport != n.repo.transport
-          notes << "host #{o.repo.host} -> #{n.repo.host}" if o.repo.host != n.repo.host
+          notes << "host #{plain(o.repo.host)} -> #{plain(n.repo.host)}" if o.repo.host != n.repo.host
           notes << "repo #{o.repo.repo_name} -> #{n.repo.repo_name}" if o.repo.repo_name != n.repo.repo_name
           flags << :transport_change if o.repo.transport != n.repo.transport
         end
@@ -696,12 +773,9 @@ module PuppetfileTool
       if o.version != n.version
         changes << ['version', o.version_s, n.version_s]
         flags << :version_change
-        ov = o.semver
-        nv = n.semver
-        if ov && nv
-          flags << :major_upgrade if nv[0] > ov[0]
-          flags << :major_downgrade if nv[0] < ov[0]
-        end
+        d = n.major_delta_from(o)
+        flags << :major_upgrade if d && d.positive?
+        flags << :major_downgrade if d && d.negative?
       end
 
       ((o.opts.keys | n.opts.keys) - Mod::COVERED_KEYS).each do |key|
@@ -931,7 +1005,8 @@ module PuppetfileTool
       o.separator 'metadata.json options (canonical module name and owner):'
       o.on('--basedir DIR', 'directory holding the checked-out moduledirs; metadata.json is read from',
            'a checkout there when it is at the declared ref/version') { |v| @meta.basedir = v }
-      o.on('--no-fetch', 'never fetch metadata.json from git repos') { @meta.fetch = false }
+      o.on('--fetch', 'fetch metadata.json from git repos at the declared ref when no',
+           'usable checkout is found (off by default; without it the declared name is used)') { @meta.fetch = true }
       o.on('--cache-dir DIR', "cache fetched metadata.json under DIR (#{DEFAULT_CACHE_DIR})") { |v| @meta.cache_dir = v }
       o.on('--no-cache', 'do not read or write the metadata.json cache') { @meta.cache_dir = nil }
       git_options(o)
@@ -981,20 +1056,38 @@ module PuppetfileTool
     end
 
     def cmd_compare
+      sections = Comparison::DEFAULT_SECTIONS.dup
+      names = Comparison::SECTIONS.keys.join(',')
       p = parser('Usage: compare [options] OLD_PUPPETFILE NEW_PUPPETFILE') do |o|
         o.on('--json', 'JSON output') { @opts[:json] = true }
-        o.on('-a', '--all', 'also list unchanged modules') { @opts[:all] = true }
         o.on('--exit-code', 'exit 1 when the Puppetfiles differ (like diff)') { @opts[:exit_code] = true }
+        o.on('--strict-urls', "treat a present/missing '.git' suffix as a URL change") { @opts[:strict_urls] = true }
+        o.separator ''
+        o.separator "output sections (default: #{Comparison::DEFAULT_SECTIONS.join(',')}):"
+        o.on('--only LIST', Array, 'show only these sections') { |v| sections = section_names(v) }
+        o.on('--show LIST', Array, 'add sections to the default set') { |v| sections |= section_names(v) }
+        o.on('--hide LIST', Array, 'remove sections from the default set') { |v| sections -= section_names(v) }
+        o.on('-a', '--all', 'show every section') { sections = Comparison::SECTIONS.keys }
+        o.separator "  sections: #{names}"
         metadata_options(o)
       end
       old_path, new_path = positional(p, 2)
-      cmp = Comparison.new(load_with_metadata(old_path), load_with_metadata(new_path))
+      cmp = Comparison.new(load_with_metadata(old_path), load_with_metadata(new_path), strict_urls: @opts[:strict_urls])
       if @opts[:json]
         puts JSON.pretty_generate(cmp.to_h)
       else
-        print cmp.to_text(show_unchanged: @opts[:all])
+        print cmp.to_text(sections: Comparison::SECTIONS.keys & sections)
       end
       exit 1 if @opts[:exit_code] && cmp.differences?
+    end
+
+    def section_names(list)
+      list.map do |name|
+        key = name.strip.downcase.to_sym
+        raise Error, "unknown section '#{name}' (choose from #{Comparison::SECTIONS.keys.join(', ')})" unless Comparison::SECTIONS.key?(key)
+
+        key
+      end
     end
 
     def cmd_expand

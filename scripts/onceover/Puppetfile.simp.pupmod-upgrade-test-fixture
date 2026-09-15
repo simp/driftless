@@ -451,10 +451,6 @@ mod 'puppetlabs-docker',
 ###   :tag => '4.7.9'
 
 
-# FIXME: SITE contained
-###mod 'augeasproviders',
-###  :git => 'https://github.com/simp/augeasproviders',
-###  :tag => 'simp-2.1.3'
 
 # ------------------------------------------------------------------------------
 # _core modules
@@ -489,8 +485,13 @@ mod 'puppetlabs-yumrepo_core',
 
 mod 'simp-network',  # FIXME: deprecated and removed upstream
   :git => 'https://github.com/simp/pupmod-simp-network',
-  :tag => '6.7.0'
+  :tag => '6.7.0'  # forked
 
+mod 'augeasproviders',
+  :git => 'https://github.com/simp/augeasproviders',
+  :branch => 'master' # FIXME upstream has not yet tagged +pup8 in metadata.json
+# :tag =>  '2.4.1' # master has deps +pup8 in metadata.json
+#  :tag => 'simp-2.1.3'
 
 # ------------------------------------------------------------------------------
 # obsolete

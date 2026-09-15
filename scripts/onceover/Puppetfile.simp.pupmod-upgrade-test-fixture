@@ -41,7 +41,7 @@ mod 'puppetlabs-concat',
 
 mod 'voxpupuli-chrony',
   :git => 'https://github.com/simp/pupmod-voxpupuli-chrony',
-   :tag => 'v5.0.0' # FIXME: resolve site fork  #NOTE currently upstream doesn't claim el10
+   :tag => 'v5.0.0' # CHA: 3:-pup6+pup8+el9+stdlib 9.x, 4:-el7   FIXME: resolve site fork  #NOTE currently upstream doesn't claim el10
 ##  :tag => 'v1.0.0'  # FIXME: v2.4.0-forked-v1
 
 mod 'puppetlabs-hocon',
@@ -88,7 +88,7 @@ mod 'puppetlabs-translate',
 ###  :tag => 'v2.5.1'
 
 mod 'saz-timezone',
-  :git => 'https://github.com/simp/pupmod-simp-timezone',
+  :git => 'https://github.com/simp/pupmod-saz-timezone',
   :tag => 'v6.3.0'
 #  :tag => 'v6.2.0'
 
@@ -133,7 +133,7 @@ mod 'simp-cron',
 
 mod 'simp-crypto_policy',
   :git => 'https://github.com/simp/pupmod-simp-crypto_policy',
-  :tag => '3.1.0'  # CHA: 3: -el7-pup7 
+  :tag => '3.1.0'  # CHA: 3: -el7-pup7
 #  :tag => '2.0.3'  # CHA: 2: made sub policy def safer, 3: -pup7, updates simp mod deps << REVIEW
   #:tag => '1.0.1'   # CHA: 1: +el10
 
@@ -249,7 +249,7 @@ mod 'simp-pki',
 mod 'simp-polkit',
   :git => 'https://github.com/simp/pupmod-simp-polkit',
   :tag => '7.0.3' # CHA: 7: -el8-pup7, update module dep ranges  7.0.3: fix deprecated stdlib function, require dep stdlib >= 9
-#  :tag => '6.9.0' 
+#  :tag => '6.9.0'
 #  :tag => '6.8.0'
 
 mod 'simp-postfix',
@@ -281,7 +281,7 @@ mod 'simp-rsync',
 
 mod 'simp-rsyslog',
   :git => 'https://github.com/simp/pupmod-simp-rsyslog',
-  :tag => '10.0.1'  # BREAKING CHANGE:  Sites setting `rsyslog::server::enable_tcpwrappers` MUST remove the key, rsyslog::rule::remote::max_error_messages is deprecated (accepted, but has no effect),  relaxes assert_optional_dependency that prevented pki 7+, update module dep ranges 
+  :tag => '10.0.1'  # BREAKING CHANGE:  Sites setting `rsyslog::server::enable_tcpwrappers` MUST remove the key, rsyslog::rule::remote::max_error_messages is deprecated (accepted, but has no effect),  relaxes assert_optional_dependency that prevented pki 7+, update module dep ranges
 #  :tag => '8.10.1'
 #  :tag => '8.8.0'
 
@@ -294,7 +294,7 @@ mod 'simp-simp',
   :git => 'https://github.com/simp/pupmod-simp-simp',
   :tag => '9.0.1'  # CHA: 5:+el10, fix sssd, 6: safer tmp remounts, 7: update module dep ranges, 8: "BREAKING" CHANGE: Default `simp::mail_server` to `false` so Postfix is opt-in rather than installed on every node;  set `simp::mail_server: true` to restore prior behavior.  +`simp::sysctl::unmanaged_sysctls` to let sites opt individual sysctl keys out of management without re-specifying the other defaults, 9: remove (deprecated) ntpd, legacy facts, 9.0.1: update module dep ranges  # WARNINGi +2 maj version jump! (+5 maj version jump!)
 
-# :tag => '4.22.0'  
+# :tag => '4.22.0'
 
 mod 'simp-simpkv',
   :git => 'https://github.com/simp/pupmod-simp-simpkv',
@@ -337,7 +337,7 @@ mod 'simp-ssh',
 mod 'simp-sssd',
   :git => 'https://github.com/simp/pupmod-simp-sssd',
   :tag => '10.2.0' # 10: WARNING: BREAKING CHANGE for LDAP users: Rename the ldap provider parameter `ldap_user_cert` to `ldap_user_certificate`, 10.1: support multiple & backup servers in sssd::provider::krb5, update module dep ranges, 10.2:+`sssd::app_pki_group` to control the group ownership of the certificates copied by `pki::copy so that the value is emitted under the correct `sssd-ldap(5)` key, fix el10 user permissions to TLS private key, relaxes assert_optional_dependency that prevents auditd 10+
-#  :tag => '9.0.1' # TODO: WARNING +2 maj version jump! 
+#  :tag => '9.0.1' # TODO: WARNING +2 maj version jump!
 #  :tag => '7.10.0'
 
 mod 'simp-stunnel',
@@ -346,7 +346,7 @@ mod 'simp-stunnel',
 #  :tag => '8.0.0' # 7:+el10, 9:-pup7
 #  :tag => '6.11.0'
 
-mod 'simp-sudo', 
+mod 'simp-sudo',
   :git => 'https://github.com/simp/pupmod-simp-sudo',
   :tag => '6.0.2' # CHA: 6:-pup7,update module dep ranges
 #  :tag => '7.0.0' # CHA: 6:-pup7,update module dep ranges, 7: BREAKING CHANGE: a bare `include sudo` includes the package and nothing else.  `sudo::package_ensure` no longer follows `simp_options::package_ensure` (defaults to `installed`), Managed aliases, defaults, user specifications, and `#includedir` lines are now written as individual drop-in files under `/etc/sudoers.d/` (configurable via the new `sudo::content_dir` parameter)  # FIXME investigate codebase before upgrading
@@ -355,7 +355,7 @@ mod 'simp-sudo',
 mod 'simp-svckill',
   :git => 'https://github.com/simp/pupmod-simp-svckill',
   :tag => '5.1.1'  # CHA: 4:-ce data, 5:-pup7-el7,update module dep ranges
-#  :tag => '4.0.0' 
+#  :tag => '4.0.0'
 #  :tag => '3.11.0'
 
 mod 'simp-swap',
@@ -365,7 +365,8 @@ mod 'simp-swap',
 
 mod 'puppet-systemd',
   :git => 'https://github.com/simp/puppet-systemd.git',
-  :tag => 'v9.4.0' #  :tag => 'v3.10.0'
+  :tag => 'v9.4.0'
+#  :tag => 'v3.10.0'
 mod 'simp-tftpboot',
   :git => 'https://github.com/simp/pupmod-simp-tftpboot',
   :tag => '8.0.1'  # CHA: 7:-el7+el10-xinted dep,update module dep ranges
@@ -386,7 +387,6 @@ mod 'simp-useradd',
   :git => 'https://github.com/simp/pupmod-simp-useradd',
   :tag => '3.1.2' # WARNING +2 maj version jump!  3.1: add login_defs::mode (no need for v1.0.0-forked-v1 fork), 3.1.2: update module dep ranges
 #  :tag => '1.0.0' # FIXME <-- SITE FORK: "v1.0.0-forked-v1"
-
 
 
 # We have forked voxpupuli/selinux temporarily, renaming
@@ -434,6 +434,17 @@ mod 'simp-simp_authselect',
 # Modules present at site in Puppetfile.simp that are not in the product PF
 # ------------------------------------------------------------------------------
 
+
+mod 'voxpupuli-yum',
+  :git => 'https://github.com/simp/pupmod-voxpupuli-yum',
+  :tag => 'v8.0.0'
+
+
+mod 'puppetlabs-docker':
+  :git => 'https://github.com/simp/puppetlabs-docker'
+  :tag => 'v10.4.0'  # CHA: 7:-pup6+pup8 8:+el8+dep stdlib 9.x, 10.1:+el9
+#  :tag => 'v4.4.0' 
+
 # FIXME Present at SITE Puppetfile.simp (left over from upgrade from 6.5.0?)
 ### mod 'simp-xinetd',
 ###   :git => ''
@@ -467,6 +478,17 @@ mod 'puppetlabs-selinux_core',
 mod 'puppetlabs-yumrepo_core',
   :git => "https://github.com/simp/pupmod-puppetlabs-yumrepo_core",
   :tag => 'v3.0.1'
+
+
+# ------------------------------------------------------------------------------
+# Modules removed from product that are still used at SITE
+# ------------------------------------------------------------------------------
+
+mod 'simp-network',  # FIXME: deprecated and removed upstream
+  :git => 'https://github.com/simp/pupmod-simp-network',
+  :tag => '6.7.0'
+
+
 # ------------------------------------------------------------------------------
 # obsolete
 ###mod 'simp-upstart',  WARNING: removing (obsolete)
@@ -509,14 +531,12 @@ mod 'puppetlabs-yumrepo_core',
 ###  :git => 'https://github.com/simp/pupmod-simp-ima',
 ###  :branch => 'master'
 
-# FIXME Present at SITE Puppetfile.simp (left over from upgrade from 6.5.0?)
 # NOTE: incron is removed from SITE in hiera because it's not in el9
 # NOTE: simp-simp 5.0.0 removes incron
 ### mod 'simp-incron',
 ###   :git => ''
 ###   :tag => '0.10.0'
 
-#FIXME: not mirrored under github.com/simp/
 mod 'jcpunk-authselect',
   :git => "https://github.com/voxpupuli/puppet-authselect.git",
   :tag => '1.1.2'
@@ -562,25 +582,26 @@ mod 'jcpunk-authselect',
 ###  :git => 'https://github.com/simp/pupmod-simp-simp_nfs',
 ###  :branch => 'master'
 
-# FIXME Present at SITE Puppetfile.simp (left over from upgrade from 6.5.0?)
+### NOTE: repo archived, removed from product
 ### mod 'simp-simp_openldap',
 ###   :git => ''
 ###   :tag => '6.10.0'
 
 
-# FIXME Present at SITE Puppetfile.simp (left over from upgrade from 6.5.0?)
+### NOTE: repo archived, removed from product
 ### mod 'simp-simp_pki_service',
 ###   :git => ''
 ###   :tag => '0.3.1'
 
 
-# FIXME Present at SITE Puppetfile.simp (left over from upgrade from 6.5.0?)
+### NOTE: repo archived, removed from product
 ### mod 'simp-sudosh',
 ###   :git => ''
 ###   :tag => '6.5.0'
 
 
-# FIXME Present at SITE Puppetfile.simp (left over from upgrade from 6.5.0?), removed from simp-core after pupmod-simp-tcpwrappers was archived (el8 removed tcpwrappers).  However, some modules appear to have tcpwrappers-related cruft (simp_options still supports it, and other classes  like ssh::server::conf respond to it.  Setting simp_options::tcpwrappers to `false`
+### NOTE: repo archived, removed from product
+# el8 removed tcpwrappers, and simp_options::tcpwrappers has been removed.  However, some modules appear to have tcpwrappers-related cruft (some classes  like ssh::server::conf still respond to it.  Setting simp_options::tcpwrappers to `false`
 #mod 'simp-tcpwrappers',
 #  :git => 'https://github.com/simp/pupmod-simp-tcpwrappers',
 #  :tag => '6.5.0'

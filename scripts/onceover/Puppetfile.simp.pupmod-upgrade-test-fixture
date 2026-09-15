@@ -475,10 +475,13 @@ mod 'puppetlabs-selinux_core',
   :git => "https://github.com/simp/pupmod-puppetlabs-selinux_core",
   :tag => 'v2.0.1'
 
+mod 'puppetlabs-sshkeys_core',
+  :git => 'https://github.com/simp/pupmod-puppetlabs-sshkeys_core',
+  :tag => 'v3.0.1' # CHA: -pup7+pup8
+
 mod 'puppetlabs-yumrepo_core',
   :git => "https://github.com/simp/pupmod-puppetlabs-yumrepo_core",
   :tag => 'v3.0.1'
-
 
 # ------------------------------------------------------------------------------
 # Modules removed from product that are still used at SITE

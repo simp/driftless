@@ -11,10 +11,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - `list` commands
-  - `roles [-d DIR] [--basemodulepath PATH]` - prints each role class & path
   - `collectors [-i DIR] [-s DIR]` - lists collector sessions
   - `facts [-i DIR] [-x GLOB] [selection flags]` - prints all reported facts+leaves
   - `nodes [-i DIR] [selection flags]` - reports `all-active-nodes` inventory
+  - `reports [-i DIR]` - prints report/state/collector/session/size
+  - `roles [-d DIR] [--basemodulepath PATH]` - prints each role class & path
 
 ### Fixed
 

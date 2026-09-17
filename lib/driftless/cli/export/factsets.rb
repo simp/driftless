@@ -2,6 +2,7 @@ require 'driftless/cli/base'
 require 'driftless/cli/export'
 require 'driftless/cli/node_selection'
 require 'driftless/export/factsets'
+require 'driftless/export/role_tree'
 
 module Driftless
   module CLI
@@ -12,10 +13,15 @@ module Driftless
         register_command name: 'factsets', subcommand_of: Export
         desc 'Export reported factsets for onceover or puppet-lookup'
 
+        DEFAULT_ROLE_TREE = 'spec/factsets/raw'.freeze
+
         def execute(_argv)
+          require_incoming_dir!
+          return execute_role_tree if @options[:role_tree]
+
+          reject_role_tree_flags!
           parse_format!
           require_output_dir!
-          require_incoming_dir!
 
           result = ::Driftless::Export::Factsets.new(
             incoming_dir:       File.expand_path(@options[:incoming_dir]),
@@ -40,6 +46,10 @@ module Driftless
 
         protected
 
+        def option_defaults
+          { pick: 'random' }
+        end
+
         def configure_parser(o)
           o.on('-f', '--format=PROFILE[:SER]',
                'Consumer profile and serialization',
@@ -50,7 +60,24 @@ module Driftless
           o.on('-i', '--incoming-dir=DIR',
                'Ingest dir holding factsets-for-all-active-nodes/',
                'Default: reports.incoming_dir from driftless.yaml') { |v| @options[:incoming_dir] = v }
-          o.on('--limit=N', Integer, 'Cap emitted files (after selection, sorted by certname)') { |v| @options[:limit] = v }
+          o.on('--limit=N', Integer,
+               'Cap emitted files (after selection, sorted by certname);',
+               'with --onceover-role-tree, factsets per role and collector (default 1)') { |v| @options[:limit] = v }
+
+          o.separator ''
+          o.separator 'Onceover role tree (implies --format onceover:json; not with --output-dir):'
+          o.on('--onceover-role-tree[=DIR]',
+               'Maintain DIR/<role::name>/<certname>.json, one factset per role and',
+               "collector, refreshing files already there (default DIR: #{DEFAULT_ROLE_TREE})") do |v|
+            @options[:role_tree] = v || DEFAULT_ROLE_TREE
+          end
+          o.on('--pick=HOW', ::Driftless::Export::RoleTree::PICKS,
+               'How a collector\'s node is chosen for a role with none yet:',
+               'random (default) or first (lowest certname)') { |v| @options[:pick] = v }
+          o.on('--prune', 'Delete factsets whose node no longer reports with that role') { @options[:prune] = true }
+          o.on('--ignore-stale-factsets', 'Warn about such factsets and proceed instead of stopping') do
+            @options[:ignore_stale] = true
+          end
 
           declare_node_selection(o)
 
@@ -69,6 +96,47 @@ module Driftless
         end
 
         private
+
+        # @raise [SystemExit] on a flag the role tree does not take, via fatal!
+        def execute_role_tree
+          if @options[:output_dir]
+            fatal!('export factsets: --onceover-role-tree writes under its own DIR; drop --output-dir', help: true)
+          end
+          if @options[:format] && !%w[onceover onceover:json].include?(@options[:format])
+            fatal!("export factsets: --onceover-role-tree implies --format onceover:json, not #{@options[:format]}", help: true)
+          end
+          if @options[:prune] && @options[:ignore_stale]
+            fatal!('export factsets: --prune and --ignore-stale-factsets are alternatives; pass one', help: true)
+          end
+
+          root   = File.expand_path(@options[:role_tree])
+          result = ::Driftless::Export::RoleTree.new(
+            incoming_dir: File.expand_path(@options[:incoming_dir]),
+            root:         root,
+            limit:        @options[:limit] || 1,
+            pick:         @options[:pick],
+            prune:        @options[:prune] || false,
+            ignore_stale: @options[:ignore_stale] || false,
+            selector:     node_selector,
+            environments: @options[:environments],
+            proceed_with_subset_of_configured_envs: @options[:proceed_with_subset_of_configured_envs] || false,
+          ).run
+
+          Driftless.logger.info(
+            "export factsets: role tree #{root}: #{result.written} picked, #{result.updated} refreshed, " \
+            "#{result.pruned} pruned, #{result.stale} stale",
+          )
+          exit 0
+        rescue ::Driftless::Export::Error, ::Driftless::ScanError => e
+          fatal!("export factsets: #{e.message}")
+        end
+
+        def reject_role_tree_flags!
+          given = { '--pick' => @options[:pick] != 'random', '--prune' => @options[:prune],
+                    '--ignore-stale-factsets' => @options[:ignore_stale] }.select { |_, v| v }.keys
+          return if given.empty?
+          fatal!("export factsets: #{given.join(', ')} only apply with --onceover-role-tree", help: true)
+        end
 
         def parse_format!
           fmt = @options[:format] || 'onceover'

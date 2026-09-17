@@ -10,12 +10,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- `list` commands
+- New `driftless list` subcommands:
   - `collectors [-i DIR] [-s DIR]` - lists collector sessions
   - `facts [-i DIR] [-x GLOB] [selection flags]` - prints all reported facts+leaves
   - `nodes [-i DIR] [selection flags]` - reports `all-active-nodes` inventory
   - `reports [-i DIR]` - prints report/state/collector/session/size
   - `roles [-d DIR] [--basemodulepath PATH]` - prints each role class & path
+- `driftless export factsets --onceover-role-tree[=DIR]`
+  - populates a directory tree (default: `spec/factsets/raw/`) with onceover factsets
+  - tree is arranged as `DIR/<role::name>/<certname>.json`
+    - defaults:
+      - one `<certname>.json` per collector (`--limit 1`)
+      - picked at random (`--pick randome|first`)
+      - but if factsets already exist for a collector, they are updated
+    - stale (unreported) existing factsets will cause a failure
+      - unless run with `--prune` (removes thew stale factsets) or
+        `--ignore-stale-factsets`
+    - `--role` can narrow which `<role::name>/` directories are updated
 
 ### Fixed
 

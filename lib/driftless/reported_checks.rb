@@ -144,7 +144,7 @@ module Driftless
             seen_envs << env
             true
           else
-            Driftless.logger.info("  node #{node.certname.inspect} excluded (environment #{env.inspect} not in puppet.environments)")
+            Driftless.logger.debug("  node #{node.certname.inspect} excluded (environment #{env.inspect} not in puppet.environments)")
             false
           end
         end

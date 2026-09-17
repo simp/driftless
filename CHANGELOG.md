@@ -28,6 +28,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
         `--ignore-stale-factsets`
     - `--role` can narrow which `<role::name>/` directories are updated
 
+### Changed
+
+- messages about writing factset files have been moved from debug to info
+- messages about rejecting factsets from other environments have been moved from info to debug
+
 ### Fixed
 
 - `scan` links now handle git web ui links to repos deployed via

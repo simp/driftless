@@ -92,7 +92,7 @@ module Driftless
             warn("export factsets: skipped a factset from #{node.collector || '(unknown collector)'} with no certname")
             next
           end
-          Driftless.logger.debug("export factsets: wrote #{write_one(node)}")
+          Driftless.logger.info("export factsets: wrote #{write_one(node)}")
           written += 1
         end
         Result.new(written: written, skipped_no_certname: skipped_no_certname)

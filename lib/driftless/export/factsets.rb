@@ -2,7 +2,7 @@ require 'fileutils'
 require 'json'
 require 'yaml'
 
-require 'driftless/inputs/factsets_loader'
+require 'driftless/inputs/node_report_loader'
 require 'driftless/logger'
 require 'driftless/node_selector'
 require 'driftless/scan_error'
@@ -15,7 +15,7 @@ module Driftless
     # (spec/factsets/<name>.json) and by `puppet lookup --facts FILE`.
     #
     # Source: `report:factsets-for-all-active-nodes` under `incoming_dir`,
-    # read by {Driftless::Inputs::FactsetsLoader}, then narrowed by a
+    # read by {Driftless::Inputs::NodeReportLoader}, then narrowed by a
     # {Driftless::NodeSelector}.
     #
     # Profile selects filename convention, default serialization, and whether
@@ -55,7 +55,7 @@ module Driftless
         ser = serialization || PROFILES.fetch(profile)[:default_serialization]
         raise Error, "unknown serialization: #{ser.inspect} (known: #{SERIALIZATIONS.join(', ')})" unless SERIALIZATIONS.include?(ser)
 
-        @loader = Inputs::FactsetsLoader.new(
+        @loader = Inputs::NodeReportLoader.new(
           incoming_dir: incoming_dir, environments: environments, proceed_with_subset_of_configured_envs: proceed_with_subset_of_configured_envs,
         )
         @output_dir    = output_dir

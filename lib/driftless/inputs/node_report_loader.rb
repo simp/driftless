@@ -5,12 +5,16 @@ require 'driftless/scan_error'
 
 module Driftless
   module Inputs
-    # Loads the incoming tree for the factsets report, applying the declared
+    # Loads the incoming tree for one node report, applying the declared
     # environment filter when there is one.
-    class FactsetsLoader
+    class NodeReportLoader
       include ReportedChecks
 
       FACTSETS_REPORT = 'factsets-for-all-active-nodes'.freeze
+      NODES_REPORT    = 'all-active-nodes'.freeze
+
+      # @return [String] the report {#load} returns rows of
+      attr_reader :report
 
       # @return [Reported, nil] what the loader read, after the environment
       #   filter; nil until {#load}
@@ -20,46 +24,54 @@ module Driftless
       #   empty keeps every node
       # @param proceed_with_subset_of_configured_envs [Boolean] warn instead of
       #   raising when a configured environment has no reports
-      def initialize(incoming_dir:, environments: nil, proceed_with_subset_of_configured_envs: false)
+      # @param report [String] one of ReportLoader::NODE_REPORTS
+      def initialize(incoming_dir:, report: FACTSETS_REPORT, environments: nil,
+                     proceed_with_subset_of_configured_envs: false)
         @incoming_dir       = incoming_dir
+        @report             = report
         @environments       = environments
         @proceed_with_subset_of_configured_envs = proceed_with_subset_of_configured_envs
       end
 
-      # @return [Array<Node>] rows of the factsets report
-      # @raise [ScanError] when the factsets report is absent, or the
-      #   environment filter rejects the tree
+      # @return [Array<Node>] rows of the report
+      # @raise [ScanError] when the report is absent, or the environment
+      #   filter rejects the tree
       def load
-        Driftless.logger.info("factsets: reading #{incoming_dir}")
+        Driftless.logger.info("#{label}: reading #{incoming_dir}")
         reported, _findings = ReportLoader.load(incoming_dir)
-        if reported.missing?(FACTSETS_REPORT)
-          raise ScanError, "no report:#{FACTSETS_REPORT} data under #{incoming_dir.inspect}"
+        if reported.missing?(report)
+          raise ScanError, "no report:#{report} data under #{incoming_dir.inspect}"
         end
         Driftless.logger.info(
-          "factsets: loaded #{reported.report(FACTSETS_REPORT).size} from #{describe_sessions(reported)}",
+          "#{label}: loaded #{reported.report(report).size} from #{describe_sessions(reported)}",
         )
 
         if environments&.any?
           reported = apply_environment_filter(reported)
           Driftless.logger.info(
-            "factsets: #{reported.report(FACTSETS_REPORT).size} in environments #{environments.join(', ')}",
+            "#{label}: #{reported.report(report).size} in environments #{environments.join(', ')}",
           )
         end
 
         @reported = reported
-        Array(reported.report(FACTSETS_REPORT))
+        Array(reported.report(report))
       end
 
       private
 
       def expected_reports
-        [FACTSETS_REPORT]
+        [report]
       end
 
-      # The sessions the factsets report was read from, as `collector--session`.
+      # The log prefix: `factsets` for the factsets report, else the report name.
+      def label
+        (report == FACTSETS_REPORT) ? 'factsets' : report
+      end
+
+      # The sessions the report was read from, as `collector--session`.
       def describe_sessions(reported)
         names = reported.sessions
-          .select { |s| s.reports.include?(FACTSETS_REPORT) }
+          .select { |s| s.reports.include?(report) }
           .map { |s| "#{s.collector}--#{s.session_id}" }
         names.empty? ? incoming_dir : names.join(', ')
       end

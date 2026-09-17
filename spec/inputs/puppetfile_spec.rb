@@ -55,6 +55,7 @@ RSpec.describe Driftless::Inputs::Puppetfile do
       expect(result.modules.map { |m| [m.ref, m.ref_type] }).to eq([
         [sha, 'commit'], %w[v1 tag], [sha, 'commit'], [:control_branch, 'branch'], [nil, nil],
       ])
+      expect(result.modules.map(&:default_branch)).to eq([nil, nil, nil, 'main', nil])
     end
   end
 

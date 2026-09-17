@@ -211,8 +211,20 @@ RSpec.describe Driftless::ScanData do
       Driftless::Inputs::Puppetfile::Result.new(exists: true, modules: modules, error: nil)
     end
 
-    def mod(name, path:, git:, ref: nil, ref_type: nil)
-      Driftless::Inputs::Puppetfile::Module.new(name: name, path: path, git: git, ref: ref, ref_type: ref_type)
+    def mod(name, path:, git:, ref: nil, ref_type: nil, default_branch: nil)
+      Driftless::Inputs::Puppetfile::Module.new(name: name, path: path, git: git, ref: ref, ref_type: ref_type,
+                                                default_branch: default_branch)
+    end
+
+    # A clone at dir on `branch`, with `others` as further branch names at the
+    # same commit, then detached when `detach` is set.
+    def clone(dir, branch:, others: [], detach: false)
+      FileUtils.mkdir_p(dir)
+      system('git', '-C', dir, 'init', '-q', '-b', branch, exception: true)
+      system('git', '-C', dir, '-c', 'user.name=t', '-c', 'user.email=t@example.com',
+             'commit', '-q', '--allow-empty', '-m', 'init', exception: true)
+      others.each { |b| system('git', '-C', dir, 'branch', '-q', b, exception: true) }
+      system('git', '-C', dir, 'checkout', '-q', '--detach', exception: true) if detach
     end
 
     it 'is empty without a Puppetfile' do
@@ -253,18 +265,40 @@ RSpec.describe Driftless::ScanData do
       end
     end
 
-    it 'resolves :control_branch to the control repo branch' do
+    it 'resolves :control_branch to the branch whose tip the clone sits on, detached or not' do
       Dir.mktmpdir do |dir|
-        system('git', '-C', dir, 'init', '-q', '-b', 'production', exception: true)
-        system('git', '-C', dir, '-c', 'user.name=t', '-c', 'user.email=t@example.com',
-               'commit', '-q', '--allow-empty', '-m', 'init', exception: true)
+        clone(File.join(dir, 'modules/a'), branch: 'main', detach: true)
         pf = puppetfile([mod('a', path: 'modules/a', git: 'g', ref: :control_branch, ref_type: 'branch')])
         corpus = build_corpus(repo_dir: dir, puppetfile: pf, reported: reported_with([]))
-        expect(assemble(corpus: corpus)['repo']['deployments']['modules/a']).to include('ref' => 'production', 'ref_type' => 'branch')
+        expect(assemble(corpus: corpus)['repo']['deployments']['modules/a']).to include('ref' => 'main', 'ref_type' => 'branch')
       end
     end
 
-    it 'leaves :control_branch unresolved when the control repo is not under git' do
+    it 'prefers default_branch when several branch tips share the deployed commit' do
+      Dir.mktmpdir do |dir|
+        clone(File.join(dir, 'modules/a'), branch: 'main', others: %w[production staging], detach: true)
+        pf = puppetfile([mod('a', path: 'modules/a', git: 'g', ref: :control_branch, ref_type: 'branch',
+                             default_branch: 'production')])
+        corpus = build_corpus(repo_dir: dir, puppetfile: pf, reported: reported_with([]))
+        expect(assemble(corpus: corpus)['repo']['deployments']['modules/a']['ref']).to eq('production')
+      end
+    end
+
+    it 'leaves :control_branch unresolved when no branch tip is at the deployed commit' do
+      Dir.mktmpdir do |dir|
+        clone(File.join(dir, 'modules/a'), branch: 'main')
+        system('git', '-C', File.join(dir, 'modules/a'), '-c', 'user.name=t', '-c', 'user.email=t@example.com',
+               'commit', '-q', '--allow-empty', '-m', 'moved', exception: true)
+        system('git', '-C', File.join(dir, 'modules/a'), 'checkout', '-q', 'HEAD~1', exception: true)
+        pf = puppetfile([mod('a', path: 'modules/a', git: 'g', ref: :control_branch, ref_type: 'branch')])
+        corpus = build_corpus(repo_dir: dir, puppetfile: pf, reported: reported_with([]))
+        d = assemble(corpus: corpus)['repo']['deployments']['modules/a']
+        expect(d['ref']).to be_nil
+        expect(d['sha']).to match(/\A[0-9a-f]{40}\z/)
+      end
+    end
+
+    it 'leaves :control_branch unresolved when there is no clone at the path' do
       Dir.mktmpdir do |dir|
         pf = puppetfile([mod('a', path: 'modules/a', git: 'g', ref: :control_branch, ref_type: 'branch')])
         corpus = build_corpus(repo_dir: dir, puppetfile: pf, reported: reported_with([]))

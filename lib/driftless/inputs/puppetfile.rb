@@ -30,7 +30,10 @@ module Driftless
       # @!attribute [r] ref_type
       #   @return [String, nil] "ref", "tag", "commit", or "branch" — which
       #     option supplied ref; a 40-hex `:ref` reads as "commit"
-      Module = Data.define(:name, :path, :git, :ref, :ref_type)
+      # @!attribute [r] default_branch
+      #   @return [String, nil] the `:default_branch` r10k deploys when the
+      #     declared branch is absent from the remote
+      Module = Data.define(:name, :path, :git, :ref, :ref_type, :default_branch)
 
       # What {Puppetfile.load} returns.
       #
@@ -77,6 +80,7 @@ module Driftless
           git:      opts[:git]&.to_s,
           ref:      ref,
           ref_type: ref_type,
+          default_branch: opts[:default_branch]&.to_s,
         )
       end
 

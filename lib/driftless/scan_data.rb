@@ -59,7 +59,7 @@ module Driftless
       {
         'dir'         => corpus.repo_dir,
         'git'         => git,
-        'deployments' => deployments(corpus, git),
+        'deployments' => deployments(corpus),
         'hierarchy'   => hierarchy(corpus.hiera_tiers),
       }
     end
@@ -68,26 +68,21 @@ module Driftless
     # repo-relative path each occupies. Forge modules have no remote and are
     # left out.
     #
-    # @param git [Hash, nil] the control repo's revision, for `:control_branch`
     # @return [Hash{String => Hash}] `{ remote, ref, ref_type, sha }`: ref and
     #   ref_type as the Puppetfile declares them, sha read from the clone at
     #   that path, nil when there is none
-    def deployments(corpus, git)
+    def deployments(corpus)
       puppetfile = corpus.puppetfile
       return {} unless puppetfile&.exists?
 
       puppetfile.modules.select(&:git).to_h do |m|
-        ref = (m.ref == :control_branch) ? control_branch(git) : m.ref
-        [m.path, { 'remote' => m.git, 'ref' => ref, 'ref_type' => m.ref_type,
-                   'sha' => clone_sha(File.join(corpus.repo_dir, m.path)) }]
+        dir = File.join(corpus.repo_dir, m.path)
+        # What r10k deployed for :control_branch depends on how it ran:
+        # the control repo's branch under `deploy environment`, the
+        # default_branch under `puppetfile install`. The clone knows which.
+        ref = (m.ref == :control_branch) ? clone_branch(dir, prefer: m.default_branch) : m.ref
+        [m.path, { 'remote' => m.git, 'ref' => ref, 'ref_type' => m.ref_type, 'sha' => clone_sha(dir) }]
       end
-    end
-
-    # nil on a detached checkout, whose branch reads as HEAD.
-    def control_branch(git)
-      return nil if git.nil? || git['branch'] == 'HEAD'
-
-      git['branch']
     end
 
     # The tiers as hiera.yaml declares them, so a reader can show every tier —
@@ -166,6 +161,20 @@ module Driftless
       return nil unless File.exist?(File.join(dir, '.git'))
 
       git_output(dir, 'rev-parse', 'HEAD')
+    end
+
+    # A branch whose tip is the clone's HEAD, from its local and
+    # remote-tracking refs: `prefer` when it is one of them, else the first
+    # by name. nil when no branch tip is there, as after the branch moved on.
+    def clone_branch(dir, prefer: nil)
+      return nil unless File.exist?(File.join(dir, '.git'))
+
+      out = git_output(dir, 'for-each-ref', '--points-at', 'HEAD', '--format=%(refname:short)',
+                       'refs/heads', 'refs/remotes')
+      return nil unless out
+
+      branches = out.lines.map { |l| l.strip.sub(%r{\A[^/]+/}, '') }.reject { |b| b.empty? || b == 'HEAD' }.uniq.sort
+      branches.include?(prefer) ? prefer : branches.first
     end
 
     def git_output(dir, *args)

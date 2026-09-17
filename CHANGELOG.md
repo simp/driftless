@@ -16,6 +16,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `facts [-i DIR] [-x GLOB] [selection flags]` - prints all reported facts+leaves
   - `nodes [-i DIR] [selection flags]` - reports `all-active-nodes` inventory
 
+### Fixed
+
+- `scan` links now handle git web ui links to repos deployed via
+  `default_branch` differently than `:control_branch`
+
 ## [0.4.0] - 2026-09-08
 
 ### Added

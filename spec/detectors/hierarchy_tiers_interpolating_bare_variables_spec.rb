@@ -43,6 +43,11 @@ RSpec.describe Driftless::Detectors::HierarchyTiersInterpolatingBareVariables do
       expect(flagged('::my_role', '::kernel')).to be_empty
     end
 
+    # The compiler sets these per class, so the bare spelling is the only one.
+    it 'ignores the compiler variables' do
+      expect(flagged('module_name', 'caller_module_name')).to be_empty
+    end
+
     it 'ignores structured accessors' do
       expect(flagged('facts.kernel', 'facts.os.family', 'trusted.certname', 'server_facts.environment')).to be_empty
     end

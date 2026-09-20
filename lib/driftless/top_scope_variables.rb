@@ -1,9 +1,10 @@
 require 'driftless/config_keys'
 
 module Driftless
-  # Names a hierarchy tier can interpolate that are top-scope variables, not
-  # facts: the ones the codebase sets (site.pp, an ENC), listed under
-  # `puppet.top_scope_variables`, plus Puppet's own server variables.
+  # Names a hierarchy tier can interpolate that are not facts: the top-scope
+  # variables the codebase sets (site.pp, an ENC), listed under
+  # `puppet.top_scope_variables`, plus Puppet's own server and compiler
+  # variables.
   #
   # The list names them; the mapping form also gives the values a variable
   # takes across the fleet, so a tier interpolating it can be rendered:
@@ -23,12 +24,18 @@ module Driftless
                       'so data files under such a tier can be checked for reachability'
     config_key 'puppet.allow_builtin_top_scope_variables', type: :boolean, default: true,
                about: "Treat Puppet's server variables (environment, servername, serverip, " \
-                      'serverversion, server_facts, settings::*) as top-scope variables'
+                      'serverversion, server_facts, settings::*) and compiler variables ' \
+                      '(module_name, caller_module_name) as known, like top-scope variables'
 
     # Set by the compiling server, never present in a factset. From
     # lang_facts_and_builtin_vars, "Server variables".
     SERVER_VARIABLES = %w[environment servername serverip serverversion server_facts].freeze
     SERVER_NAMESPACES = %w[settings].freeze
+
+    # Set per class or defined type by the compiler, so a bare reference is
+    # the only spelling; there is no top-scope `::module_name`. From
+    # lang_facts_and_builtin_vars, "Compiler variables".
+    COMPILER_VARIABLES = %w[module_name caller_module_name].freeze
 
     module_function
 
@@ -39,7 +46,15 @@ module Driftless
       return true if configured.include?(head)
       return false unless builtin?
 
-      SERVER_VARIABLES.include?(head) || SERVER_NAMESPACES.any? { |ns| head.start_with?("#{ns}::") }
+      SERVER_VARIABLES.include?(head) || COMPILER_VARIABLES.include?(head) ||
+        SERVER_NAMESPACES.any? { |ns| head.start_with?("#{ns}::") }
+    end
+
+    # Whether var names a compiler variable, under the builtin switch.
+    #
+    # @param var [String] an interpolation as written in a tier or data value
+    def compiler?(var)
+      builtin? && COMPILER_VARIABLES.include?(name_of(var))
     end
 
     # The variable name an interpolation refers to: `::site_region` and

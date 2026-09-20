@@ -3,6 +3,7 @@ require 'set'
 require 'driftless/detectors/callable'
 require 'driftless/detectors/bare_variable_reference'
 require 'driftless/detectors/exclusions'
+require 'driftless/top_scope_variables'
 
 module Driftless
   module Detectors
@@ -25,6 +26,7 @@ module Driftless
           seen = Set.new
           tier.interpolation_vars.each do |var|
             next unless bare?(var)
+            next if TopScopeVariables.compiler?(var)
             next if excluded_fact?(var)
             next unless seen.add?(var)
 

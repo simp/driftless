@@ -37,6 +37,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `scan` links now handle git web ui links to repos deployed via
   `default_branch` differently than `:control_branch`
+- `hierarchy:tiers-interpolating-bare-variables` and `data:bare-variables` now skip compiler variables
 
 ## [0.4.0] - 2026-09-08
 

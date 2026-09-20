@@ -76,9 +76,11 @@ RSpec.describe Driftless::TopScopeVariables do
         expect(described_class.known?('site_region')).to be false
       end
 
-      it 'does not know the compiler variables, which are local scope' do
-        expect(described_class.known?('module_name')).to be false
-        expect(described_class.known?('caller_module_name')).to be false
+      it 'knows the compiler variables' do
+        expect(described_class.known?('module_name')).to be true
+        expect(described_class.known?('caller_module_name')).to be true
+        expect(described_class.compiler?('module_name')).to be true
+        expect(described_class.compiler?('environment')).to be false
       end
     end
 
@@ -103,9 +105,11 @@ RSpec.describe Driftless::TopScopeVariables do
     context 'with puppet.allow_builtin_top_scope_variables: false' do
       before(:each) { set_config('allow_builtin_top_scope_variables' => false, 'top_scope_variables' => ['site_region']) }
 
-      it 'forgets the server variables' do
+      it 'forgets the server and compiler variables' do
         expect(described_class.known?('environment')).to be false
         expect(described_class.known?('settings::strict_variables')).to be false
+        expect(described_class.known?('module_name')).to be false
+        expect(described_class.compiler?('module_name')).to be false
       end
 
       it 'keeps the listed names' do

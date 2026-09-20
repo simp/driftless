@@ -37,6 +37,10 @@ RSpec.describe Driftless::Detectors::DataBareVariables do
     expect(flagged(%(a: "%{::my_role}"\nb: "%{settings::strict_variables}"\n))).to be_empty
   end
 
+  it 'ignores the compiler variables' do
+    expect(flagged(%(a: "%{module_name}"\nb: "%{caller_module_name}"\n))).to be_empty
+  end
+
   it 'ignores structured accessors' do
     expect(flagged(%(a: "%{facts.os.family}"\nb: "%{trusted.certname}"\nc: "%{server_facts.environment}"\n)))
       .to be_empty

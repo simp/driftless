@@ -1,5 +1,6 @@
 require 'driftless/detectors/bare_variable_reference'
 require 'driftless/detectors/callable'
+require 'driftless/top_scope_variables'
 
 module Driftless
   module Detectors
@@ -20,6 +21,7 @@ module Driftless
           df.value_lines.each do |line, lineno|
             line.scan(INTERPOLATION_RE).each do |(inner)|
               next unless bare?(inner)
+              next if TopScopeVariables.compiler?(inner)
 
               findings << build_finding(
                 path:    df.path,

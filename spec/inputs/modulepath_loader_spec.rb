@@ -88,6 +88,41 @@ RSpec.describe Driftless::Inputs::ModulepathLoader do
         end
       end
 
+      context 'with the finding configured' do
+        around(:each) do |ex|
+          original = Driftless.instance_variable_get(:@config)
+          ex.run
+        ensure
+          Driftless.instance_variable_set(:@config, original)
+        end
+
+        def configure(options)
+          Driftless.config = Driftless::Config.new(
+            merged: { 'detectors' => { 'controlrepo:missing-modulepaths-from-envconf' => options } },
+          )
+        end
+
+        it 'skips entries matching expected_paths, as env.conf spells them' do
+          configure('expected_paths' => ['/var/simp/*', 'enclave-*'])
+          Dir.mktmpdir do |repo|
+            File.write(File.join(repo, 'environment.conf'),
+                       "modulepath = site-modules:enclave-modules:/var/simp/environments/simp/site_files:vendored\n")
+            FileUtils.mkdir_p(File.join(repo, 'site-modules'))
+            _, findings = described_class.load(repo, basemodulepath: [])
+            expect(findings.map(&:message)).to eq(['"vendored" is in $modulepath, but not on disk'])
+          end
+        end
+
+        it 'skips absolute entries under ignore_absolute, basemodulepath included' do
+          configure('ignore_absolute' => true)
+          Dir.mktmpdir do |repo|
+            File.write(File.join(repo, 'environment.conf'), "modulepath = /opt/absent:vendored:$basemodulepath\n")
+            _, findings = described_class.load(repo, basemodulepath: ['/does/not/exist'])
+            expect(findings.map(&:message)).to eq(['"vendored" is in $modulepath, but not on disk'])
+          end
+        end
+      end
+
       it 'names a nested relative entry the way env.conf declared it' do
         Dir.mktmpdir do |repo|
           File.write(File.join(repo, 'environment.conf'), "modulepath = vendored/mods\n")

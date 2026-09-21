@@ -44,7 +44,7 @@ module Driftless
             # basemodulepath) get called out when missing — convention
             # defaults (site-modules, modules, Puppet's ./modules) are widely
             # optional and would be noise.
-            if entry[:source] == :explicit
+            if entry[:source] == :explicit && !expected_absent?(entry)
               findings << Detectors::ControlrepoMissingModulepathsFromEnvconf.finding(
                 path:    entry[:path],
                 message: "\"#{entry[:declared]}\" is in $modulepath, but not on disk",
@@ -69,6 +69,15 @@ module Driftless
       end
 
       private
+
+      # Whether the registration's config exempts a missing entry: it matches
+      # an expected_paths glob, or is absolute under ignore_absolute.
+      def expected_absent?(entry)
+        registration = (@registration ||= Detectors::ControlrepoMissingModulepathsFromEnvconf.new)
+        return true if registration.option(:ignore_absolute) && entry[:declared].start_with?('/')
+
+        registration.option(:expected_paths).any? { |pat| File.fnmatch(pat, entry[:declared], File::FNM_EXTGLOB) }
+      end
 
       # Returns [{path:, declared:, source:}, ...] in modulepath order.
       # `declared` is the entry as environment.conf spelled it, which is how a

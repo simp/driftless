@@ -19,6 +19,12 @@ module Driftless
       about   'environment.conf declares a $modulepath entry that is not on disk'
       quality :weird
       severity :warning
+
+      config_option :expected_paths, type: :array, default: [],
+        about: 'List (of glob patterns) of $modulepath entries, as environment.conf ' \
+               'spells them, that are expected to be absent from a checkout'
+      config_option :ignore_absolute, type: :boolean, default: false,
+        about: 'Skip absolute $modulepath entries, which point outside the checkout'
     end
 
     class DataJsonParseError < Registration

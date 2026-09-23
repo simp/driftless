@@ -1,0 +1,21 @@
+# Excerpt for spec/onceover.yaml. Keep your existing classes/nodes/test_matrix;
+# add (or extend) the `before:` list. Each list element is emitted verbatim
+# into a `before :each` block, so a multi-line block scalar is fine.
+before:
+  - |
+    require "#{RSpec.configuration.onceover_root}/spec/onceover_probes"
+
+    # Record every subprocess launch; full log in .onceover/exec_trace.<pid>.log,
+    # short deduplicated summary on stderr at exit.
+    OnceoverProbes.exec_trace
+    # Narrow it to the commands you care about:
+    # OnceoverProbes.exec_trace(only: /systemctl|dbus/, summary_lines: 10)
+
+    # Explain lookup() calls and automatic parameter lookups for matching keys.
+    OnceoverProbes.trace_lookups(/^profile::base::/, 'ntp::servers')
+
+    # Report reads of matching facts ($facts['os'], %{facts.os.family}, $::kernel).
+    OnceoverProbes.trace_facts('os', 'kernel')
+
+    # Report types/providers as they load and the provider each type ends up with.
+    OnceoverProbes.trace_types

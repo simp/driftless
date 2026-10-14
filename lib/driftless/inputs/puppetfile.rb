@@ -33,7 +33,14 @@ module Driftless
       # @!attribute [r] default_branch
       #   @return [String, nil] the `:default_branch` r10k deploys when the
       #     declared branch is absent from the remote
-      Module = Data.define(:name, :path, :git, :ref, :ref_type, :default_branch)
+      # @!attribute [r] version
+      #   @return [String, nil] a Forge module's declared version, as written;
+      #     nil for a git module or when none is declared
+      Module = Data.define(:name, :path, :git, :ref, :ref_type, :default_branch, :version) do
+        def initialize(version: nil, **rest)
+          super
+        end
+      end
 
       # What {Puppetfile.load} returns.
       #
@@ -49,12 +56,18 @@ module Driftless
         end
       end
 
+      # @param repo_dir [String] the control repo holding a Puppetfile
       def self.load(repo_dir)
-        new(repo_dir).load
+        load_file(File.join(repo_dir, FILENAME))
       end
 
-      def initialize(repo_dir)
-        @path      = File.join(repo_dir, FILENAME)
+      # @param path [String] a Puppetfile anywhere
+      def self.load_file(path)
+        new(path).load
+      end
+
+      def initialize(path)
+        @path      = path
         @moduledir = DEFAULT_MODULEDIR
         @modules   = []
       end
@@ -81,6 +94,7 @@ module Driftless
           ref:      ref,
           ref_type: ref_type,
           default_branch: opts[:default_branch]&.to_s,
+          version:  (args.is_a?(Hash) ? opts[:version] : args)&.to_s,
         )
       end
 

@@ -76,4 +76,27 @@ RSpec.describe Driftless::Inputs::Puppetfile do
       expect(result.error).to include('SyntaxError')
     end
   end
+
+  describe 'Forge versions and load_file' do
+    it 'keeps a Forge module\'s declared version and leaves it nil for git modules' do
+      Dir.mktmpdir do |dir|
+        path = File.join(dir, 'Proposed')
+        File.write(path, <<~PF)
+          mod 'puppetlabs-stdlib', '9.4.0'
+          mod 'puppetlabs-concat', version: '7.0.0'
+          mod 'puppetlabs-apache'
+          mod 'org-git', git: 'g', tag: 'v1'
+        PF
+        result = described_class.load_file(path)
+        expect(result.exists?).to be true
+        expect(result.modules.map(&:version)).to eq(['9.4.0', '7.0.0', nil, nil])
+        expect(result.modules.map(&:path)).to eq(%w[modules/stdlib modules/concat modules/apache modules/git])
+      end
+    end
+
+    it 'defaults version to nil when a Module is built without one' do
+      m = described_class::Module.new(name: 'a', path: 'modules/a', git: 'g', ref: 'v1', ref_type: 'tag', default_branch: nil)
+      expect(m.version).to be_nil
+    end
+  end
 end

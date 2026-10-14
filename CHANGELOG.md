@@ -29,10 +29,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `--role` can narrow which `<role::name>/` directories are updated
 - New `--exclude-certname GLOB` flag for `list facts|factsets|nodes` and
   `export factsets` to drop exclude matching nodes
+- New subcommand `driftless modules resolve [-d DIR] [--propose PUPPETFILE]`: 
+  - identifies conflicts and exit 1 when any are present
+  - `--propose` resolves as if `PUPPETFILE` replaced the current
+    entries, fetching `metadata.json` from git for changed modules
+- New config file subsystem `modules`:
+  - `modules.operatingsystems`: the OS releases every module must declare support for
+  - `modules.exclude_dependencies`, `modules.exclude_requirements`,
+    `modules.exclude_operatingsystems`: globs dropping known conflicts of each kind
 - New config file subsystem `export`:
-  - `export.factsets.exclude_certnames`: certname globs `export factsets` never exports,
-    even when a role has no other node from a collector; their files in the
-    onceover role tree count as stale
+  - `export.factsets.exclude_certnames`: certname globs `export factsets` never exports
+
 
 ### Changed
 

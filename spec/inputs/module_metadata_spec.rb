@@ -57,4 +57,28 @@ RSpec.describe Driftless::Inputs::ModuleMetadata do
       expect(result.error).to include('metadata.json: ')
     end
   end
+
+  describe 'dependencies and operating systems' do
+    def parse(data)
+      described_class.parse(JSON.generate(data), path: 'x/metadata.json')
+    end
+
+    it 'reads dependencies as name => requirement, nil when none is given' do
+      result = parse('dependencies' => [{ 'name' => 'puppetlabs/stdlib', 'version_requirement' => '>= 4.0.0' }, { 'name' => 'org-bare' }, 'junk'])
+      expect(result.dependencies).to eq('puppetlabs/stdlib' => '>= 4.0.0', 'org-bare' => nil)
+    end
+
+    it 'reads operatingsystem_support as os => releases' do
+      result = parse('operatingsystem_support' => [{ 'operatingsystem' => 'RedHat', 'operatingsystemrelease' => [8, '9'] },
+                                                   { 'operatingsystem' => 'Debian' }])
+      expect(result.operatingsystem_support).to eq('RedHat' => %w[8 9], 'Debian' => [])
+    end
+
+    it 'builds an absent result with no fields' do
+      absent = described_class.absent
+      expect(absent.exists?).to be false
+      expect([absent.requirements, absent.dependencies, absent.operatingsystem_support]).to all(eq({}))
+      expect(absent.with(name: 'x').name).to eq('x')
+    end
+  end
 end

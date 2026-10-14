@@ -1,6 +1,7 @@
 require 'spec_helper'
 require 'driftless/config_keys'
 require 'driftless/cli/export/factsets'
+require 'driftless/module_resolver'
 
 RSpec.describe Driftless::ConfigKeys do
   describe 'declarations made by the classes that own them' do
@@ -18,6 +19,10 @@ RSpec.describe Driftless::ConfigKeys do
       'import.local.source'        => Driftless::Import::Local,
       'import.archive_old_reports' => Driftless::Import::Cleanup,
       'export.factsets.exclude_certnames' => Driftless::CLI::Export::Factsets,
+      'modules.operatingsystems' => Driftless::ModuleResolver,
+      'modules.exclude_dependencies' => Driftless::ModuleResolver,
+      'modules.exclude_requirements' => Driftless::ModuleResolver,
+      'modules.exclude_operatingsystems' => Driftless::ModuleResolver,
       'output.format'              => Driftless::Outputs,
       'output.default_file'        => Driftless::Outputs,
       'output.tabularize'          => Driftless::Outputs,

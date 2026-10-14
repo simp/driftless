@@ -1,6 +1,6 @@
-require 'open3'
 require 'time'
 
+require 'driftless/git_clone'
 require 'driftless/version'
 require 'driftless/json_document'
 require 'driftless/outputs/json_writer'
@@ -76,12 +76,15 @@ module Driftless
       return {} unless puppetfile&.exists?
 
       puppetfile.modules.select(&:git).to_h do |m|
-        dir = File.join(corpus.repo_dir, m.path)
+        # Only a directory holding its own `.git` is asked, so a module that
+        # is not a clone does not answer with the enclosing control repo's sha.
+        clone = GitClone.new(File.join(corpus.repo_dir, m.path))
+        clone = nil unless clone.own?
         # What r10k deployed for :control_branch depends on how it ran:
         # the control repo's branch under `deploy environment`, the
         # default_branch under `puppetfile install`. The clone knows which.
-        ref = (m.ref == :control_branch) ? clone_branch(dir, prefer: m.default_branch) : m.ref
-        [m.path, { 'remote' => m.git, 'ref' => ref, 'ref_type' => m.ref_type, 'sha' => clone_sha(dir) }]
+        ref = (m.ref == :control_branch) ? clone&.branch_at_head(prefer: m.default_branch) : m.ref
+        [m.path, { 'remote' => m.git, 'ref' => ref, 'ref_type' => m.ref_type, 'sha' => clone&.sha }]
       end
     end
 
@@ -149,39 +152,9 @@ module Driftless
     def git_revision(dir)
       return nil unless dir && File.directory?(dir)
 
-      sha    = git_output(dir, 'rev-parse', 'HEAD')
-      branch = git_output(dir, 'rev-parse', '--abbrev-ref', 'HEAD')
-      remote = git_output(dir, 'remote', 'get-url', 'origin')
-      sha ? { 'sha' => sha, 'branch' => branch, 'remote' => remote } : nil
-    end
-
-    # Only a directory holding its own `.git` is asked, so a module that is
-    # not a clone does not answer with the enclosing control repo's sha.
-    def clone_sha(dir)
-      return nil unless File.exist?(File.join(dir, '.git'))
-
-      git_output(dir, 'rev-parse', 'HEAD')
-    end
-
-    # A branch whose tip is the clone's HEAD, from its local and
-    # remote-tracking refs: `prefer` when it is one of them, else the first
-    # by name. nil when no branch tip is there, as after the branch moved on.
-    def clone_branch(dir, prefer: nil)
-      return nil unless File.exist?(File.join(dir, '.git'))
-
-      out = git_output(dir, 'for-each-ref', '--points-at', 'HEAD', '--format=%(refname:short)',
-                       'refs/heads', 'refs/remotes')
-      return nil unless out
-
-      branches = out.lines.map { |l| l.strip.sub(%r{\A[^/]+/}, '') }.reject { |b| b.empty? || b == 'HEAD' }.uniq.sort
-      branches.include?(prefer) ? prefer : branches.first
-    end
-
-    def git_output(dir, *args)
-      out, _err, status = Open3.capture3('git', '-C', dir, *args)
-      status.success? ? out.strip : nil
-    rescue Errno::ENOENT
-      nil
+      clone = GitClone.new(dir)
+      sha   = clone.sha
+      sha ? { 'sha' => sha, 'branch' => clone.current_branch, 'remote' => clone.remote } : nil
     end
   end
 end

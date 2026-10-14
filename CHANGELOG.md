@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `nodes [-i DIR] [selection flags]` - reports `all-active-nodes` inventory
   - `reports [-i DIR]` - prints report/state/collector/session/size
   - `roles [-d DIR] [--basemodulepath PATH]` - prints each role class & path
+  - `modules [-d DIR] [--basemodulepath PATH] [--git]` - prints each module on the modulepath
 - `driftless export factsets --onceover-role-tree[=DIR]`
   - populates a directory tree (default: `spec/factsets/raw/`) with onceover factsets
   - tree is arranged as `DIR/<role::name>/<certname>.json`

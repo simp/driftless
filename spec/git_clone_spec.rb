@@ -65,6 +65,14 @@ RSpec.describe Driftless::GitClone do
     expect(described_class.new(deployed).resolve('main')).to eq(clone.sha)
   end
 
+  it 'names a tag at HEAD' do
+    repo(tmp)
+    clone = described_class.new(tmp)
+    expect(clone.tag_at_head).to be_nil
+    git(tmp, 'checkout', '-q', '--detach', 'v1')
+    expect(clone.tag_at_head).to eq('v1')
+  end
+
   it 'names a branch whose tip is HEAD, preferring the one asked for' do
     repo(tmp)
     clone = described_class.new(tmp)

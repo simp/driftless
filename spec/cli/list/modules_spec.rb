@@ -11,8 +11,8 @@ RSpec.describe Driftless::CLI::List::Modules do
     system('git', '-C', dir, '-c', 'user.name=t', '-c', 'user.email=t@example.com', *args, exception: true)
   end
 
-  # stdlib cloned at its declared tag; concat declared from the Forge but not
-  # deployed; profile on disk with no Puppetfile entry.
+  # stdlib cloned at v9.0.0 while declared at v9.1.0; concat declared from
+  # the Forge but not deployed; profile on disk with no Puppetfile entry.
   def control_repo(dir)
     File.write(File.join(dir, 'hiera.yaml'), "---\nversion: 5\nhierarchy: []\n")
     File.write(File.join(dir, 'environment.conf'), "modulepath = site-modules:modules\n")
@@ -26,10 +26,14 @@ RSpec.describe Driftless::CLI::List::Modules do
     git(up, 'add', '.')
     git(up, 'commit', '-q', '-m', 'one')
     git(up, 'tag', 'v9.0.0')
+    File.write(File.join(up, 'metadata.json'), File.read(File.join(up, 'metadata.json')).sub('9.0.0', '9.1.0'))
+    git(up, 'commit', '-q', '-am', 'two')
+    git(up, 'tag', 'v9.1.0')
     FileUtils.mkdir_p(File.join(dir, 'modules'))
     git(File.join(dir, 'modules'), 'clone', '-q', up, File.join(dir, 'modules/stdlib'))
+    git(File.join(dir, 'modules/stdlib'), 'checkout', '-q', '--detach', 'v9.0.0')
     FileUtils.mkdir_p(File.join(dir, 'site-modules/profile'))
-    File.write(File.join(dir, 'Puppetfile'), "mod 'puppetlabs-stdlib', git: '#{up}', tag: 'v9.0.0'\nmod 'puppetlabs-concat', '7.0.0'\n")
+    File.write(File.join(dir, 'Puppetfile'), "mod 'puppetlabs-stdlib', git: '#{up}', tag: 'v9.1.0'\nmod 'puppetlabs-concat', '7.0.0'\n")
   end
 
   def run(argv)
@@ -65,7 +69,7 @@ RSpec.describe Driftless::CLI::List::Modules do
       expect(cells(run(['--no-config', '-d', dir]))).to eq([
         %w[path name ref version pupver],
         ['modules/concat', '', '-7.0.0', '', ''],
-        ['modules/stdlib', 'puppetlabs-stdlib', '=v9.0.0', '9.0.0', '>= 7.0.0 < 9.0.0'],
+        ['modules/stdlib', 'puppetlabs-stdlib', '*v9.1.0 (at v9.0.0)', '9.0.0', '>= 7.0.0 < 9.0.0'],
         ['site-modules/profile', '', '', '', ''],
       ])
     end

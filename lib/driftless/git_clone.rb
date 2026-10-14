@@ -34,6 +34,11 @@ module Driftless
       output('remote', 'get-url', 'origin')
     end
 
+    # @return [String, nil] a tag at HEAD, the nearest by name when several
+    def tag_at_head
+      output('describe', '--tags', '--exact-match', 'HEAD')
+    end
+
     # A branch whose tip is HEAD, from the local and remote-tracking refs:
     # `prefer` when it is one of them, else the first by name.
     #

@@ -26,7 +26,15 @@ module Driftless
     #     :unknown when nothing is declared, or the directory cannot answer
     #     (not a clone, no declared ref, a ref the clone does not know, no
     #     metadata, a Forge version that is not a number)
-    Entry = Data.define(:path, :declared, :metadata, :deployed)
+    # @!attribute [r] found
+    #   @return [String, nil] what the directory holds instead, when
+    #     :differ: a tag or branch at the clone's HEAD, else its short sha;
+    #     a Forge module's metadata.json version. nil otherwise
+    Entry = Data.define(:path, :declared, :metadata, :deployed, :found) do
+      def initialize(found: nil, **rest)
+        super
+      end
+    end
 
     # @return [Array<String>] what went wrong while loading, in order
     attr_reader :warnings
@@ -57,7 +65,17 @@ module Driftless
     def entry(path, declared)
       dir = File.expand_path(path, @repo_dir)
       metadata = Inputs::ModuleMetadata.load(dir)
-      Entry.new(path: path, declared: declared, metadata: metadata, deployed: deployed(dir, declared, metadata))
+      state    = deployed(dir, declared, metadata)
+      Entry.new(path: path, declared: declared, metadata: metadata, deployed: state,
+                found: (state == :differ) ? found(dir, declared, metadata) : nil)
+    end
+
+    # @return [String, nil] see {Entry#found}
+    def found(dir, declared, metadata)
+      return metadata.version unless declared.git
+
+      clone = GitClone.new(dir)
+      clone.tag_at_head || clone.branch_at_head || clone.sha&.slice(0, 12)
     end
 
     # @return [Symbol] see {Entry#deployed}

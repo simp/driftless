@@ -50,22 +50,26 @@ module Driftless
           o.on('--git', 'Only modules the Puppetfile deploys from git') { @options[:git_only] = true }
           o.separator ''
           o.separator 'The ref column prefixes the declared ref, or a Forge version, with how the'
-          o.separator 'directory compares: = at that ref, * elsewhere, - not deployed, ? cannot compare'
+          o.separator 'directory compares: = at that ref, * elsewhere (and where), - not deployed,'
+          o.separator '? cannot compare'
         end
 
         private
 
         # The declared ref (":control_branch (default_branch)" when it is
         # that), or a Forge module's declared version, behind its deployed
-        # mark; empty for a directory the Puppetfile does not declare.
+        # mark, with what the directory holds instead after a `*`; empty for
+        # a directory the Puppetfile does not declare.
         def ref_cell(entry)
           declared = entry.declared
           return '' unless declared
-          return "#{DEPLOYED_MARK.fetch(entry.deployed)}#{declared.version}" unless declared.git
+
+          mark = DEPLOYED_MARK.fetch(entry.deployed)
+          return "#{mark}#{declared.version}#{entry.found && " (is #{entry.found})"}" unless declared.git
 
           ref = declared.ref.to_s
           ref = [ref, declared.default_branch && "(#{declared.default_branch})"].compact.join(' ') if declared.ref == :control_branch
-          "#{DEPLOYED_MARK.fetch(entry.deployed)}#{ref}"
+          "#{mark}#{ref}#{entry.found && " (at #{entry.found})"}"
         end
       end
     end

@@ -1,7 +1,9 @@
 require 'pathname'
 
+require 'driftless/codebase'
 require 'driftless/corpus'
 require 'driftless/logger'
+require 'driftless/phases'
 require 'driftless/reported'
 require 'driftless/reported_checks'
 require 'driftless/scan_error'
@@ -15,6 +17,7 @@ require 'driftless/inputs/report_loader'
 
 module Driftless
   class Scan
+    include Phases
     include ReportedChecks
 
     attr_reader :repo_dir, :only, :skip, :basemodulepath
@@ -41,63 +44,12 @@ module Driftless
     end
 
     def run
-      require 'driftless/inputs/manifest_parser'
-      require 'driftless/inputs/epp_parser'
-      require 'driftless/class_extractor'
-      require 'driftless/lookup_calls'
-
       Driftless.logger.info("Scanning control repo: #{repo_dir}")
-      meta_findings = []
 
-      hiera_tiers, hl_findings = phase('hierarchy load') { Inputs::HierarchyLoader.load(repo_dir) }
-      meta_findings.concat(hl_findings)
-      halt_without_hiera_yaml!(hl_findings)
-      Driftless.logger.info("Loaded #{hiera_tiers.size} hierarchy tiers")
-
-      manifest_files, mpl_findings = phase('manifest discovery') { load_manifest_files }
-      meta_findings.concat(mpl_findings)
-      Driftless.logger.info("Discovered #{manifest_files.size} Puppet manifest files")
-
-      puppetfile = phase('Puppetfile load') { Inputs::Puppetfile.load(repo_dir) }
-      warn("Puppetfile not evaluated: #{puppetfile.error}") if puppetfile.error
-      Driftless.logger.info("Read #{puppetfile.modules.size} module declarations from the Puppetfile") if puppetfile.exists?
-
-      puppet_classes    = {}
-      code_lookup_calls = []
-      data_lookup_calls = []
-
-      phase('manifest parsing') do
-        manifest_files.each do |path|
-          program, errs = Inputs::ManifestParser.parse(path)
-          meta_findings.concat(errs)
-          next unless program
-          ClassExtractor.extract(program: program, file: path).each do |cls|
-            puppet_classes[cls.fqname] = cls
-          end
-          code_lookup_calls.concat(LookupCallExtractor.extract(program: program, file: path))
-        end
-      end
-      Driftless.logger.info(
-        "Extracted #{puppet_classes.size} classes and #{code_lookup_calls.size} lookup calls from manifests",
-      )
-
-      epp_paths = discover_epp_templates
-      phase('EPP template scan') do
-        epp_paths.each do |path|
-          program, errs = Inputs::EppParser.parse(path)
-          meta_findings.concat(errs)
-          next unless program
-          code_lookup_calls.concat(LookupCallExtractor.extract(program: program, file: path))
-        end
-      end
-      Driftless.logger.info("Scanned #{epp_paths.size} EPP templates")
-
-      data_files, dl_findings = phase('data file load') { Inputs::DatadirLoader.load(hiera_tiers) }
-      meta_findings.concat(dl_findings)
-      Driftless.logger.info("Loaded #{data_files.size} Hiera data files")
-
-      module_data_keys = phase('module data load') { Inputs::ModuleDataLoader.load(module_dirs) }
-      Driftless.logger.info("Loaded #{module_data_keys.size} keys from module data")
+      code = Codebase.load(repo_dir, basemodulepath: basemodulepath)
+      code.warnings.each { |w| warn(w) }
+      halt_without_hiera_yaml!(code.findings)
+      meta_findings = code.findings.dup
 
       reported, rl_findings = phase('report load') { Inputs::ReportLoader.load(incoming_dir) }
       phase('duplicate certname check') { check_duplicate_certnames!(reported) }
@@ -111,24 +63,7 @@ module Driftless
         Driftless.logger.info("Filtered reports to environments: #{environments.join(', ')}")
       end
 
-      phase('lookup extraction from Hiera data') do
-        data_files.each do |df|
-          next unless File.file?(df.path)
-          data_lookup_calls.concat(LookupCallExtractor.extract_from_yaml_values(df.value_lines, df.path))
-        end
-      end
-
-      @corpus = corpus = Corpus.new(
-        repo_dir:          repo_dir,
-        hiera_tiers:       hiera_tiers,
-        puppet_classes:    puppet_classes,
-        data_files:        data_files,
-        module_data_keys:  module_data_keys,
-        reported:          reported,
-        code_lookup_calls: code_lookup_calls,
-        data_lookup_calls: data_lookup_calls,
-        puppetfile:        puppetfile,
-      )
+      @corpus = corpus = code.corpus(repo_dir: repo_dir, reported: reported)
 
       detectors = selected_detectors
       Driftless.logger.info("Running #{detectors.size} detectors")
@@ -158,30 +93,6 @@ module Driftless
     end
 
     private
-
-    def load_manifest_files
-      if basemodulepath
-        Inputs::ModulepathLoader.load(repo_dir, basemodulepath: basemodulepath)
-      else
-        Inputs::ModulepathLoader.load(repo_dir)
-      end
-    end
-
-    def module_dirs
-      if basemodulepath
-        Inputs::ModulepathLoader.module_dirs(repo_dir, basemodulepath: basemodulepath)
-      else
-        Inputs::ModulepathLoader.module_dirs(repo_dir)
-      end
-    end
-
-    def discover_epp_templates
-      %w[site-modules modules].flat_map do |rel|
-        dir = File.join(repo_dir, rel)
-        next [] unless File.directory?(dir)
-        Dir[File.join(dir, '*/templates/**/*.epp')]
-      end
-    end
 
     # Without hiera.yaml there is no hierarchy to lint: every detector runs
     # against zero tiers, so the scan reports nothing and reads as a clean
@@ -218,15 +129,6 @@ module Driftless
       d = d.select { |k| only.include?(k.key) } if only && !only.empty?
       d = d.reject { |k| skip.include?(k.key) } if skip && !skip.empty?
       d
-    end
-
-    # Benchmarks a block's runtime and logs a DEBUG line with the elapsed ms
-    def phase(name)
-      t = Process.clock_gettime(Process::CLOCK_MONOTONIC)
-      result = yield
-      elapsed_ms = ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - t) * 1000).round(1)
-      Driftless.logger.debug("  [#{elapsed_ms}ms] #{name}")
-      result
     end
 
     # Filters findings whose `path` matches any of the given glob patterns.

@@ -2,6 +2,7 @@ require 'spec_helper'
 require 'driftless/config_keys'
 require 'driftless/cli/export/factsets'
 require 'driftless/module_resolver'
+require 'driftless/params_schema/validate'
 
 RSpec.describe Driftless::ConfigKeys do
   describe 'declarations made by the classes that own them' do
@@ -23,6 +24,11 @@ RSpec.describe Driftless::ConfigKeys do
       'modules.exclude_dependencies' => Driftless::ModuleResolver,
       'modules.exclude_requirements' => Driftless::ModuleResolver,
       'modules.exclude_operatingsystems' => Driftless::ModuleResolver,
+      'params.schema_file'     => Driftless::ParamsSchema,
+      'params.exclude_paths'   => Driftless::ParamsSchema::Validate,
+      'params.exclude_classes' => Driftless::ParamsSchema::Validate,
+      'params.exclude_modules' => Driftless::ParamsSchema::Validate,
+      'params.exclude_params'  => Driftless::ParamsSchema::Validate,
       'output.format'              => Driftless::Outputs,
       'output.default_file'        => Driftless::Outputs,
       'output.tabularize'          => Driftless::Outputs,

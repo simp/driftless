@@ -39,6 +39,7 @@ RSpec.describe Driftless::ParamsSchema do
         $y = lookup('apache::nope')
         $z = lookup('apache::port')
         $w = lookup('lookup::only')
+        $v = lookup('apache::looked')
       }
     PP
     File.write(File.join(dir, 'data/common.yaml'), <<~YAML)
@@ -50,6 +51,7 @@ RSpec.describe Driftless::ParamsSchema do
       lookup::only: "%{lookup('also::looked::up')}"
       also::looked::up: 2
       plain: 3
+      apache::looked: 1
     YAML
   end
 
@@ -138,14 +140,16 @@ RSpec.describe Driftless::ParamsSchema do
       Driftless::ParamsSchema.assemble(corpus: corpus_for(dir))
     end
 
-    it 'flags Hiera keys and lookups the schema does not record, sparing explicit lookups and role/profile lookups' do
+    it 'flags Hiera keys and lookups the schema does not record, sparing looked-up keys as the detectors do' do
       Dir.mktmpdir do |dir|
         control_repo(dir)
         issues = described_class.new(schema(dir)).call(corpus_for(dir))
         expect(issues.map { |i| [i.kind, i.path, i.line, i.key] }).to eq([
           ['missing-param', 'data/common.yaml', 3, 'apache::typo'],
           ['missing-class', 'data/common.yaml', 4, 'gone::thing'],
+          ['missing-param', 'data/common.yaml', 9, 'apache::looked'],
           ['missing-param', 'site-modules/profile/manifests/web.pp', 3, 'apache::nope'],
+          ['missing-param', 'site-modules/profile/manifests/web.pp', 6, 'apache::looked'],
         ])
         expect(issues.first.detail).to eq('apache has no param typo (has: port, docroot, untyped, opts)')
         expect(issues[1].detail).to eq('class gone is not in the schema')
@@ -158,14 +162,14 @@ RSpec.describe Driftless::ParamsSchema do
         recorded = schema(dir)
         recorded['classes']['apache']['params'].delete('docroot')
         all = described_class.new(recorded).call(corpus_for(dir))
-        expect(all.map(&:key)).to eq(%w[apache::docroot apache::typo gone::thing apache::nope])
+        expect(all.map(&:key)).to eq(%w[apache::docroot apache::typo gone::thing apache::looked apache::nope apache::looked])
 
-        expect(described_class.new(recorded, exclude_paths: ['data/*']).call(corpus_for(dir)).map(&:key)).to eq(['apache::nope'])
+        expect(described_class.new(recorded, exclude_paths: ['data/*']).call(corpus_for(dir)).map(&:key)).to eq(%w[apache::nope apache::looked])
         expect(described_class.new(recorded, exclude_classes: ['apa*']).call(corpus_for(dir)).map(&:key)).to eq(['gone::thing'])
         expect(described_class.new(recorded, exclude_modules: ['gone']).call(corpus_for(dir)).map(&:key))
-          .to eq(%w[apache::docroot apache::typo apache::nope])
+          .to eq(%w[apache::docroot apache::typo apache::looked apache::nope apache::looked])
         expect(described_class.new(recorded, exclude_params: ['apache::typo', 'apache::no*']).call(corpus_for(dir)).map(&:key))
-          .to eq(%w[apache::docroot gone::thing])
+          .to eq(%w[apache::docroot gone::thing apache::looked apache::looked])
       end
     end
   end

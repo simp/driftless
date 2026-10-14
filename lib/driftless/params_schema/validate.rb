@@ -9,10 +9,12 @@ module Driftless
     # Checks a repo's uses of class params against a recorded params
     # document. A Hiera `class::param` key must name a recorded class and
     # one of its params; a lookup() of such a key must name one of the
-    # class's params. A Hiera key some lookup() asks for by name is a key in
-    # its own right and is not held to either. A lookup() under a role or
-    # profile namespace is not held to a param either: those namespaces hold
-    # Hiera-only keys by convention.
+    # class's params. The exemptions follow the detectors: a Hiera key some
+    # lookup() asks for by name is not held to naming a class (as
+    # `data:codebase-missing-class`), and under a role or profile namespace
+    # is not held to naming a param either (as `data:codebase-missing-class-param`
+    # with allow_role_profile_keys), since those namespaces hold Hiera-only
+    # keys by convention. A lookup() under those namespaces is not checked.
     class Validate
       extend ConfigKeys::DSL
 
@@ -63,9 +65,8 @@ module Driftless
           next if excluded_path?(path)
 
           df.top_level_keys.each do |key, line|
-            next if explicit.include?(key)
-
-            issues << check(key, path, line, missing_class: true)
+            looked_up = explicit.include?(key)
+            issues << check(key, path, line, missing_class: !looked_up, hiera_only_ok: looked_up)
           end
         end
         lookups.each do |lc|
@@ -73,15 +74,18 @@ module Driftless
           next if excluded_path?(path)
           next if RoleProfile.role?(lc.key) || RoleProfile.profile?(lc.key)
 
-          issues << check(lc.key, path, lc.line, missing_class: false)
+          issues << check(lc.key, path, lc.line, missing_class: false, hiera_only_ok: false)
         end
         issues.compact.uniq.sort_by { |i| [i.path, i.line || 0, i.key] }
       end
 
       private
 
+      # @param missing_class [Boolean] whether an unrecorded class is an issue
+      # @param hiera_only_ok [Boolean] whether a role or profile class may
+      #   carry the key without a param
       # @return [Issue, nil]
-      def check(key, path, line, missing_class:)
+      def check(key, path, line, missing_class:, hiera_only_ok:)
         return nil unless key.include?('::')
 
         class_name, _, param = key.rpartition('::')
@@ -93,6 +97,8 @@ module Driftless
 
           Issue.new(kind: 'missing-class', path: path, line: line, key: key, detail: "class #{class_name} is not in the schema")
         elsif !recorded['params'].key?(param)
+          return nil if hiera_only_ok && (RoleProfile.role?(class_name) || RoleProfile.profile?(class_name))
+
           names = recorded['params'].keys
           shown = names.first(8).join(', ')
           shown += ", #{names.size - 8} more" if names.size > 8

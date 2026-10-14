@@ -19,9 +19,13 @@ module Driftless
     # @!attribute [r] metadata
     #   @return [Inputs::ModuleMetadata::Result] read from the directory
     # @!attribute [r] deployed
-    #   @return [Symbol] :match when the clone's HEAD is the commit the
-    #     declared ref names in it, :differ when it is not, :unknown when
-    #     nothing is declared from git or there is no clone to ask
+    #   @return [Symbol] how the directory compares with the declaration:
+    #     :match when a clone's HEAD is the commit the declared ref names in
+    #     it, or a Forge module's metadata.json carries the declared version;
+    #     :differ when it is not; :absent when the directory is not there;
+    #     :unknown when nothing is declared, or the directory cannot answer
+    #     (not a clone, no declared ref, a ref the clone does not know, no
+    #     metadata, a Forge version that is not a number)
     Entry = Data.define(:path, :declared, :metadata, :deployed)
 
     # @return [Array<String>] what went wrong while loading, in order
@@ -52,13 +56,16 @@ module Driftless
 
     def entry(path, declared)
       dir = File.expand_path(path, @repo_dir)
-      Entry.new(path: path, declared: declared, metadata: Inputs::ModuleMetadata.load(dir),
-                deployed: deployed(dir, declared))
+      metadata = Inputs::ModuleMetadata.load(dir)
+      Entry.new(path: path, declared: declared, metadata: metadata, deployed: deployed(dir, declared, metadata))
     end
 
     # @return [Symbol] see {Entry#deployed}
-    def deployed(dir, declared)
-      return :unknown unless declared&.git && declared.ref
+    def deployed(dir, declared, metadata)
+      return :unknown unless declared
+      return :absent unless File.directory?(dir)
+      return forge_deployed(declared, metadata) unless declared.git
+      return :unknown unless declared.ref
 
       clone = GitClone.new(dir)
       return :unknown unless clone.own?
@@ -67,8 +74,18 @@ module Driftless
         clone.branch_at_head(prefer: declared.default_branch) ? :match : :differ
       else
         sha = clone.resolve(declared.ref)
-        (sha && sha == clone.sha) ? :match : :differ
+        return :unknown unless sha
+
+        (sha == clone.sha) ? :match : :differ
       end
+    end
+
+    # A Forge module is at its declared version when metadata.json says so;
+    # `latest` and the like cannot be compared.
+    def forge_deployed(declared, metadata)
+      return :unknown unless metadata.version && declared.version&.match?(/\A\d/)
+
+      (metadata.version == declared.version) ? :match : :differ
     end
   end
 end

@@ -19,9 +19,9 @@ module Driftless
 
         COLUMNS = %w[path name ref version pupver].freeze
 
-        # Prefixed to the ref cell: how the clone on disk compares with the
-        # declared ref.
-        DEPLOYED_MARK = { match: '=', differ: '*', unknown: '?' }.freeze
+        # Prefixed to the ref cell: how the directory compares with the
+        # declared ref or Forge version.
+        DEPLOYED_MARK = { match: '=', differ: '*', absent: '-', unknown: '?' }.freeze
 
         def execute(_argv)
           repo = @options[:repo_dir] ? ::Driftless::ControlRepo.new(@options[:repo_dir]) : ::Driftless::ControlRepo.detect(Dir.pwd)
@@ -49,17 +49,19 @@ module Driftless
                "Default: '.' (if environment.conf and hiera.yaml exist)") { |v| @options[:repo_dir] = v }
           o.on('--git', 'Only modules the Puppetfile deploys from git') { @options[:git_only] = true }
           o.separator ''
-          o.separator 'The ref column prefixes the declared ref with how the clone on disk compares:'
-          o.separator '  = at that ref, * elsewhere, ? no clone to ask'
+          o.separator 'The ref column prefixes the declared ref, or a Forge version, with how the'
+          o.separator 'directory compares: = at that ref, * elsewhere, - not deployed, ? cannot compare'
         end
 
         private
 
         # The declared ref (":control_branch (default_branch)" when it is
-        # that) behind its deployed mark; empty for a module not from git.
+        # that), or a Forge module's declared version, behind its deployed
+        # mark; empty for a directory the Puppetfile does not declare.
         def ref_cell(entry)
           declared = entry.declared
-          return '' unless declared&.git
+          return '' unless declared
+          return "#{DEPLOYED_MARK.fetch(entry.deployed)}#{declared.version}" unless declared.git
 
           ref = declared.ref.to_s
           ref = [ref, declared.default_branch && "(#{declared.default_branch})"].compact.join(' ') if declared.ref == :control_branch

@@ -36,6 +36,7 @@ RSpec.describe Driftless::ModuleInventory do
   end
 
   # stdlib deployed at its tag; apache deployed at v1 while declared main;
+  # stale deployed from stdlib while declared at a tag it does not have;
   # missing declared but not deployed; forge a Forge entry on disk; tenant
   # at :control_branch under install_path; profile on disk, undeclared.
   def control_repo(dir)
@@ -44,6 +45,7 @@ RSpec.describe Driftless::ModuleInventory do
     up = File.join(dir, 'up')
     deploy(upstream(File.join(up, 'stdlib'), 'puppetlabs-stdlib'), File.join(dir, 'modules/stdlib'), at: 'v1')
     deploy(upstream(File.join(up, 'apache'), 'puppetlabs-apache'), File.join(dir, 'modules/apache'), at: 'v1')
+    deploy(File.join(up, 'stdlib'), File.join(dir, 'modules/stale'), at: 'v1')
     deploy(upstream(File.join(up, 'tenant'), 'org-tenant'), File.join(dir, 'data/tenant'))
     metadata(File.join(dir, 'modules/forge'), 'org-forge', version: '2.0.0')
     FileUtils.mkdir_p(File.join(dir, 'site-modules/profile'))
@@ -51,6 +53,7 @@ RSpec.describe Driftless::ModuleInventory do
       mod 'puppetlabs-stdlib', git: '#{up}/stdlib', tag: 'v1'
       mod 'puppetlabs-apache', git: '#{up}/apache', branch: 'main'
       mod 'org-missing', git: '#{up}/missing', ref: 'v1'
+      mod 'org-stale', git: '#{up}/stdlib', tag: 'v9'
       mod 'org-forge', '2.0.0'
       mod 'org-tenant', git: '#{up}/tenant', branch: :control_branch, default_branch: 'main', install_path: './data'
     PF
@@ -65,17 +68,19 @@ RSpec.describe Driftless::ModuleInventory do
     inventory = described_class.new(tmp)
     entries   = inventory.entries
     expect(inventory.warnings).to eq([])
-    expect(entries.map(&:path)).to eq(%w[data/tenant modules/apache modules/forge modules/missing modules/stdlib site-modules/profile])
-    expect(entries.map { |e| e.declared&.name }).to eq(['org-tenant', 'puppetlabs-apache', 'org-forge', 'org-missing', 'puppetlabs-stdlib', nil])
-    expect(entries.map { |e| e.metadata.name }).to eq(['org-tenant', 'puppetlabs-apache', 'org-forge', nil, 'puppetlabs-stdlib', nil])
-    expect(entries.map(&:deployed)).to eq(%i[match differ unknown unknown match unknown])
+    expect(entries.map(&:path)).to eq(%w[data/tenant modules/apache modules/forge modules/missing modules/stale modules/stdlib site-modules/profile])
+    expect(entries.map { |e| e.declared&.name })
+      .to eq(['org-tenant', 'puppetlabs-apache', 'org-forge', 'org-missing', 'org-stale', 'puppetlabs-stdlib', nil])
+    expect(entries.map { |e| e.metadata.name })
+      .to eq(['org-tenant', 'puppetlabs-apache', 'org-forge', nil, 'puppetlabs-stdlib', 'puppetlabs-stdlib', nil])
+    expect(entries.map(&:deployed)).to eq(%i[match differ match absent unknown match unknown])
   end
 
   it 'lists the modulepath directories with a warning when the Puppetfile does not evaluate' do
     control_repo(tmp)
     File.write(File.join(tmp, 'Puppetfile'), "raise 'boom'\n")
     inventory = described_class.new(tmp)
-    expect(inventory.entries.map(&:path)).to eq(%w[modules/apache modules/forge modules/stdlib site-modules/profile])
+    expect(inventory.entries.map(&:path)).to eq(%w[modules/apache modules/forge modules/stale modules/stdlib site-modules/profile])
     expect(inventory.entries.map(&:deployed).uniq).to eq([:unknown])
     expect(inventory.warnings).to eq(['Puppetfile: RuntimeError: boom'])
   end

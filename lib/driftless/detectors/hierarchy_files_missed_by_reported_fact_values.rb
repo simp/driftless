@@ -2,6 +2,7 @@ require 'set'
 
 require 'driftless/detectors/callable'
 require 'driftless/hierarchy_interpolator'
+require 'driftless/inputs/modulepath_loader'
 require 'driftless/node_grouping'
 require 'driftless/top_scope_variables'
 
@@ -69,13 +70,26 @@ module Driftless
       private
 
       # Where the values that failed to match came from: factsets, the
-      # `puppet.top_scope_variables` config, or both.
+      # `puppet.top_scope_variables` config, the modules on the modulepath
+      # for a compiler variable, or several of these.
       def source_of(vars)
-        configured, reported = vars.partition { |var| TopScopeVariables.values(var) }
-        return 'reported' if configured.empty?
-        return 'configured' if reported.empty?
+        vars.map { |var|
+          if TopScopeVariables.compiler?(var) then 'modulepath'
+          elsif TopScopeVariables.values(var) then 'configured'
+          else 'reported'
+          end
+        }.uniq.join(' or ')
+      end
 
-        'reported or configured'
+      # The modules on the modulepath, by directory name: what `module_name`
+      # and `caller_module_name` take as values.
+      def module_names
+        @module_names ||=
+          if corpus.repo_dir
+            Inputs::ModulepathLoader.module_dirs(corpus.repo_dir).map { |d| File.basename(d) }.uniq.sort
+          else
+            []
+          end
       end
 
       # The first tier whose interpolated template shape the file matches, and
@@ -99,9 +113,9 @@ module Driftless
 
       # Renders each path once per distinct set of values for the variables
       # that path interpolates: reported facts take their values from the
-      # nodes, top-scope variables from `puppet.top_scope_variables`, and a
-      # template mixing the two renders once per node group per configured
-      # combination.
+      # nodes, top-scope variables from `puppet.top_scope_variables`,
+      # compiler variables from the modules on the modulepath, and a
+      # template mixing these renders once per node group per combination.
       def reachable_paths_for(tier, grouping)
         paths = Set.new
         tier.path_templates.each do |template|
@@ -111,11 +125,11 @@ module Driftless
             next
           end
 
-          configured, reported = vars.partition { |var| TopScopeVariables.values(var) }
+          configured, reported = vars.partition { |var| TopScopeVariables.values(var, modules: module_names) }
           # With nothing to read from a node, one render per combination.
           nodes = reported.empty? ? [nil] : grouping.representatives(reported)
           nodes.each do |node|
-            TopScopeVariables.combinations(configured).each do |overrides|
+            TopScopeVariables.combinations(configured, modules: module_names).each do |overrides|
               rendered = HierarchyInterpolator.new(node, overrides).render(template)
               next if HierarchyInterpolator.unresolved?(rendered)
               paths.merge(locations_for(tier, rendered))

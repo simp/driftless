@@ -33,6 +33,14 @@ RSpec.describe Driftless::TopScopeVariables do
       expect(described_class.values('other')).to be_nil
     end
 
+    it 'takes the modules on the modulepath as the values of a compiler variable' do
+      expect(described_class.values('module_name')).to be_nil
+      expect(described_class.values('module_name', modules: %w[apache nginx])).to eq(%w[apache nginx])
+      expect(described_class.values('::site_region', modules: %w[apache])).to eq(%w[east west])
+      expect(described_class.combinations(%w[module_name], modules: %w[apache nginx]))
+        .to eq([{ 'module_name' => 'apache' }, { 'module_name' => 'nginx' }])
+    end
+
     it 'enumerates every combination of values for a set of interpolations' do
       expect(described_class.combinations([])).to eq([{}])
       expect(described_class.combinations(['::site_region'])).to eq([{ '::site_region' => 'east' }, { '::site_region' => 'west' }])

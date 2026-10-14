@@ -14,11 +14,11 @@ RSpec.describe Driftless::Detectors::HierarchyFilesMissedByReportedFactValues do
     File.expand_path("../fixtures/control_repos/#{name}", __dir__)
   end
 
-  def corpus_for(fixture_name, nodes: nil)
+  def corpus_for(fixture_name, nodes: nil, with_repo_dir: false)
     tiers, = Driftless::Inputs::HierarchyLoader.load(fixture(fixture_name))
     data = nodes.nil? ? {} : { 'factsets-for-all-active-nodes' => nodes }
     Driftless::Corpus.new(
-      repo_dir:       nil,
+      repo_dir:       with_repo_dir ? fixture(fixture_name) : nil,
       hiera_tiers:    tiers,
       puppet_classes: {},
       data_files:     [],
@@ -95,6 +95,24 @@ RSpec.describe Driftless::Detectors::HierarchyFilesMissedByReportedFactValues do
       it 'leaves every such tier alone under the list form, as before' do
         set_top_scope(%w[site_region compliance_profile])
         expect(missed).to eq({})
+      end
+    end
+
+    context 'with a tier interpolating %{module_name}' do
+      def missed(**opts)
+        described_class.new(corpus_for('module_name_tier', nodes: [web1], **opts)).call
+          .select { |f| f.key == described_class.key }
+          .map { |f| [f.path.sub("#{fixture('module_name_tier')}/", ''), f.message] }
+      end
+
+      it 'reaches the files named after modules on the modulepath and flags the rest' do
+        expect(missed(with_repo_dir: true)).to eq([
+          ['data/modules/ghost.yaml', 'no modulepath value of module_name resolves this path'],
+        ])
+      end
+
+      it 'leaves the tier alone when no modulepath is known' do
+        expect(missed).to eq([])
       end
     end
 

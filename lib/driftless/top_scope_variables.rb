@@ -70,9 +70,14 @@ module Driftless
     end
 
     # @param var [String] an interpolation as written in a tier
+    # @param modules [Array<String>] the modules on the modulepath: what a
+    #   compiler variable takes as values
     # @return [Array<String>, nil] the values configured for it; nil when the
-    #   config gives none (the list form, or a name with no values)
-    def values(var)
+    #   config gives none (the list form, or a name with no values) and it
+    #   is not a compiler variable with modules to take
+    def values(var, modules: [])
+      return (modules.empty? ? nil : modules) if compiler?(var)
+
       raw = ::Driftless.config.dig('puppet', 'top_scope_variables')
       return nil unless raw.is_a?(Hash)
 
@@ -85,11 +90,12 @@ module Driftless
     # once per assignment.
     #
     # @param vars [Array<String>] interpolations that all have {values}
+    # @param modules [Array<String>] see {values}
     # @return [Array<Hash{String => String}>] var to value; `[{}]` for no vars
-    def combinations(vars)
+    def combinations(vars, modules: [])
       return [{}] if vars.empty?
 
-      lists = vars.map { |var| values(var).map { |value| [var, value] } }
+      lists = vars.map { |var| values(var, modules: modules).map { |value| [var, value] } }
       lists.first.product(*lists.drop(1)).map(&:to_h)
     end
 

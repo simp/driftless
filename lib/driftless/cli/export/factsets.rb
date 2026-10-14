@@ -1,6 +1,7 @@
 require 'driftless/cli/base'
 require 'driftless/cli/export'
 require 'driftless/cli/node_selection'
+require 'driftless/config_keys'
 require 'driftless/export/factsets'
 require 'driftless/export/role_tree'
 
@@ -9,14 +10,19 @@ module Driftless
     class Export
       class Factsets < Base
         include NodeSelection
+        extend ::Driftless::ConfigKeys::DSL
 
         register_command name: 'factsets', subcommand_of: Export
         desc 'Export reported factsets for onceover or puppet-lookup'
+
+        config_key 'export.factsets.exclude_certnames', type: :array, default: [],
+                   about: 'Certname globs never exported, even when a role has no other node from a collector'
 
         DEFAULT_ROLE_TREE = 'spec/factsets/raw'.freeze
 
         def execute(_argv)
           require_incoming_dir!
+          accumulate(:exclude_certname_globs, Array(@options[:exclude_certnames]))
           return execute_role_tree if @options[:role_tree]
 
           reject_role_tree_flags!
@@ -80,6 +86,7 @@ module Driftless
           end
 
           declare_node_selection(o)
+          o.separator '  export.factsets.exclude_certnames in driftless.yaml adds to --exclude-certname'
 
           o.separator ''
           o.separator 'Environment scoping:'
@@ -173,6 +180,7 @@ module Driftless
             incoming_dir:       cfg.dig('reports', 'incoming_dir'),
             environments:       cfg.dig('puppet',  'environments'),
             proceed_with_subset_of_configured_envs: cfg.dig('puppet', 'proceed_with_subset_of_configured_envs'),
+            exclude_certnames: cfg.dig('export', 'factsets', 'exclude_certnames'),
           }.compact
         end
       end

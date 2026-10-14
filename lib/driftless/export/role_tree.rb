@@ -17,8 +17,9 @@ module Driftless
     # A file already in a role directory is rewritten from the current
     # factset of that certname. Only when a collector has fewer files under a
     # role than the limit is a node picked to fill the shortfall. A file
-    # whose certname no longer reports, or no longer carries the role, is
-    # stale; the run stops on stale files unless told to prune or ignore them.
+    # whose certname no longer reports, no longer carries the role, or falls
+    # outside the selector is stale; the run stops on stale files unless told
+    # to prune or ignore them.
     class RoleTree
       include FactsetSerializer
 
@@ -72,15 +73,16 @@ module Driftless
       def run
         nodes     = @loader.load
         @warnings = @loader.warnings
-        nodes     = @selector.select(nodes, @loader.reported) unless @selector.empty?
         nodes     = nodes.reject { |n| n.certname.to_s.empty? }
+        loaded    = nodes.to_h { |n| [name_for(n), n] }
+        nodes     = @selector.select(nodes, @loader.reported) unless @selector.empty?
 
         roles_of   = roles_by_certname
         candidates = group(nodes, roles_of)
         by_name    = nodes.to_h { |n| [name_for(n), n] }
         result     = Result.new(written: 0, updated: 0, pruned: 0, stale: 0, over_limit: 0)
 
-        existing, stale = read_tree(by_name, roles_of)
+        existing, stale = read_tree(by_name, loaded, roles_of)
         handle_stale(stale, result)
 
         candidates.each do |role, per_collector|
@@ -135,11 +137,14 @@ module Driftless
         grouped
       end
 
-      # The tree as it stands: files whose certname still reports with that
-      # role, grouped like the candidates, and the paths of those that do not.
+      # The tree as it stands: files whose selected node still carries that
+      # role, grouped like the candidates, and the rest with why they are stale.
       #
-      # @return [Array(Hash, Array<String>)]
-      def read_tree(by_name, roles_of)
+      # @param by_name [Hash{String => Node}] the selected nodes by file stem
+      # @param loaded [Hash{String => Node}] every reported node by file stem
+      # @return [Array(Hash, Array<Array(String, String)>)] existing, and
+      #   stale as path + reason pairs
+      def read_tree(by_name, loaded, roles_of)
         existing = Hash.new { |h, role| h[role] = Hash.new { |c, collector| c[collector] = [] } }
         stale    = []
         return [existing, stale] unless File.directory?(@root)
@@ -154,23 +159,29 @@ module Driftless
             if node && roles_of.fetch(node.certname, []).include?(role)
               existing[role][node.collector.to_s] << node
             else
-              stale << File.join(dir, file)
+              stale << [File.join(dir, file), stale_reason(name, node, loaded)]
             end
           end
         end
         [existing, stale]
       end
 
+      # Why the file at this stem has no selected node carrying its role.
+      def stale_reason(name, node, loaded)
+        return 'the node no longer carries this role' if node
+        return 'the node is outside the selection' if loaded.key?(name)
+        'no reported node has this certname'
+      end
+
       def handle_stale(stale, result)
         result.stale = stale.size
         return if stale.empty?
 
-        stale.each do |path|
-          reason = @prune ? 'pruned' : 'no reported node carries this role'
-          warn("export factsets: stale factset #{path} (#{reason})")
+        stale.each do |path, reason|
+          warn("export factsets: stale factset #{path} (#{[reason, ('pruned' if @prune)].compact.join('; ')})")
         end
         if @prune
-          stale.each { |path| File.delete(path) }
+          stale.map(&:first).each { |path| File.delete(path) }
           result.pruned = stale.size
         elsif !@ignore_stale
           raise Error, "#{stale.size} stale factset(s) in #{@root}; pass --prune to delete them " \

@@ -36,6 +36,13 @@ RSpec.describe Driftless::NodeSelector do
     expect(described_class.new(certname_globs: ['web*']).select(nodes, reported)).to eq([web_rocky, web_ubuntu])
   end
 
+  it 'drops nodes matching an exclusion glob, whatever else they match' do
+    expect(described_class.new(exclude_certname_globs: ['db*'])).not_to be_empty
+    expect(described_class.new(exclude_certname_globs: ['db*']).select(nodes, reported)).to eq([web_rocky, web_ubuntu])
+    selector = described_class.new(certname_globs: ['web*'], exclude_certname_globs: ['*02*'])
+    expect(selector.select(nodes, reported)).to eq([web_rocky])
+  end
+
   it 'matches environments and collectors exactly' do
     expect(described_class.new(environments: ['dev']).select(nodes, reported)).to eq([web_ubuntu])
     expect(described_class.new(collectors: ['site-b']).select(nodes, reported)).to eq([web_ubuntu])

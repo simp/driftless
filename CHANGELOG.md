@@ -5,7 +5,6 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-
 ## [Unreleased]
 
 ### Added
@@ -27,9 +26,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
       - unless run with `--prune` (removes thew stale factsets) or
         `--ignore-stale-factsets`
     - `--role` can narrow which `<role::name>/` directories are updated
+- New `--exclude-certname GLOB` flag for `list facts|factsets|nodes` and
+  `export factsets` to drop exclude matching nodes
+- New config file subsystem `export`:
+  - `export.factsets.exclude_certnames`: certname globs `export factsets` never exports,
+    even when a role has no other node from a collector; their files in the
+    onceover role tree count as stale
 
 ### Changed
 
+- `export factsets --onceover-role-tree` stale-factset warnings say why the file is stale
 - messages about writing factset files have been moved from debug to info
 - messages about rejecting factsets from other environments have been moved from info to debug
 

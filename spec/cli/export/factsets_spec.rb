@@ -55,6 +55,26 @@ RSpec.describe Driftless::CLI::Export::Factsets do
     end
   end
 
+  it 'reads export.factsets.exclude_certnames from the config, added to --exclude-certname' do
+    Dir.mktmpdir do |tmp|
+      incoming = File.join(tmp, 'incoming')
+      seed(incoming, 'factsets-for-all-active-nodes', %w[web1 web2 web3].map do |c|
+        { 'certname' => c, 'catalog_environment' => 'production', 'facts' => {}, 'trusted' => {} }
+      end)
+      seed(incoming, 'classes-for-all-active-nodes', %w[web1 web2 web3].map do |c|
+        { 'certname' => c, 'environment' => 'production', 'title' => 'Role::Web' }
+      end)
+      cfg = File.join(tmp, 'driftless.yaml')
+      File.write(cfg, "export:\n  factsets:\n    exclude_certnames:\n      - web1\n")
+      Dir.chdir(tmp) do
+        status, = run(['-c', cfg, '-q', '-i', incoming, '--onceover-role-tree', '--pick', 'first',
+                       '--exclude-certname', 'web2'])
+        expect(status).to eq(0)
+        expect(Dir.children(File.join(tmp, 'spec/factsets/raw/role::web'))).to eq(['web3.json'])
+      end
+    end
+  end
+
   it 'refuses --output-dir with the role tree' do
     status, err = run(['--no-config', '-i', '/tmp/x', '--onceover-role-tree', '-o', '/tmp/y'])
     expect(status).to eq(2)

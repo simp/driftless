@@ -6,11 +6,12 @@ module Driftless
   # Picks nodes by role, environment, collector, OS, and certname.
   #
   # Every criterion is a list; a node passes a criterion when it matches any
-  # entry, and passes the selector when it passes every criterion given.
+  # entry, and passes the selector when it passes every criterion given. A
+  # node matching any exclusion glob is dropped whatever else it matches.
   class NodeSelector
     CLASSES_REPORT = 'classes-for-all-active-nodes'.freeze
 
-    attr_reader :roles, :environments, :collectors, :os, :certname_globs
+    attr_reader :roles, :environments, :collectors, :os, :certname_globs, :exclude_certname_globs
 
     # @param roles [Array<String>] role class fqnames, File.fnmatch globs,
     #   case-insensitive
@@ -19,16 +20,20 @@ module Driftless
     # @param os [Array<String>] matched case-insensitively against the
     #   `os.name` and `os.family` facts
     # @param certname_globs [Array<String>] File.fnmatch globs
-    def initialize(roles: [], environments: [], collectors: [], os: [], certname_globs: [])
-      @roles          = Array(roles)
-      @environments   = Array(environments)
-      @collectors     = Array(collectors)
-      @os             = Array(os)
-      @certname_globs = Array(certname_globs)
+    # @param exclude_certname_globs [Array<String>] File.fnmatch globs; a
+    #   node matching any is dropped
+    def initialize(roles: [], environments: [], collectors: [], os: [], certname_globs: [],
+                   exclude_certname_globs: [])
+      @roles                  = Array(roles)
+      @environments           = Array(environments)
+      @collectors             = Array(collectors)
+      @os                     = Array(os)
+      @certname_globs         = Array(certname_globs)
+      @exclude_certname_globs = Array(exclude_certname_globs)
     end
 
     def empty?
-      [roles, environments, collectors, os, certname_globs].all?(&:empty?)
+      [roles, environments, collectors, os, certname_globs, exclude_certname_globs].all?(&:empty?)
     end
 
     # @param nodes [Array<Node>] rows of any node report
@@ -39,7 +44,9 @@ module Driftless
     def select(nodes, reported)
       roles_of = roles_by_certname(reported)
       nodes.select do |node|
-        match_any?(certname_globs) { |g| File.fnmatch?(g, node.certname.to_s) } &&
+        certname = node.certname.to_s
+        exclude_certname_globs.none? { |g| File.fnmatch?(g, certname) } &&
+          match_any?(certname_globs) { |g| File.fnmatch?(g, certname) } &&
           match_any?(environments) { |e| e == node.environment } &&
           match_any?(collectors) { |c| c == node.collector } &&
           match_any?(os) { |o| os_names(node).include?(o.downcase) } &&

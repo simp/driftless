@@ -119,7 +119,27 @@ RSpec.describe Driftless::Export::RoleTree do
       expect(tree(root)).to include('role::web/gone.json', 'role::web/db1.json', 'role::web/web1.json')
       expect(result.to_h).to include(stale: 2, pruned: 0)
       expect(exporter.warnings.grep(/stale factset/).size).to eq(2)
+      expect(exporter.warnings).to include(a_string_matching(/gone\.json \(no reported node has this certname\)/),
+                                          a_string_matching(%r{role::web/db1\.json \(the node no longer carries this role\)}))
     end
+  end
+
+  it 'never picks an excluded certname, even as the only node in a role from its collector' do
+    selector = Driftless::NodeSelector.new(exclude_certname_globs: ['db1'])
+    result   = run(incoming, root, pick: 'first', selector: selector)
+    expect(tree(root)).to eq(%w[role::db/mixed.json role::web/mixed.json role::web/web1.json])
+    expect(result.to_h).to include(written: 3, stale: 0)
+  end
+
+  it 'counts the file of an excluded certname as stale' do
+    FileUtils.mkdir_p(File.join(root, 'role::web'))
+    File.write(File.join(root, 'role::web/web1.json'), "{}\n")
+    selector = Driftless::NodeSelector.new(exclude_certname_globs: ['web1'])
+    exporter = described_class.new(incoming_dir: incoming, root: root, prune: true, pick: 'first', selector: selector)
+    result   = exporter.run
+    expect(tree(root)).to eq(%w[role::db/db1.json role::db/mixed.json role::web/mixed.json role::web/web2.json])
+    expect(result.to_h).to include(stale: 1, pruned: 1, written: 4)
+    expect(exporter.warnings).to include(a_string_matching(%r{role::web/web1\.json \(the node is outside the selection; pruned\)}))
   end
 
   it 'maintains only the roles the selector names' do

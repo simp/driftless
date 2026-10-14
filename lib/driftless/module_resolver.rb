@@ -143,10 +143,10 @@ module Driftless
             subject = [os, release].compact.join(' ')
             if declared.nil?
               Conflict.new(kind: 'operatingsystem', module: e.metadata.name, subject: subject,
-                           detail: "declares no support for #{os} (supports #{support.keys.join(', ')})")
+                           detail: "missing #{os} (declared: #{support.keys.join(', ')})")
             elsif release && !declared.empty? && declared.none? { |d| release_matches?(d, release) }
               Conflict.new(kind: 'operatingsystem', module: e.metadata.name, subject: subject,
-                           detail: "declares no support for #{subject} (supports #{os} #{declared.join(', ')})")
+                           detail: "missing #{subject} (declared: #{os} #{declared.join(', ')})")
             end
           end
         end

@@ -27,7 +27,7 @@ module Driftless
           fatal!('list roles requires --repo-dir (auto-detection did not supply it)', help: true) unless repo
           fatal!("repo-dir not readable: #{repo.dir}", 3) unless repo.readable?
 
-          files, findings = ::Driftless::Inputs::ModulepathLoader.load(repo.dir, **modulepath_args)
+          files, findings = ::Driftless::Inputs::ModulepathLoader.load(repo.dir)
           roles = files.flat_map do |path|
             program, errs = ::Driftless::Inputs::ManifestParser.parse(path)
             findings.concat(errs)
@@ -47,13 +47,6 @@ module Driftless
           o.on('-d', '--repo-dir=DIR',
                'Path to the control repo environment',
                "Default: '.' (if environment.conf and hiera.yaml exist)") { |v| @options[:repo_dir] = v }
-          o.on('--basemodulepath=PATH', 'Override $basemodulepath (colon-separated)') { |v| @options[:basemodulepath] = v.split(':') }
-        end
-
-        private
-
-        def modulepath_args
-          @options[:basemodulepath] ? { basemodulepath: @options[:basemodulepath] } : {}
         end
       end
     end

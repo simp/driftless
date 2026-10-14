@@ -20,14 +20,14 @@ module Driftless
     include Phases
     include ReportedChecks
 
-    attr_reader :repo_dir, :only, :skip, :basemodulepath
+    attr_reader :repo_dir, :only, :skip
 
     # @return [Corpus, nil] the read model the detectors ran against; nil until
     #   {#run} builds it. Findings alone cannot answer node counts or
     #   utilization, so consumers of a finished scan read them from here.
     attr_reader :corpus
 
-    def initialize(repo_dir:, incoming_dir:, only: nil, skip: nil, basemodulepath: nil,
+    def initialize(repo_dir:, incoming_dir:, only: nil, skip: nil,
                    environments: nil, proceed_with_subset_of_configured_envs: false,
                    summary_dir: nil, accept_partial_report_sessions: nil,
                    accept_duplicate_certnames: false)
@@ -35,7 +35,6 @@ module Driftless
       @incoming_dir                   = incoming_dir
       @only                           = only
       @skip                           = skip
-      @basemodulepath                 = basemodulepath
       @environments                   = environments
       @proceed_with_subset_of_configured_envs = proceed_with_subset_of_configured_envs
       @summary_dir                    = summary_dir
@@ -46,7 +45,7 @@ module Driftless
     def run
       Driftless.logger.info("Scanning control repo: #{repo_dir}")
 
-      code = Codebase.load(repo_dir, basemodulepath: basemodulepath)
+      code = Codebase.load(repo_dir)
       code.warnings.each { |w| warn(w) }
       halt_without_hiera_yaml!(code.findings)
       meta_findings = code.findings.dup

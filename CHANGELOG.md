@@ -14,8 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `facts [-i DIR] [-x GLOB] [selection flags]` - prints all reported facts+leaves
   - `nodes [-i DIR] [selection flags]` - reports `all-active-nodes` inventory
   - `reports [-i DIR]` - prints report/state/collector/session/size
-  - `roles [-d DIR] [--basemodulepath PATH]` - prints each role class & path
-  - `modules [-d DIR] [--basemodulepath PATH] [--git]` - prints each module on the modulepath
+  - `roles [-d DIR]` - prints each role class & path
+  - `modules [-d DIR] [--git]` - prints each module on the modulepath
 - `driftless export factsets --onceover-role-tree[=DIR]`
   - populates a directory tree (default: `spec/factsets/raw/`) with onceover factsets
   - tree is arranged as `DIR/<role::name>/<certname>.json`
@@ -45,7 +45,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     `modules.exclude_operatingsystems`: globs dropping known conflicts of each kind
 - New config file subsystem `export`:
   - `export.factsets.exclude_certnames`: certname globs `export factsets` never exports
-
 
 ### Changed
 

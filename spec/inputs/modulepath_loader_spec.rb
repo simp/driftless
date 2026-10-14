@@ -15,7 +15,7 @@ RSpec.describe Driftless::Inputs::ModulepathLoader do
         FileUtils.touch(File.join(repo, 'modules/stdlib/manifests/init.pp'))
         FileUtils.touch(File.join(repo, 'modules/stdlib/manifests/README.md'))
 
-        files, findings = described_class.load(repo, basemodulepath: [])
+        files, findings = described_class.load(repo)
         rels = files.map { |f| f.sub("#{repo}/", '') }
         expect(rels).to contain_exactly(
           'site-modules/profile/manifests/example.pp',
@@ -33,7 +33,7 @@ RSpec.describe Driftless::Inputs::ModulepathLoader do
         FileUtils.touch(File.join(repo, 'site-modules/profile/manifests/sub/one.pp'))
         FileUtils.touch(File.join(repo, 'site-modules/profile/manifests/sub/deeper/two.pp'))
 
-        files, = described_class.load(repo, basemodulepath: [])
+        files, = described_class.load(repo)
         rels = files.map { |f| f.sub("#{repo}/", '') }
         expect(rels).to contain_exactly(
           'site-modules/profile/manifests/init.pp',
@@ -49,16 +49,9 @@ RSpec.describe Driftless::Inputs::ModulepathLoader do
         FileUtils.mkdir_p(File.join(repo, 'site-modules/profile/manifests'))
         FileUtils.touch(File.join(repo, 'site-modules/profile/manifests/init.pp'))
 
-        files, findings = described_class.load(repo, basemodulepath: [])
+        files, findings = described_class.load(repo)
         expect(files.length).to eq(1)
         expect(findings).to be_empty
-      end
-    end
-
-    it 'emits controlrepo:missing-modulepaths-from-envconf for a basemodulepath dir that does not exist' do
-      Dir.mktmpdir do |repo|
-        _, findings = described_class.load(repo, basemodulepath: ['/does/not/exist'])
-        expect(findings.map(&:key)).to eq(['controlrepo:missing-modulepaths-from-envconf'])
       end
     end
 
@@ -72,7 +65,7 @@ RSpec.describe Driftless::Inputs::ModulepathLoader do
           FileUtils.mkdir_p(File.join(repo, 'site-modules/other/manifests'))
           FileUtils.touch(File.join(repo, 'site-modules/other/manifests/ignored.pp'))
 
-          files, findings = described_class.load(repo, basemodulepath: [])
+          files, findings = described_class.load(repo)
           rels = files.map { |f| f.sub("#{repo}/", '') }
           expect(rels).to contain_exactly('site/role/manifests/base.pp')
           expect(findings).to be_empty
@@ -82,7 +75,7 @@ RSpec.describe Driftless::Inputs::ModulepathLoader do
       it 'emits controlrepo:missing-modulepaths-from-envconf when env.conf declares a modulepath dir that does not exist' do
         Dir.mktmpdir do |repo|
           File.write(File.join(repo, 'environment.conf'), "modulepath = site\n")
-          _, findings = described_class.load(repo, basemodulepath: [])
+          _, findings = described_class.load(repo)
           expect(findings.map(&:key)).to eq(['controlrepo:missing-modulepaths-from-envconf'])
           expect(findings.first.message).to eq('"site" is in $modulepath, but not on disk')
         end
@@ -108,16 +101,16 @@ RSpec.describe Driftless::Inputs::ModulepathLoader do
             File.write(File.join(repo, 'environment.conf'),
                        "modulepath = site-modules:enclave-modules:/var/simp/environments/simp/site_files:vendored\n")
             FileUtils.mkdir_p(File.join(repo, 'site-modules'))
-            _, findings = described_class.load(repo, basemodulepath: [])
+            _, findings = described_class.load(repo)
             expect(findings.map(&:message)).to eq(['"vendored" is in $modulepath, but not on disk'])
           end
         end
 
-        it 'skips absolute entries under ignore_absolute, basemodulepath included' do
+        it 'skips absolute entries under ignore_absolute' do
           configure('ignore_absolute' => true)
           Dir.mktmpdir do |repo|
-            File.write(File.join(repo, 'environment.conf'), "modulepath = /opt/absent:vendored:$basemodulepath\n")
-            _, findings = described_class.load(repo, basemodulepath: ['/does/not/exist'])
+            File.write(File.join(repo, 'environment.conf'), "modulepath = /opt/absent:vendored\n")
+            _, findings = described_class.load(repo)
             expect(findings.map(&:message)).to eq(['"vendored" is in $modulepath, but not on disk'])
           end
         end
@@ -126,7 +119,7 @@ RSpec.describe Driftless::Inputs::ModulepathLoader do
       it 'names a nested relative entry the way env.conf declared it' do
         Dir.mktmpdir do |repo|
           File.write(File.join(repo, 'environment.conf'), "modulepath = vendored/mods\n")
-          _, findings = described_class.load(repo, basemodulepath: [])
+          _, findings = described_class.load(repo)
           expect(findings.first.message).to eq('"vendored/mods" is in $modulepath, but not on disk')
         end
       end
@@ -134,7 +127,7 @@ RSpec.describe Driftless::Inputs::ModulepathLoader do
       it 'leaves an absolute entry absolute, since that is how it was declared' do
         Dir.mktmpdir do |repo|
           File.write(File.join(repo, 'environment.conf'), "modulepath = /opt/absent/mods\n")
-          _, findings = described_class.load(repo, basemodulepath: [])
+          _, findings = described_class.load(repo)
           expect(findings.first.message).to eq('"/opt/absent/mods" is in $modulepath, but not on disk')
         end
       end
@@ -142,38 +135,19 @@ RSpec.describe Driftless::Inputs::ModulepathLoader do
       it 'keeps the resolved absolute path on the finding' do
         Dir.mktmpdir do |repo|
           File.write(File.join(repo, 'environment.conf'), "modulepath = vendored/mods\n")
-          _, findings = described_class.load(repo, basemodulepath: [])
+          _, findings = described_class.load(repo)
           expect(findings.first.path).to eq(File.join(repo, 'vendored/mods'))
         end
       end
 
-      it 'expands $basemodulepath in env.conf modulepath' do
+      it 'expands $basemodulepath in env.conf modulepath to nothing, without a finding' do
         Dir.mktmpdir do |repo|
           File.write(File.join(repo, 'environment.conf'), "modulepath = site:$basemodulepath\n")
           FileUtils.mkdir_p(File.join(repo, 'site/role/manifests'))
           FileUtils.touch(File.join(repo, 'site/role/manifests/base.pp'))
-          Dir.mktmpdir do |base|
-            FileUtils.mkdir_p(File.join(base, 'stdlib/manifests'))
-            FileUtils.touch(File.join(base, 'stdlib/manifests/init.pp'))
-            files, = described_class.load(repo, basemodulepath: [base])
-            expect(files.length).to eq(2)
-          end
-        end
-      end
-
-      it 'does NOT add basemodulepath when env.conf modulepath omits $basemodulepath' do
-        Dir.mktmpdir do |repo|
-          File.write(File.join(repo, 'environment.conf'), "modulepath = site\n")
-          FileUtils.mkdir_p(File.join(repo, 'site/role/manifests'))
-          FileUtils.touch(File.join(repo, 'site/role/manifests/base.pp'))
-          Dir.mktmpdir do |base|
-            FileUtils.mkdir_p(File.join(base, 'stdlib/manifests'))
-            FileUtils.touch(File.join(base, 'stdlib/manifests/init.pp'))
-            files, findings = described_class.load(repo, basemodulepath: [base])
-            rels = files.map { |f| f.sub("#{repo}/", '') }
-            expect(rels).to contain_exactly('site/role/manifests/base.pp')
-            expect(findings).to be_empty
-          end
+          files, findings = described_class.load(repo)
+          expect(files.map { |f| f.sub("#{repo}/", '') }).to eq(['site/role/manifests/base.pp'])
+          expect(findings).to be_empty
         end
       end
 
@@ -187,7 +161,7 @@ RSpec.describe Driftless::Inputs::ModulepathLoader do
           FileUtils.mkdir_p(File.join(repo, 'site-modules/other/manifests'))
           FileUtils.touch(File.join(repo, 'site-modules/other/manifests/ignored.pp'))
 
-          files, = described_class.load(repo, basemodulepath: [])
+          files, = described_class.load(repo)
           rels = files.map { |f| f.sub("#{repo}/", '') }
           expect(rels).to contain_exactly('modules/stdlib/manifests/init.pp')
         end
@@ -199,7 +173,7 @@ RSpec.describe Driftless::Inputs::ModulepathLoader do
         Dir.mktmpdir do |repo|
           FileUtils.mkdir_p(File.join(repo, 'manifests'))
           File.write(File.join(repo, 'manifests/site.pp'), "# noop\n")
-          files, = described_class.load(repo, basemodulepath: [])
+          files, = described_class.load(repo)
           rels = files.map { |f| f.sub("#{repo}/", '') }
           expect(rels).to include('manifests/site.pp')
         end
@@ -212,7 +186,7 @@ RSpec.describe Driftless::Inputs::ModulepathLoader do
           File.write(File.join(repo, 'manifests/only.pp'), "# only\n")
           File.write(File.join(repo, 'manifests/other.pp'), "# not scanned\n")
 
-          files, = described_class.load(repo, basemodulepath: [])
+          files, = described_class.load(repo)
           rels = files.map { |f| f.sub("#{repo}/", '') }
           expect(rels).to contain_exactly('manifests/only.pp')
         end
@@ -225,7 +199,7 @@ RSpec.describe Driftless::Inputs::ModulepathLoader do
           File.write(File.join(repo, 'manifests/site.pp'), "# top\n")
           File.write(File.join(repo, 'manifests/nodes/web.pp'), "# nested\n")
 
-          files, = described_class.load(repo, basemodulepath: [])
+          files, = described_class.load(repo)
           rels = files.map { |f| f.sub("#{repo}/", '') }
           expect(rels).to contain_exactly('manifests/site.pp', 'manifests/nodes/web.pp')
         end
@@ -234,7 +208,7 @@ RSpec.describe Driftless::Inputs::ModulepathLoader do
       it 'silently no-ops when the manifest target does not exist' do
         Dir.mktmpdir do |repo|
           # No manifests/ dir at all.
-          files, findings = described_class.load(repo, basemodulepath: [])
+          files, findings = described_class.load(repo)
           expect(files).to be_empty
           expect(findings).to be_empty
         end
@@ -249,7 +223,7 @@ RSpec.describe Driftless::Inputs::ModulepathLoader do
         FileUtils.mkdir_p(File.join(repo, 'modules/apache'))
         FileUtils.touch(File.join(repo, 'modules/README.md'))
 
-        dirs = described_class.module_dirs(repo, basemodulepath: [])
+        dirs = described_class.module_dirs(repo)
         rels = dirs.map { |d| d.sub("#{repo}/", '') }
         expect(rels).to eq(['site-modules/profile', 'modules/apache', 'modules/stdlib'])
       end
@@ -257,7 +231,8 @@ RSpec.describe Driftless::Inputs::ModulepathLoader do
 
     it 'skips modulepath entries that do not exist' do
       Dir.mktmpdir do |repo|
-        expect(described_class.module_dirs(repo, basemodulepath: ['/does/not/exist'])).to eq([])
+        File.write(File.join(repo, 'environment.conf'), "modulepath = /does/not/exist:$basemodulepath\n")
+        expect(described_class.module_dirs(repo)).to eq([])
       end
     end
   end

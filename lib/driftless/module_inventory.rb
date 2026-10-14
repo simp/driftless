@@ -28,11 +28,9 @@ module Driftless
     attr_reader :warnings
 
     # @param repo_dir [String] the control repo
-    # @param basemodulepath [Array<String>, nil] overrides $basemodulepath
-    def initialize(repo_dir, basemodulepath: nil)
-      @repo_dir       = File.expand_path(repo_dir)
-      @basemodulepath = basemodulepath
-      @warnings       = []
+    def initialize(repo_dir)
+      @repo_dir = File.expand_path(repo_dir)
+      @warnings = []
     end
 
     # @return [Array<Entry>] sorted by path
@@ -49,8 +47,7 @@ module Driftless
 
     # @return [Array<String>] every module directory on the modulepath
     def on_disk
-      args = @basemodulepath ? { basemodulepath: @basemodulepath } : {}
-      Inputs::ModulepathLoader.module_dirs(@repo_dir, **args).map { |d| d.delete_prefix("#{@repo_dir}/") }
+      Inputs::ModulepathLoader.module_dirs(@repo_dir).map { |d| d.delete_prefix("#{@repo_dir}/") }
     end
 
     def entry(path, declared)

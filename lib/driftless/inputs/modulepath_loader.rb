@@ -8,29 +8,25 @@ module Driftless
       extend ::Driftless::ConfigKeys::DSL
 
       withheld_key 'puppet.basemodulepath',
-                   because: 'the source of truth is the control repo\'s environment.conf ' \
-                            'modulepath (interpolated with $basemodulepath from puppet.conf). ' \
-                            'Use --basemodulepath for a one-off override.'
+                   because: 'driftless reads only the modules the control repo delivers: the source of ' \
+                            'truth is the modulepath in environment.conf, and `$basemodulepath` in it ' \
+                            'expands to nothing, since what an agent package installs there is a guess ' \
+                            'from a scan host.'
 
       DEFAULT_MODULEPATH_DIRS = %w[site-modules modules].freeze
-      DEFAULT_BASEMODULEPATH  = %w[
-        /etc/puppetlabs/code/modules
-        /opt/puppetlabs/puppet/modules
-      ].freeze
 
-      def self.load(repo_dir, basemodulepath: DEFAULT_BASEMODULEPATH)
-        new(repo_dir, basemodulepath: basemodulepath).load
+      def self.load(repo_dir)
+        new(repo_dir).load
       end
 
       # @return [Array<String>] every module directory on disk under the
       #   modulepath, in modulepath order
-      def self.module_dirs(repo_dir, basemodulepath: DEFAULT_BASEMODULEPATH)
-        new(repo_dir, basemodulepath: basemodulepath).module_dirs
+      def self.module_dirs(repo_dir)
+        new(repo_dir).module_dirs
       end
 
-      def initialize(repo_dir, basemodulepath: DEFAULT_BASEMODULEPATH)
-        @repo_dir       = repo_dir
-        @basemodulepath = Array(basemodulepath)
+      def initialize(repo_dir)
+        @repo_dir = repo_dir
       end
 
       def load
@@ -40,8 +36,8 @@ module Driftless
 
         modulepath_entries(env_conf).each do |entry|
           unless File.directory?(entry[:path])
-            # Only "explicit" entries (env.conf modulepath, user-supplied
-            # basemodulepath) get called out when missing — convention
+            # Only "explicit" entries (env.conf modulepath) get called out
+            # when missing — convention
             # defaults (site-modules, modules, Puppet's ./modules) are widely
             # optional and would be noise.
             if entry[:source] == :explicit && !expected_absent?(entry)
@@ -82,26 +78,24 @@ module Driftless
       # Returns [{path:, declared:, source:}, ...] in modulepath order.
       # `declared` is the entry as environment.conf spelled it, which is how a
       # reader will recognize it; `path` is the resolved absolute form.
-      # `source` is :explicit (declared in env.conf or user-supplied
-      # basemodulepath) or :convention (driftless/Puppet defaults).
+      # `source` is :explicit (declared in env.conf) or :convention
+      # (driftless/Puppet defaults). `$basemodulepath` contributes nothing.
       def modulepath_entries(env_conf)
         if env_conf.modulepath
           env_conf.modulepath.flat_map { |e| entries_for(e, source: :explicit) }
         elsif env_conf.exists?
           # env.conf present but no modulepath= line → Puppet's default.
-          entries_for('./modules', source: :convention) +
-            @basemodulepath.map { |p| { path: p, declared: p, source: :explicit } }
+          entries_for('./modules', source: :convention)
         else
           # No env.conf → driftless legacy fallback (site-modules is an r10k
           # convention, not a Puppet default).
-          DEFAULT_MODULEPATH_DIRS.flat_map { |d| entries_for(d, source: :convention) } +
-            @basemodulepath.map { |p| { path: p, declared: p, source: :explicit } }
+          DEFAULT_MODULEPATH_DIRS.flat_map { |d| entries_for(d, source: :convention) }
         end
       end
 
       def entries_for(token, source:)
         if token == '$basemodulepath'
-          @basemodulepath.map { |p| { path: p, declared: p, source: source } }
+          []
         elsif token.start_with?('/')
           [{ path: token, declared: token, source: source }]
         else

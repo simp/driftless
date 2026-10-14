@@ -75,7 +75,6 @@ module Driftless
             incoming_dir:                   @options[:incoming_dir],
             only:                           @options[:only],
             skip:                           @options[:skip],
-            basemodulepath:                 @options[:basemodulepath],
             environments:                   @options[:environments],
             proceed_with_subset_of_configured_envs: @options[:proceed_with_subset_of_configured_envs] || false,
             accept_duplicate_certnames:     @options[:accept_duplicate_certnames] || false,
@@ -154,7 +153,6 @@ module Driftless
 
         o.separator ''
         o.separator 'Other:'
-        o.on('--basemodulepath=PATH', 'Override $basemodulepath (colon-separated)') { |v| @options[:basemodulepath] = v.split(':') }
         o.on('--fail-on=TERMS',
              'Exit non-zero on findings: any (default), none, or',
              'comma-joined terms — a severity fails on itself or worse,',

@@ -28,7 +28,7 @@ module Driftless
           fatal!('list modules requires --repo-dir (auto-detection did not supply it)', help: true) unless repo
           fatal!("repo-dir not readable: #{repo.dir}", 3) unless repo.readable?
 
-          inventory = ::Driftless::ModuleInventory.new(repo.dir, basemodulepath: @options[:basemodulepath])
+          inventory = ::Driftless::ModuleInventory.new(repo.dir)
           entries   = inventory.entries
           inventory.warnings.each { |w| ::Driftless.logger.warn(w) }
           entries.each { |e| ::Driftless.logger.warn(e.metadata.error) if e.metadata.error }
@@ -47,7 +47,6 @@ module Driftless
           o.on('-d', '--repo-dir=DIR',
                'Path to the control repo environment',
                "Default: '.' (if environment.conf and hiera.yaml exist)") { |v| @options[:repo_dir] = v }
-          o.on('--basemodulepath=PATH', 'Override $basemodulepath (colon-separated)') { |v| @options[:basemodulepath] = v.split(':') }
           o.on('--git', 'Only modules the Puppetfile deploys from git') { @options[:git_only] = true }
           o.separator ''
           o.separator 'The ref column prefixes the declared ref with how the clone on disk compares:'

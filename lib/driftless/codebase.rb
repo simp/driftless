@@ -47,15 +47,13 @@ module Driftless
     TEMPLATE_DIRS = %w[site-modules modules].freeze
 
     # @param repo_dir [String] the control repo environment
-    # @param basemodulepath [Array<String>, nil] overrides $basemodulepath
     # @return [Result]
-    def self.load(repo_dir, basemodulepath: nil)
-      new(repo_dir, basemodulepath: basemodulepath).load
+    def self.load(repo_dir)
+      new(repo_dir).load
     end
 
-    def initialize(repo_dir, basemodulepath: nil)
-      @repo_dir       = repo_dir
-      @basemodulepath = basemodulepath
+    def initialize(repo_dir)
+      @repo_dir = repo_dir
     end
 
     # @return [Result]
@@ -67,7 +65,7 @@ module Driftless
       findings.concat(hl_findings)
       Driftless.logger.info("Loaded #{hiera_tiers.size} hierarchy tiers")
 
-      manifest_files, mpl_findings = phase('manifest discovery') { Inputs::ModulepathLoader.load(@repo_dir, **modulepath_args) }
+      manifest_files, mpl_findings = phase('manifest discovery') { Inputs::ModulepathLoader.load(@repo_dir) }
       findings.concat(mpl_findings)
       Driftless.logger.info("Discovered #{manifest_files.size} Puppet manifest files")
 
@@ -106,7 +104,7 @@ module Driftless
       Driftless.logger.info("Loaded #{data_files.size} Hiera data files")
 
       module_data_keys = phase('module data load') do
-        Inputs::ModuleDataLoader.load(Inputs::ModulepathLoader.module_dirs(@repo_dir, **modulepath_args))
+        Inputs::ModuleDataLoader.load(Inputs::ModulepathLoader.module_dirs(@repo_dir))
       end
       Driftless.logger.info("Loaded #{module_data_keys.size} keys from module data")
 
@@ -122,10 +120,6 @@ module Driftless
     end
 
     private
-
-    def modulepath_args
-      @basemodulepath ? { basemodulepath: @basemodulepath } : {}
-    end
 
     def epp_templates
       TEMPLATE_DIRS.flat_map do |rel|

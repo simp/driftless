@@ -31,7 +31,7 @@ module Driftless
           fatal!('modules resolve requires --repo-dir (auto-detection did not supply it)', help: true) unless repo
           fatal!("repo-dir not readable: #{repo.dir}", 3) unless repo.readable?
 
-          inventory = ::Driftless::ModuleInventory.new(repo.dir, basemodulepath: @options[:basemodulepath])
+          inventory = ::Driftless::ModuleInventory.new(repo.dir)
           resolver  = ::Driftless::ModuleResolver.new(operatingsystems: @options[:operatingsystems], exclude: @options[:exclude])
           current   = resolver.resolve(inventory.entries)
           log_warnings(inventory.warnings + current.warnings)
@@ -58,7 +58,6 @@ module Driftless
           o.on('-d', '--repo-dir=DIR',
                'Path to the control repo environment',
                "Default: '.' (if environment.conf and hiera.yaml exist)") { |v| @options[:repo_dir] = v }
-          o.on('--basemodulepath=PATH', 'Override $basemodulepath (colon-separated)') { |v| @options[:basemodulepath] = v.split(':') }
           o.on('--propose=PUPPETFILE',
                'Resolve as if PUPPETFILE replaced the current entries at the same paths;',
                'metadata for a changed module is read from its git remote.',

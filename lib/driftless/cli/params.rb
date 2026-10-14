@@ -18,7 +18,6 @@ module Driftless
           o.on('-d', '--repo-dir=DIR',
                'Path to the control repo environment',
                "Default: '.' (if environment.conf and hiera.yaml exist)") { |v| @options[:repo_dir] = v }
-          o.on('--basemodulepath=PATH', 'Override $basemodulepath (colon-separated)') { |v| @options[:basemodulepath] = v.split(':') }
         end
 
         # @return [ControlRepo]
@@ -33,7 +32,7 @@ module Driftless
         #
         # @return [Corpus]
         def load_corpus(repo)
-          code = ::Driftless::Codebase.load(repo.dir, basemodulepath: @options[:basemodulepath])
+          code = ::Driftless::Codebase.load(repo.dir)
           (code.warnings + code.findings.map(&:message)).each { |m| ::Driftless.logger.warn(m) }
           code.corpus(repo_dir: repo.dir)
         end

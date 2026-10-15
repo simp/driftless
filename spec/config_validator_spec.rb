@@ -29,6 +29,17 @@ RSpec.describe Driftless::ConfigValidator do
     end
   end
 
+  describe 'keys starting with a dot' do
+    it 'are left unchecked at every level, as holders for YAML anchors' do
+      cfg = Driftless::Config.new(merged: {
+        '.anchors'  => { 'envs' => %w[a b] },
+        'puppet'    => { '.shared' => 1, 'environments' => %w[a b] },
+        'detectors' => { '.common' => { 'x' => 1 }, 'defaults' => { '.y' => 2 } },
+      })
+      expect { described_class.new(cfg).validate! }.not_to raise_error
+    end
+  end
+
   describe 'nested subsystem keys' do
     it 'accepts a declared dotted key spelled as nested mappings' do
       cfg = Driftless::Config.new(merged: { 'import' => { 'git' => { 'repo' => 'https://x/r.git' } } })

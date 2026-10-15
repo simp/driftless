@@ -9,7 +9,8 @@ module Driftless
   # Strict validator for a loaded {Driftless::Config}. Rejects unknown
   # top-level subsystem keys, unknown detector keys under `detectors:`, and
   # unknown per-detector options. Uses stdlib {DidYouMean} for suggestions
-  # when a typo has a close match.
+  # when a typo has a close match. A key starting with `.` is not checked
+  # at any level: it is the place for YAML anchors other keys alias.
   #
   # Raises {Driftless::ConfigValidationError} on the first problem found.
   class ConfigValidator
@@ -46,7 +47,7 @@ module Driftless
 
     def check_top_level_keys
       known   = self.class.known_subsystems
-      unknown = @config.to_h.keys - known
+      unknown = @config.to_h.keys.reject { |k| anchor_holder?(k) } - known
       return if unknown.empty?
 
       first = unknown.first
@@ -71,7 +72,7 @@ module Driftless
     # Skips detectors, whose keys are detector names checked separately.
     def check_subsystem_keys
       @config.to_h.each do |subsystem, body|
-        next if subsystem == DETECTORS_SUBSYSTEM
+        next if subsystem == DETECTORS_SUBSYSTEM || anchor_holder?(subsystem)
         next unless body.is_a?(Hash)
 
         walk_keys(subsystem, [], body, ConfigKeys.settable(subsystem).map { |k| k.name.split('.') })
@@ -89,6 +90,8 @@ module Driftless
     # @raise [ConfigValidationError]
     def walk_keys(subsystem, prefix, body, paths)
       body.each do |key, value|
+        next if anchor_holder?(key)
+
         dotted = (prefix + [key.to_s]).join('.')
         deeper = paths.select { |p| p.first == key }
         next if deeper.any? { |p| p.size == 1 }
@@ -135,7 +138,7 @@ module Driftless
       Driftless::Detectors.registry.each { |k| known.add(k.key) }
 
       detectors_section.each_key do |section_key|
-        next if known.include?(section_key)
+        next if known.include?(section_key) || anchor_holder?(section_key)
 
         msg = "unknown detector key in config: #{section_key.inspect}"
         if (sug = suggest(section_key, known.to_a))
@@ -165,7 +168,7 @@ module Driftless
           end
 
         section_body.each_key do |opt|
-          next if known_options.include?(opt)
+          next if known_options.include?(opt) || anchor_holder?(opt)
 
           msg = "unknown option in detectors.#{section_key}: #{opt.inspect}"
           if (sug = suggest(opt, known_options.to_a))
@@ -186,6 +189,11 @@ module Driftless
         k.config_options.each_key { |name| set << name.to_s }
       end
       set
+    end
+
+    # A key kept for the anchors it holds, never read as a setting.
+    def anchor_holder?(key)
+      key.to_s.start_with?('.')
     end
 
     def suggest(input, candidates)

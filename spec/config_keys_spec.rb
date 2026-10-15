@@ -2,6 +2,7 @@ require 'spec_helper'
 require 'driftless/config_keys'
 require 'driftless/cli/export/factsets'
 require 'driftless/module_resolver'
+require 'driftless/cli/modules/resolve'
 require 'driftless/params_schema/validate'
 
 RSpec.describe Driftless::ConfigKeys do
@@ -22,6 +23,8 @@ RSpec.describe Driftless::ConfigKeys do
       'export.factsets.exclude_certnames' => Driftless::CLI::Export::Factsets,
       'modules.operatingsystems' => Driftless::ModuleResolver,
       'modules.exclude_modules' => Driftless::ModuleResolver,
+      'modules.resolve_order'      => Driftless::CLI::Modules::Resolve,
+      'modules.resolve_sort'       => Driftless::CLI::Modules::Resolve,
       'modules.exclude_dependencies' => Driftless::ModuleResolver,
       'modules.exclude_requirements' => Driftless::ModuleResolver,
       'modules.exclude_operatingsystems' => Driftless::ModuleResolver,

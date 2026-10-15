@@ -12,7 +12,8 @@ RSpec.describe Driftless::CLI::Modules::Resolve do
     File.write(File.join(dir, 'metadata.json'), JSON.generate(data))
   end
 
-  # apache needs stdlib < 9 and concat; stdlib is 9.4.0 and concat is absent.
+  # apache needs stdlib < 9 and concat; nginx needs stdlib < 9; stdlib is
+  # 9.4.0 and concat is absent.
   def control_repo(dir)
     File.write(File.join(dir, 'hiera.yaml'), "---\nversion: 5\nhierarchy: []\n")
     File.write(File.join(dir, 'environment.conf'), "modulepath = modules\n")
@@ -20,6 +21,9 @@ RSpec.describe Driftless::CLI::Modules::Resolve do
              'name' => 'puppetlabs-apache', 'version' => '10.0.0',
              'dependencies' => [{ 'name' => 'puppetlabs/stdlib', 'version_requirement' => '>= 4.0.0 < 9.0.0' },
                                 { 'name' => 'puppetlabs/concat', 'version_requirement' => '>= 2.0.0' }])
+    metadata(File.join(dir, 'modules/nginx'),
+             'name' => 'org-nginx', 'version' => '1.0.0',
+             'dependencies' => [{ 'name' => 'puppetlabs/stdlib', 'version_requirement' => '< 9.0.0' }])
     metadata(File.join(dir, 'modules/stdlib'), 'name' => 'puppetlabs-stdlib', 'version' => '9.4.0')
     File.write(File.join(dir, 'Puppetfile'), "mod 'puppetlabs-apache', '10.0.0'\nmod 'puppetlabs-stdlib', '9.4.0'\n")
   end
@@ -61,8 +65,37 @@ RSpec.describe Driftless::CLI::Modules::Resolve do
       expect(cells(out)).to eq([
         %w[conflict module subject detail],
         ['missing-dependency', 'puppetlabs-apache', 'puppetlabs/concat', 'needs puppetlabs/concat >= 2.0.0; not on the modulepath'],
+        ['dependency-version', 'org-nginx', 'puppetlabs/stdlib', 'needs puppetlabs/stdlib < 9.0.0; modules/stdlib is 9.4.0'],
         ['dependency-version', 'puppetlabs-apache', 'puppetlabs/stdlib', 'needs puppetlabs/stdlib >= 4.0.0 < 9.0.0; modules/stdlib is 9.4.0'],
       ])
+    end
+  end
+
+  it 'orders columns and sorts rows as asked, from flags or config' do
+    Dir.mktmpdir do |dir|
+      control_repo(dir)
+      status, out = run(['--no-config', '-d', dir, '--order', 'module,subject', '--sort-by', 'module'])
+      expect(status).to eq(1)
+      expect(cells(out).map { |r| r.first(3) }).to eq([
+        %w[module subject conflict],
+        ['org-nginx', 'puppetlabs/stdlib', 'dependency-version'],
+        ['puppetlabs-apache', 'puppetlabs/concat', 'missing-dependency'],
+        ['puppetlabs-apache', 'puppetlabs/stdlib', 'dependency-version'],
+      ])
+
+      cfg = File.join(dir, 'driftless.yaml')
+      File.write(cfg, "modules:\n  resolve_order: [subject]\n  resolve_sort: [subject, module]\n")
+      _, out = run(['-c', cfg, '-d', dir])
+      expect(cells(out).map { |r| r.first(2) }).to eq([
+        %w[subject conflict],
+        ['puppetlabs/concat', 'missing-dependency'],
+        ['puppetlabs/stdlib', 'dependency-version'],
+        ['puppetlabs/stdlib', 'dependency-version'],
+      ])
+      expect(cells(out).map { |r| r[2] }).to eq(%w[module puppetlabs-apache org-nginx puppetlabs-apache])
+
+      expect(run(['--no-config', '-d', dir, '--order', 'module,detail']).first).to eq(2)
+      expect(run(['--no-config', '-d', dir, '--sort-by', 'module,module']).first).to eq(2)
     end
   end
 
@@ -70,7 +103,7 @@ RSpec.describe Driftless::CLI::Modules::Resolve do
     Dir.mktmpdir do |dir|
       control_repo(dir)
       cfg = File.join(dir, 'driftless.yaml')
-      File.write(cfg, "modules:\n  exclude_dependencies:\n    - puppetlabs-apache\n")
+      File.write(cfg, "modules:\n  exclude_dependencies:\n    - puppetlabs-apache\n  exclude_modules:\n    - org-nginx\n")
       status, out = run(['-c', cfg, '-d', dir])
       expect(status).to eq(0)
       expect(out).to eq("(nothing matches)\n")
@@ -87,6 +120,7 @@ RSpec.describe Driftless::CLI::Modules::Resolve do
       expect(cells(out)).to eq([
         %w[change conflict module subject detail],
         ['-', 'missing-dependency', 'puppetlabs-apache', 'puppetlabs/concat', 'needs puppetlabs/concat >= 2.0.0; not on the modulepath'],
+        ['-', 'dependency-version', 'org-nginx', 'puppetlabs/stdlib', 'needs puppetlabs/stdlib < 9.0.0; modules/stdlib is 9.4.0'],
         ['-', 'dependency-version', 'puppetlabs-apache', 'puppetlabs/stdlib', 'needs puppetlabs/stdlib >= 4.0.0 < 9.0.0; modules/stdlib is 9.4.0'],
       ])
     end

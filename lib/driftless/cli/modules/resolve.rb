@@ -1,6 +1,7 @@
 require 'driftless/cli/base'
 require 'driftless/cli/modules'
 require 'driftless/cli/table'
+require 'driftless/config_keys'
 require 'driftless/control_repo'
 require 'driftless/module_inventory'
 require 'driftless/module_proposal'
@@ -16,11 +17,24 @@ module Driftless
       # leave, marked against the current ones.
       class Resolve < Base
         include Table
+        extend ::Driftless::ConfigKeys::DSL
 
         register_command name: 'resolve', subcommand_of: Modules
         desc 'Check modules against each other: dependencies, Puppet versions, operating systems'
 
-        COLUMNS = %w[conflict module subject detail].freeze
+        # The columns --order and --sort-by may name, in their default order;
+        # detail always comes last.
+        COLUMNS = %w[conflict module subject].freeze
+
+        config_key 'modules.resolve_order', type: :array, default: nil, example: COLUMNS,
+                   about: 'Left-to-right order of the conflict, module, and subject columns in `modules resolve`; ' \
+                          'columns left out keep their place after those named'
+        config_key 'modules.resolve_sort', type: :array, default: nil, example: COLUMNS,
+                   about: 'Which of conflict, module, and subject `modules resolve` sorts rows by, in precedence; ' \
+                          'columns left out break ties in their default order'
+
+        # What each named column shows for a conflict.
+        CELL = { 'conflict' => :kind, 'module' => :module, 'subject' => :subject }.freeze
 
         # Prefixed to each row under --propose: how the conflict relates to
         # the current Puppetfile's.
@@ -31,6 +45,8 @@ module Driftless
           fatal!('modules resolve requires --repo-dir (auto-detection did not supply it)', help: true) unless repo
           fatal!("repo-dir not readable: #{repo.dir}", 3) unless repo.readable?
           check_kinds!
+          @order = columns_from(@options[:order], '--order')
+          @sort  = columns_from(@options[:sort], '--sort-by')
 
           inventory = ::Driftless::ModuleInventory.new(repo.dir)
           resolver  = ::Driftless::ModuleResolver.new(operatingsystems: @options[:operatingsystems], exclude: @options[:exclude])
@@ -42,11 +58,11 @@ module Driftless
             result   = resolver.resolve(proposal.entries)
             log_warnings(proposal.warnings + result.warnings)
             shown = shown_rows(result)
-            print_table(['change'] + COLUMNS, change_rows(shown_rows(current), shown))
+            print_table(['change'] + @order + ['detail'], change_rows(shown_rows(current), shown))
           else
             result = current
             shown  = shown_rows(result)
-            print_table(COLUMNS, shown.map { |c| row(c) })
+            print_table(@order + ['detail'], shown.map { |c| row(c) })
           end
 
           ::Driftless.logger.info(summary(result, shown))
@@ -77,6 +93,13 @@ module Driftless
           o.on('--skip-conflicts=KINDS', Array, 'Drop these kinds') { |v| accumulate(:skip_conflicts, v) }
 
           o.separator ''
+          o.separator "Layout (columns: #{COLUMNS.join(', ')}; those left out follow in that order):"
+          o.on('--order=COLUMNS', Array, 'Column order, left to right (config: modules.resolve_order)') { |v| @options[:order] = v }
+          o.on('--sort-by=COLUMNS', Array, 'Sort rows by these columns, in precedence (config: modules.resolve_sort)') do |v|
+            @options[:sort] = v
+          end
+
+          o.separator ''
           o.separator 'Exits 1 when conflicts remain. In driftless.yaml, modules.operatingsystems names the'
           o.separator 'operating systems of interest, modules.exclude_modules leaves modules out of every check,'
           o.separator 'and modules.exclude_dependencies|requirements|operatingsystems drop known conflicts.'
@@ -85,7 +108,26 @@ module Driftless
         private
 
         def row(conflict)
-          [conflict.kind, conflict.module, conflict.subject, conflict.detail]
+          @order.map { |col| conflict.public_send(CELL.fetch(col)) } + [conflict.detail]
+        end
+
+        # Rows by the sort columns, then the rest in default order; kinds
+        # keep the resolver's order, names compare case-insensitively.
+        def sorted(conflicts)
+          conflicts.sort_by do |c|
+            @sort.map { |col| (col == 'conflict') ? ::Driftless::ModuleResolver::KINDS.index(c.kind) : c.public_send(CELL.fetch(col)).downcase }
+          end
+        end
+
+        # @param given [Array<String>, nil] the columns asked for
+        # @param flag [String] named in the usage error
+        # @return [Array<String>] the full column list, those given first
+        def columns_from(given, flag)
+          named = Array(given).map(&:to_s)
+          unknown = named - COLUMNS
+          fatal!("modules resolve: #{flag}: unknown column #{unknown.first.inspect} (known: #{COLUMNS.join(', ')})", help: true) if unknown.any?
+          fatal!("modules resolve: #{flag}: a column may be named once", help: true) if named.uniq.size != named.size
+          named + (COLUMNS - named)
         end
 
         # The proposed conflicts, then those the proposal resolves, each
@@ -107,9 +149,9 @@ module Driftless
           "modules resolve: #{count}, #{result.excluded} excluded; #{puppet}"
         end
 
-        # The conflicts the row filters let through, in the result's order.
+        # The conflicts the row filters let through, in the sort order.
         def shown_rows(result)
-          result.conflicts.select { |c| shown?(c) }
+          sorted(result.conflicts.select { |c| shown?(c) })
         end
 
         def shown?(conflict)
@@ -144,6 +186,8 @@ module Driftless
           cfg = ::Driftless.config
           {
             operatingsystems: cfg.dig('modules', 'operatingsystems'),
+            order:            cfg.dig('modules', 'resolve_order'),
+            sort:             cfg.dig('modules', 'resolve_sort'),
             exclude:          {
               'modules'          => cfg.dig('modules', 'exclude_modules'),
               'dependencies'     => cfg.dig('modules', 'exclude_dependencies'),

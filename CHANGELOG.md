@@ -34,6 +34,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `--propose` resolves as if `PUPPETFILE` replaced the current
     entries, fetching `metadata.json` from git for changed modules
   - row filters `--modules`, `--subjects`, `--conflicts`, and `--skip-conflicts CONFLICTS`
+  - `--order COLUMNS` and `--sort-by COLUMNS`
 - New subcommand `driftless params` to:
   - `record` every class parameter signatures across the repo to a schema file
   - `validate` hiera data against the signatures in that file, and

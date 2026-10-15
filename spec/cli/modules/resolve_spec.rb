@@ -92,6 +92,33 @@ RSpec.describe Driftless::CLI::Modules::Resolve do
     end
   end
 
+  it 'shows only the rows the filters select, and exits on those alone' do
+    Dir.mktmpdir do |dir|
+      control_repo(dir)
+      status, out = run(['--no-config', '-d', dir, '--conflicts', 'missing-dependency'])
+      expect(status).to eq(1)
+      expect(cells(out).map { |r| r.first(2) }).to eq([%w[conflict module], %w[missing-dependency puppetlabs-apache]])
+
+      status, out = run(['--no-config', '-d', dir, '--skip-conflicts', 'missing-dependency', '--modules', 'PUPPETLABS-*', '--subjects', '*/stdlib'])
+      expect(status).to eq(1)
+      expect(cells(out).map(&:first)).to eq(%w[conflict dependency-version])
+
+      status, out = run(['--no-config', '-d', dir, '--skip-conflicts', 'missing-dependency,dependency-version'])
+      expect([status, out]).to eq([0, "(nothing matches)\n"])
+
+      status, out = run(['--no-config', '-d', dir, '--subjects', 'nothing'])
+      expect([status, out]).to eq([0, "(nothing matches)\n"])
+    end
+  end
+
+  it 'rejects an unknown conflict kind' do
+    Dir.mktmpdir do |dir|
+      control_repo(dir)
+      status, = run(['--no-config', '-d', dir, '--conflicts', 'missing-deps'])
+      expect(status).to eq(2)
+    end
+  end
+
   it 'fails on a proposed Puppetfile that cannot be read' do
     Dir.mktmpdir do |dir|
       control_repo(dir)

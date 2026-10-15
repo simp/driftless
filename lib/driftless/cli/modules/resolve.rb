@@ -13,8 +13,8 @@ module Driftless
       # `driftless modules resolve`
       #
       # One row per conflict between the modules' metadata; exit 1 when any
-      # remain. With --propose, the conflicts a proposed Puppetfile would
-      # leave, marked against the current ones.
+      # remain. With --propose or --ignore, the conflicts a changed set of
+      # modules would leave, marked against the current ones.
       class Resolve < Base
         include Table
         extend ::Driftless::ConfigKeys::DSL
@@ -53,8 +53,9 @@ module Driftless
           current   = resolver.resolve(inventory.entries)
           log_warnings(inventory.warnings + current.warnings)
 
-          if @options[:propose]
-            proposal = ::Driftless::ModuleProposal.new(inventory, File.expand_path(@options[:propose]))
+          if @options[:propose] || @options[:ignore]
+            proposal = ::Driftless::ModuleProposal.new(inventory, @options[:propose] && File.expand_path(@options[:propose]),
+                                                       ignore: @options[:ignore] || [])
             result   = resolver.resolve(proposal.entries)
             log_warnings(proposal.warnings + result.warnings)
             shown = shown_rows(result)
@@ -81,6 +82,9 @@ module Driftless
                'Resolve as if PUPPETFILE replaced the current entries at the same paths;',
                'metadata for a changed module is read from its git remote.',
                'Rows are marked + (new conflict), - (resolved), or unchanged') { |v| @options[:propose] = v }
+          o.on('--ignore=MODULES', Array,
+               'Resolve as if these modules were removed (globs on name or path;',
+               'comma-separated, repeatable), with or without --propose') { |v| accumulate(:ignore, v) }
 
           o.separator ''
           o.separator 'Row filters (comma-separated, repeatable; globs are case-insensitive). Hidden rows'

@@ -80,6 +80,16 @@ RSpec.describe Driftless::ModuleProposal do
     ])
   end
 
+  it 'drops ignored modules by name or path, with or without a Puppetfile' do
+    control_repo(tmp)
+    inventory = Driftless::ModuleInventory.new(tmp)
+    expect(described_class.new(inventory, nil, ignore: ['org-std*', 'modules/forge']).entries.map(&:path)).to eq(['modules/concat'])
+    proposed = File.join(tmp, 'Puppetfile.new')
+    File.write(proposed, "mod 'org-extra', '1.0.0'\n")
+    expect(described_class.new(inventory, proposed, ignore: ['ORG-EXTRA']).entries.map(&:path))
+      .to eq(%w[modules/concat modules/forge modules/stdlib])
+  end
+
   it 'raises for a proposed Puppetfile that is absent or does not evaluate' do
     control_repo(tmp)
     inventory = Driftless::ModuleInventory.new(tmp)

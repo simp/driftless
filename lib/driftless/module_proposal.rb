@@ -5,10 +5,10 @@ require 'driftless/module_inventory'
 
 module Driftless
   # The module inventory as a proposed Puppetfile would leave it: each of
-  # its entries replaces the current entry at the same deploy path. Metadata
-  # is kept from the clone when it already sits at the proposed ref, and
-  # otherwise read from the remote; a Forge entry carries only the name and
-  # version the Puppetfile gives it.
+  # its entries replaces the current entry at the same deploy path, and
+  # ignored modules are dropped. Metadata is kept from the clone when it
+  # already sits at the proposed ref, and otherwise read from the remote; a
+  # Forge entry carries only the name and version the Puppetfile gives it.
   class ModuleProposal
     class Error < StandardError; end
 
@@ -16,11 +16,16 @@ module Driftless
     attr_reader :warnings
 
     # @param inventory [ModuleInventory] the repo as it is
-    # @param puppetfile_path [String] the proposed Puppetfile
+    # @param puppetfile_path [String, nil] the proposed Puppetfile; nil
+    #   proposes no replacements
+    # @param ignore [Array<String>] globs (case-insensitive) of modules to
+    #   drop, matched against the declared name in either spelling, the
+    #   metadata name, and the deploy path
     # @param remote [#call] builds the {GitRemote} for a URL; injectable
-    def initialize(inventory, puppetfile_path, remote: ->(url) { GitRemote.new(url) })
+    def initialize(inventory, puppetfile_path, ignore: [], remote: ->(url) { GitRemote.new(url) })
       @inventory = inventory
       @path      = puppetfile_path
+      @ignore    = Array(ignore).map(&:to_s)
       @remote    = remote
       @warnings  = []
     end
@@ -29,17 +34,34 @@ module Driftless
     # @raise [Error] when the proposed Puppetfile is absent or does not evaluate
     def entries
       @entries ||= begin
-        proposed = Inputs::Puppetfile.load_file(@path)
-        raise Error, "#{@path}: no such file" unless proposed.exists?
-        raise Error, "#{@path}: #{proposed.error}" if proposed.error
-
         merged = @inventory.entries.to_h { |e| [e.path, e] }
-        proposed.modules.each { |m| merged[m.path] = entry_for(m, merged[m.path]) }
-        merged.values.sort_by(&:path)
+        proposed_modules.each { |m| merged[m.path] = entry_for(m, merged[m.path]) }
+        merged.values.reject { |e| ignored?(e) }.sort_by(&:path)
       end
     end
 
     private
+
+    # @return [Array<Inputs::Puppetfile::Module>] none without a Puppetfile
+    def proposed_modules
+      return [] unless @path
+
+      proposed = Inputs::Puppetfile.load_file(@path)
+      raise Error, "#{@path}: no such file" unless proposed.exists?
+      raise Error, "#{@path}: #{proposed.error}" if proposed.error
+
+      proposed.modules
+    end
+
+    # Names compare with "/" and "-" as one, so `org/mod` and `org-mod` match
+    # each other; the path compares as written.
+    def ignored?(entry)
+      names = [entry.metadata.name, entry.declared&.name].compact.map { |n| n.tr('/', '-') }
+      @ignore.any? do |g|
+        File.fnmatch?(g, entry.path, File::FNM_CASEFOLD) ||
+          names.any? { |n| File.fnmatch?(g.tr('/', '-'), n, File::FNM_CASEFOLD) }
+      end
+    end
 
     def entry_for(declared, current)
       if current && same_source?(declared, current)

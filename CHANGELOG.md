@@ -33,6 +33,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - identifies conflicts and exit 1 when any are present
   - `--propose` resolves as if `PUPPETFILE` replaced the current
     entries, fetching `metadata.json` from git for changed modules
+  - `--ignore MODULES` resolves as if those modules were removed
   - row filters `--modules`, `--subjects`, `--conflicts`, and `--skip-conflicts CONFLICTS`
   - `--order COLUMNS` and `--sort-by COLUMNS`
 - New subcommand `driftless params` to:

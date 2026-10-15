@@ -153,6 +153,33 @@ RSpec.describe Driftless::CLI::Modules::Resolve do
     end
   end
 
+  it 'resolves as if ignored modules were removed, with or without a proposal' do
+    Dir.mktmpdir do |dir|
+      control_repo(dir)
+      status, out = run(['--no-config', '-d', dir, '--ignore', 'PUPPETLABS/STDLIB'])
+      expect(status).to eq(1)
+      expect(cells(out).map { |r| r.first(4) }).to eq([
+        %w[change conflict module subject],
+        ['+', 'missing-dependency', 'org-nginx', 'puppetlabs/stdlib'],
+        ['', 'missing-dependency', 'puppetlabs-apache', 'puppetlabs/concat'],
+        ['+', 'missing-dependency', 'puppetlabs-apache', 'puppetlabs/stdlib'],
+        ['-', 'dependency-version', 'org-nginx', 'puppetlabs/stdlib'],
+        ['-', 'dependency-version', 'puppetlabs-apache', 'puppetlabs/stdlib'],
+      ])
+
+      proposed = File.join(dir, 'Puppetfile.new')
+      File.write(proposed, "mod 'puppetlabs-concat', '9.0.0'\n")
+      status, out = run(['--no-config', '-d', dir, '--propose', proposed, '--ignore', 'modules/nginx,modules/apache'])
+      expect(status).to eq(0)
+      expect(cells(out).map { |r| r.first(3) }).to eq([
+        %w[change conflict module],
+        ['-', 'missing-dependency', 'puppetlabs-apache'],
+        ['-', 'dependency-version', 'org-nginx'],
+        ['-', 'dependency-version', 'puppetlabs-apache'],
+      ])
+    end
+  end
+
   it 'fails on a proposed Puppetfile that cannot be read' do
     Dir.mktmpdir do |dir|
       control_repo(dir)

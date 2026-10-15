@@ -81,6 +81,17 @@ RSpec.describe Driftless::ModuleInventory do
     expect(entries.map(&:found)).to eq([nil, 'v1', nil, nil, '1.0.0', nil, nil, nil])
   end
 
+  it 'finds a module by path, declared name, or metadata name, in either spelling' do
+    control_repo(tmp)
+    inventory = described_class.new(tmp)
+    expect(inventory.find('modules/stdlib')&.path).to eq('modules/stdlib')
+    expect(inventory.find('puppetlabs/stdlib')&.path).to eq('modules/stdlib')
+    expect(inventory.find('PUPPETLABS-STDLIB')&.path).to eq('modules/stdlib')
+    expect(inventory.find('org-stale')&.path).to eq('modules/stale')
+    expect(inventory.find('stdlib')&.path).to eq('modules/stdlib')
+    expect(inventory.find('nope')).to be_nil
+  end
+
   it 'lists the modulepath directories with a warning when the Puppetfile does not evaluate' do
     control_repo(tmp)
     File.write(File.join(tmp, 'Puppetfile'), "raise 'boom'\n")

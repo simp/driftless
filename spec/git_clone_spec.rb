@@ -65,6 +65,20 @@ RSpec.describe Driftless::GitClone do
     expect(described_class.new(deployed).resolve('main')).to eq(clone.sha)
   end
 
+  it 'fetches origin and logs a range' do
+    upstream = File.join(tmp, 'up')
+    deployed = File.join(tmp, 'dep')
+    repo(upstream)
+    git(tmp, 'clone', '-q', upstream, deployed)
+    git(upstream, 'commit', '-q', '--allow-empty', '-m', 'three')
+    clone = described_class.new(deployed)
+    expect(clone.log('HEAD..origin/main')).to eq('')
+    expect(clone.fetch).not_to be_nil
+    expect(clone.log('HEAD..origin/main')).to match(%r{\A[0-9a-f]+ \(origin/main, origin/HEAD\) three\z})
+    expect(clone.log('-n', '1', 'HEAD')).to match(/ two\z/)
+    expect(described_class.new(tmp).fetch).to be_nil
+  end
+
   it 'names a tag at HEAD' do
     repo(tmp)
     clone = described_class.new(tmp)

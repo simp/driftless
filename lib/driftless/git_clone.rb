@@ -64,6 +64,21 @@ module Driftless
       nil
     end
 
+    # Updates the remote-tracking refs and tags from `origin`.
+    #
+    # @return [String, nil] git's output, empty when quiet; nil when the
+    #   fetch failed
+    def fetch
+      output('fetch', '--quiet', '--tags', 'origin')
+    end
+
+    # @param args [Array<String>] `git log` arguments after the defaults
+    # @return [String, nil] the log, one line per commit with refs decorated;
+    #   nil when git fails
+    def log(*args)
+      output('log', '--oneline', '--decorate', *args)
+    end
+
     private
 
     def output(*args)

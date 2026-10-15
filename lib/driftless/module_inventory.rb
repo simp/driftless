@@ -45,6 +45,21 @@ module Driftless
       @warnings = []
     end
 
+    # The module a user names, tried as a deploy path, the last segment of
+    # one, a declared name, then a metadata name, with "/" and "-" as one
+    # in names.
+    #
+    # @param selector [String]
+    # @return [Entry, nil]
+    def find(selector)
+      given  = selector.to_s
+      wanted = given.tr('/', '-')
+      entries.find { |e| e.path.casecmp?(given) } ||
+        entries.find { |e| File.basename(e.path).casecmp?(given) } ||
+        entries.find { |e| e.declared&.name&.tr('/', '-')&.casecmp?(wanted) } ||
+        entries.find { |e| e.metadata.name&.tr('/', '-')&.casecmp?(wanted) }
+    end
+
     # @return [Array<Entry>] sorted by path
     def entries
       @entries ||= begin

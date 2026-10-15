@@ -16,11 +16,15 @@ module Driftless
                about: 'Operating systems, with releases, that every module declaring operatingsystem_support ' \
                       'must include. A release matches as written or as the major of a dotted release. ' \
                       'Empty: operating systems are not checked'
+    config_key 'modules.exclude_modules', type: :array, default: [],
+               about: 'Globs (case-insensitive) of module names left out of every check: never a row, ' \
+                      'a dependency anyone is held to, or a module another is compared with'
     config_key 'modules.exclude_dependencies', type: :array, default: [],
-               about: 'Globs (case-insensitive) dropping dependency conflicts: matched against the module, ' \
-                      'the dependency, or module:dependency'
+               about: 'Globs (case-insensitive) dropping dependency conflicts, which are edges, not modules: ' \
+                      'matched against the depending module, the dependency, or module:dependency'
     config_key 'modules.exclude_requirements', type: :array, default: [],
-               about: 'Globs (case-insensitive) dropping Puppet-version conflicts: matched against the module'
+               about: 'Globs (case-insensitive) dropping Puppet-version conflicts: matched against the module, ' \
+                      'and against each module it disagrees with, which then no longer counts against it'
     config_key 'modules.exclude_operatingsystems', type: :array, default: [],
                about: 'Globs (case-insensitive) dropping operating-system conflicts: matched against the module, ' \
                       '"OS release", or "module:OS release"'
@@ -61,7 +65,7 @@ module Driftless
     # @param operatingsystems [Hash{String => Array<String>, String, nil}]
     #   `modules.operatingsystems`: OS name => releases of interest, or none
     # @param exclude [Hash{String => Array<String>}] the `modules.exclude_*`
-    #   globs, keyed dependencies, requirements, operatingsystems
+    #   globs, keyed modules, dependencies, requirements, operatingsystems
     def initialize(operatingsystems: {}, exclude: {})
       @operatingsystems = (operatingsystems || {}).to_h { |os, rel| [os.to_s, Array(rel).map(&:to_s)] }
       @exclude = (exclude || {}).to_h { |list, globs| [list.to_s, Array(globs).map(&:to_s)] }
@@ -70,13 +74,13 @@ module Driftless
     # @param entries [Array<ModuleInventory::Entry>]
     # @return [Result]
     def resolve(entries)
-      mods     = entries.select { |e| e.metadata.name && e.metadata.error.nil? }
+      mods     = entries.select { |e| e.metadata.name && e.metadata.error.nil? && !excluded_module?(e.metadata.name) }
       warnings = []
-      puppet_conflicts, puppet_range = puppet(mods, warnings)
+      puppet_conflicts, puppet_range, suppressed = puppet(mods, warnings)
       conflicts = dependencies(mods, warnings) + puppet_conflicts + operatingsystems(mods)
       kept, dropped = conflicts.partition { |c| !excluded?(c) }
       Result.new(conflicts: kept.sort_by { |c| [KINDS.index(c.kind), c.module, c.subject] },
-                 excluded: dropped.size, puppet_range: puppet_range, warnings: warnings)
+                 excluded: dropped.size + suppressed, puppet_range: puppet_range, warnings: warnings)
     end
 
     private
@@ -85,6 +89,8 @@ module Driftless
       by_name = mods.to_h { |e| [normalize(e.metadata.name), e] }
       mods.flat_map do |e|
         e.metadata.dependencies.filter_map do |dep, requirement|
+          next if excluded_module?(dep)
+
           range = range_for(requirement, "#{e.metadata.name}: dependency #{dep}", warnings)
           next unless range
 
@@ -104,10 +110,11 @@ module Driftless
     end
 
     # Each module against the rest, pairwise: a module is in conflict with
-    # every module whose Puppet range shares no version with its own.
+    # every module whose Puppet range shares no version with its own, the
+    # ones `exclude_requirements` names left out.
     #
-    # @return [Array(Array<Conflict>, String|nil)] conflicts and the range
-    #   every module allows
+    # @return [Array(Array<Conflict>, String|nil, Integer)] conflicts, the
+    #   range every module allows, and how many rows the exclusions emptied
     def puppet(mods, warnings)
       ranges = mods.filter_map do |e|
         declared = e.metadata.requirements.values_at(*Inputs::ModuleMetadata::PUPPET_REQUIREMENT_NAMES).compact
@@ -115,10 +122,13 @@ module Driftless
         [e, parsed.reduce { |a, b| a.intersection(b) }] unless parsed.empty?
       end
       overall = ranges.map(&:last).reduce(ALL) { |a, b| a.intersection(b) }
-      return [[], overall.to_s] unless overall == EMPTY
+      return [[], overall.to_s, 0] unless overall == EMPTY
 
-      conflicts = ranges.filter_map do |e, range|
-        against = ranges.reject { |other, r| other.equal?(e) || range.intersection(r) != EMPTY }
+      suppressed = 0
+      conflicts  = ranges.filter_map do |e, range|
+        disagreeing = ranges.reject { |other, r| other.equal?(e) || range.intersection(r) != EMPTY }
+        against     = disagreeing.reject { |other, _| matches?('requirements', other.metadata.name) }
+        suppressed += 1 if against.empty? && disagreeing.any?
         next if against.empty?
 
         named = against.first(5).map { |other, r| "#{other.metadata.name} (#{r})" }
@@ -126,7 +136,7 @@ module Driftless
         Conflict.new(kind: 'puppet-version', module: e.metadata.name, subject: 'puppet',
                      detail: "requires puppet #{range}; no version in common with #{named.join(', ')}")
       end
-      [conflicts, nil]
+      [conflicts, nil, suppressed]
     end
 
     def operatingsystems(mods)
@@ -159,9 +169,17 @@ module Driftless
     end
 
     def excluded?(conflict)
-      globs = @exclude.fetch(EXCLUDE_LIST.fetch(conflict.kind), [])
-      candidates = [conflict.module, conflict.subject, "#{conflict.module}:#{conflict.subject}"]
-      globs.any? { |g| candidates.any? { |c| File.fnmatch?(g, c, File::FNM_CASEFOLD) } }
+      matches?(EXCLUDE_LIST.fetch(conflict.kind), conflict.module, conflict.subject, "#{conflict.module}:#{conflict.subject}")
+    end
+
+    # A module `exclude_modules` names, by either spelling of its name.
+    def excluded_module?(name)
+      matches?('modules', name, normalize(name))
+    end
+
+    # Whether any glob in the named exclusion list matches any candidate.
+    def matches?(list, *candidates)
+      @exclude.fetch(list, []).any? { |g| candidates.any? { |c| File.fnmatch?(g, c, File::FNM_CASEFOLD) } }
     end
 
     # Forge names are "owner-module"; dependencies often write "owner/module".

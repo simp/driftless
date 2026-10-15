@@ -97,10 +97,10 @@ RSpec.describe Driftless::ModuleResolver do
       ['operatingsystem', 'b', 'Ubuntu 22.04'],
     ])
     expect(result.conflicts.map(&:detail)).to eq([
-      'declares no support for Debian (supports RedHat, Ubuntu)',
-      'declares no support for RedHat 9 (supports RedHat 7, 8)',
-      'declares no support for Debian (supports redhat)',
-      'declares no support for Ubuntu (supports redhat)',
+      'missing Debian (declared: RedHat, Ubuntu)',
+      'missing RedHat 9 (declared: RedHat 7, 8)',
+      'missing Debian (declared: redhat)',
+      'missing Ubuntu (declared: redhat)',
     ])
   end
 
@@ -111,8 +111,31 @@ RSpec.describe Driftless::ModuleResolver do
     ]
     exclude = { 'dependencies' => ['A:MISS*'], 'requirements' => ['b'], 'operatingsystems' => ['redhat 9'] }
     result = resolve(entries, operatingsystems: { 'RedHat' => ['9'] }, exclude: exclude)
-    expect(keys(result)).to eq([%w[puppet-version a puppet]])
-    expect(result.excluded).to eq(3)
+    expect(keys(result)).to eq([])
+    expect(result.excluded).to eq(4)
+  end
+
+  it 'drops an excluded counterpart from a Puppet-version row, and the row when none remain' do
+    entries = [entry('old', puppet: '< 7.0.0'), entry('new', puppet: '>= 8.0.0'), entry('newer', puppet: '>= 8.1.0')]
+    result  = resolve(entries, exclude: { 'requirements' => ['new'] })
+    expect(result.conflicts.map { |c| [c.module, c.detail] }).to eq([
+      ['newer', 'requires puppet >= 8.1.0; no version in common with old (< 7.0.0)'],
+      ['old', 'requires puppet < 7.0.0; no version in common with newer (>= 8.1.0)'],
+    ])
+    expect(result.excluded).to eq(1)
+  end
+
+  it 'leaves an excluded module out of every check' do
+    entries = [
+      entry('a', deps: { 'org/gone' => '>= 1.0.0', 'c' => nil }, puppet: '>= 8.0.0'),
+      entry('org-gone', version: '0.1.0', deps: { 'nope' => nil }, puppet: '< 7.0.0'),
+      entry('c', puppet: '>= 7.0.0'),
+    ]
+    expect(keys(resolve(entries)).map(&:first)).to eq(%w[missing-dependency dependency-version puppet-version puppet-version puppet-version])
+    result = resolve(entries, exclude: { 'modules' => ['org-*'] })
+    expect(result.conflicts).to eq([])
+    expect(result.excluded).to eq(0)
+    expect(result.puppet_range).to eq('>=8.0.0')
   end
 
   it 'ignores entries without a metadata name or with unreadable metadata' do

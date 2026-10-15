@@ -41,6 +41,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `params.exclude_paths|classes|modules|params`
 - New config file subsystem `modules`:
   - `modules.operatingsystems`: the OS releases every module must declare support for
+  - `modules.exclude_modules`: globs of modules left out of every check
   - `modules.exclude_dependencies`, `modules.exclude_requirements`,
     `modules.exclude_operatingsystems`: globs dropping known conflicts of each kind
 - `driftless.yaml`

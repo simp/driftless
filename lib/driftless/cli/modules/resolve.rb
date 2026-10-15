@@ -63,8 +63,9 @@ module Driftless
                'metadata for a changed module is read from its git remote.',
                'Rows are marked + (new conflict), - (resolved), or unchanged') { |v| @options[:propose] = v }
           o.separator ''
-          o.separator 'Exits 1 when conflicts remain. modules.operatingsystems and modules.exclude_*'
-          o.separator 'in driftless.yaml set the operating systems of interest and drop known conflicts.'
+          o.separator 'Exits 1 when conflicts remain. In driftless.yaml, modules.operatingsystems names the'
+          o.separator 'operating systems of interest, modules.exclude_modules leaves modules out of every check,'
+          o.separator 'and modules.exclude_dependencies|requirements|operatingsystems drop known conflicts.'
         end
 
         private
@@ -97,6 +98,7 @@ module Driftless
           {
             operatingsystems: cfg.dig('modules', 'operatingsystems'),
             exclude:          {
+              'modules'          => cfg.dig('modules', 'exclude_modules'),
               'dependencies'     => cfg.dig('modules', 'exclude_dependencies'),
               'requirements'     => cfg.dig('modules', 'exclude_requirements'),
               'operatingsystems' => cfg.dig('modules', 'exclude_operatingsystems'),

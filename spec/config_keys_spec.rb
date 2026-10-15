@@ -21,6 +21,7 @@ RSpec.describe Driftless::ConfigKeys do
       'import.archive_old_reports' => Driftless::Import::Cleanup,
       'export.factsets.exclude_certnames' => Driftless::CLI::Export::Factsets,
       'modules.operatingsystems' => Driftless::ModuleResolver,
+      'modules.exclude_modules' => Driftless::ModuleResolver,
       'modules.exclude_dependencies' => Driftless::ModuleResolver,
       'modules.exclude_requirements' => Driftless::ModuleResolver,
       'modules.exclude_operatingsystems' => Driftless::ModuleResolver,

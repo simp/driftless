@@ -78,6 +78,29 @@ RSpec.describe Driftless::CLI::Modules::Gitlog do
     end
   end
 
+  it 'follows the branch a branchfile names when no ref is given' do
+    Dir.mktmpdir do |dir|
+      up = control_repo(dir)
+      File.write(File.join(dir, 'branches.yaml'), "puppetlabs/stdlib: main\n")
+      status, out = run(['--no-config', '-d', dir, 'stdlib', '--branchfile', 'branches.yaml'])
+      expect(status).to eq(0)
+      expect(subjects(out)).to match([a_string_matching(/ two\z/)])
+
+      File.write(File.join(dir, 'Branchfile'), "mod 'puppetlabs-stdlib', git: '#{up}', branch: 'main'\nmod 'org-forge', '1.0.0'\n")
+      cfg = File.join(dir, 'driftless.yaml')
+      File.write(cfg, "modules:\n  branchfile: Branchfile\n")
+      status, out = run(['-c', cfg, '-d', dir, 'stdlib'])
+      expect(status).to eq(0)
+      expect(subjects(out)).to match([a_string_matching(/ two\z/)])
+
+      File.write(File.join(dir, 'branches.yaml'), "other: main\n")
+      status, out = run(['--no-config', '-d', dir, 'stdlib', '--branchfile', 'branches.yaml'])
+      expect(status).to eq(0)
+      expect(subjects(out)).to match([a_string_matching(/ one\z/)])
+      expect(run(['--no-config', '-d', dir, 'stdlib', '--branchfile', 'nope.yaml']).first).to eq(3)
+    end
+  end
+
   it 'shows the clone\'s own history without a ref' do
     Dir.mktmpdir do |dir|
       control_repo(dir)

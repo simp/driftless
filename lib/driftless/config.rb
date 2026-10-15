@@ -89,14 +89,14 @@ module Driftless
     # @raise [ConfigLoadError] if the file is unreadable or contains invalid YAML.
     def self.load_file(path)
       raw    = File.read(path)
-      parsed = YAML.safe_load(raw, permitted_classes: PERMITTED_YAML_CLASSES, aliases: false, filename: path)
+      parsed = YAML.safe_load(raw, permitted_classes: PERMITTED_YAML_CLASSES, aliases: true, filename: path)
       case parsed
       when nil  then {}   # empty file
       when Hash then parsed
       else
         raise ConfigLoadError, "#{path}: top-level YAML must be a mapping, got #{parsed.class}"
       end
-    rescue Psych::SyntaxError => e
+    rescue Psych::SyntaxError, Psych::BadAlias => e
       raise ConfigLoadError, "#{path}: invalid YAML — #{e.message}"
     rescue Errno::ENOENT
       raise ConfigLoadError, "#{path}: file not found"

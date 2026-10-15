@@ -43,6 +43,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `modules.operatingsystems`: the OS releases every module must declare support for
   - `modules.exclude_dependencies`, `modules.exclude_requirements`,
     `modules.exclude_operatingsystems`: globs dropping known conflicts of each kind
+- `driftless.yaml` resolves YAML anchors, aliases, and merge keys
 - New config file subsystem `export`:
   - `export.factsets.exclude_certnames`: certname globs `export factsets` never exports
 

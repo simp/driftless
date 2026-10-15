@@ -165,6 +165,35 @@ RSpec.describe Driftless::Config do
         end
       end
 
+      it 'resolves anchors, aliases, and merge keys' do
+        with_isolated_env do |cwd:, **|
+          write_project_config(cwd, <<~YAML)
+            puppet:
+              environments: &envs [production, dev]
+              top_scope_variables: &vars
+                site_region: [east, west]
+            export:
+              factsets:
+                exclude_certnames: *envs
+            modules:
+              operatingsystems:
+                <<: *vars
+                RedHat: ['9']
+          YAML
+          cfg = described_class.load
+          expect(cfg.dig('export', 'factsets', 'exclude_certnames')).to eq(%w[production dev])
+          expect(cfg.dig('modules', 'operatingsystems')).to eq('site_region' => %w[east west], 'RedHat' => ['9'])
+        end
+      end
+
+      it 'raises on an alias with no anchor' do
+        with_isolated_env do |cwd:, **|
+          write_project_config(cwd, "puppet:\n  environments: *nope\n")
+          expect { described_class.load }
+            .to raise_error(Driftless::ConfigLoadError, /invalid YAML/)
+        end
+      end
+
       it 'raises when top-level YAML is not a mapping (e.g. a bare string)' do
         with_isolated_env do |cwd:, **|
           write_project_config(cwd, "just a string\n")

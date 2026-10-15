@@ -36,7 +36,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `--ignore MODULES` resolves as if those modules were removed
   - row filters `--modules`, `--subjects`, `--conflicts`, and `--skip-conflicts CONFLICTS`
   - `--order COLUMNS` and `--sort-by COLUMNS`
-- New subcommand `driftless modules gitlog MODULE [REF] [-n NUM] [-f] [--fetch]`: display a deployed module's git log along its branch
+- New subcommand `driftless modules gitlog MODULE [REF] [-n NUM] [-f] [--fetch]`: display a deployed module's git log along its branch to see updates
+- New subcommand `driftless modules update MODULE REF [--dry-run]`: updates deployed module to REF
 - New subcommand `driftless params` to:
   - `record` every class parameter signatures across the repo to a schema file
   - `validate` hiera data against the signatures in that file, and

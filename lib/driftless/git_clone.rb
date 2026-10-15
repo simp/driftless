@@ -72,6 +72,21 @@ module Driftless
       output('fetch', '--quiet', '--tags', 'origin')
     end
 
+    # @return [Boolean, nil] whether the work tree has uncommitted changes;
+    #   nil when git cannot say
+    def dirty?
+      out = output('status', '--porcelain')
+      out && !out.empty?
+    end
+
+    # Checks out a commit, detached, the way r10k deploys.
+    #
+    # @param sha [String]
+    # @return [String, nil] git's output; nil when the checkout failed
+    def checkout(sha)
+      output('checkout', '--quiet', '--detach', sha)
+    end
+
     # @param args [Array<String>] `git log` arguments after the defaults
     # @return [String, nil] the log, one line per commit with refs decorated;
     #   nil when git fails

@@ -195,6 +195,20 @@ RSpec.describe Driftless::CLI::Modules::Resolve do
     end
   end
 
+  it 'takes exclusions from flags, added to the config lists' do
+    Dir.mktmpdir do |dir|
+      control_repo(dir)
+      status, out = run(['--no-config', '-d', dir, '--exclude-deps', '*:*/concat', '--exclude-modules', 'org-nginx'])
+      expect(status).to eq(1)
+      expect(cells(out).map { |r| r.first(2) }).to eq([%w[conflict module], %w[dependency-version puppetlabs-apache]])
+
+      cfg = File.join(dir, 'driftless.yaml')
+      File.write(cfg, "modules:\n  exclude_dependencies:\n    - '*:*/concat'\n")
+      status, out = run(['-c', cfg, '-d', dir, '--exclude-dependencies', 'puppetlabs-apache:*/stdlib', '--exclude-modules', 'ORG-*'])
+      expect([status, out]).to eq([0, "(nothing matches)\n"])
+    end
+  end
+
   it 'fails on a proposed Puppetfile that cannot be read' do
     Dir.mktmpdir do |dir|
       control_repo(dir)

@@ -49,7 +49,7 @@ module Driftless
           @sort  = columns_from(@options[:sort], '--sort-by')
 
           inventory = ::Driftless::ModuleInventory.new(repo.dir)
-          resolver  = ::Driftless::ModuleResolver.new(operatingsystems: @options[:operatingsystems], exclude: @options[:exclude],
+          resolver  = ::Driftless::ModuleResolver.new(operatingsystems: @options[:operatingsystems], exclude: exclusions,
                                                       requirements: @options[:requirements])
           current   = resolver.resolve(inventory.entries)
           log_warnings(inventory.warnings + current.warnings)
@@ -96,6 +96,16 @@ module Driftless
             accumulate(:conflicts, v)
           end
           o.on('--skip-conflicts=KINDS', Array, 'Drop these kinds') { |v| accumulate(:skip_conflicts, v) }
+
+          o.separator ''
+          o.separator 'Exclusions (comma-separated, repeatable; each adds to its modules.exclude_* list):'
+          o.on('--exclude-modules=GLOBS', Array, 'Leave these modules out of every check') { |v| exclude('modules', v) }
+          o.on('--exclude-deps=GLOBS', '--exclude-dependencies=GLOBS', Array,
+               'Drop dependency conflicts matching module, dependency, or module:dependency') { |v| exclude('dependencies', v) }
+          o.on('--exclude-requirements=GLOBS', Array,
+               'Drop Puppet-version conflicts matching the module or a module it disagrees with') { |v| exclude('requirements', v) }
+          o.on('--exclude-operatingsystems=GLOBS', Array,
+               'Drop operating-system conflicts matching module, "OS release", or module:OS release') { |v| exclude('operatingsystems', v) }
 
           o.separator ''
           o.separator "Layout (columns: #{COLUMNS.join(', ')}; those left out follow in that order):"
@@ -181,6 +191,21 @@ module Driftless
 
         def accumulate(key, values)
           (@options[key] ||= []).concat(values)
+        end
+
+        # Adds flag values to one exclusion list, kept apart from the
+        # config's until {exclusions} joins them.
+        def exclude(list, values)
+          ((@options[:exclude_flags] ||= {})[list] ||= []).concat(values)
+        end
+
+        # The config's modules.exclude_* lists with the flags' globs added.
+        #
+        # @return [Hash{String => Array<String>}]
+        def exclusions
+          config = @options[:exclude] || {}
+          flags  = @options[:exclude_flags] || {}
+          (config.keys | flags.keys).to_h { |list| [list, Array(config[list]) + Array(flags[list])] }
         end
 
         def log_warnings(warnings)

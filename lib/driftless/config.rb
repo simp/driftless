@@ -14,7 +14,9 @@ module Driftless
   #
   # Any file may name further files under `.include:`; each is a layer
   # merged before the file naming it, so the includer wins on scalars and
-  # lists union, and includes nest.
+  # lists union, and includes nest. A value tagged `!reference [key, ...]`
+  # is replaced by the merged config's value at that path, after every
+  # file has merged, so one file may point at a value another holds.
   #
   # @!attribute [r] sources
   #   @return [Array<String>] Absolute paths of every file that actually
@@ -29,6 +31,14 @@ module Driftless
     # relative to its own directory. Dropped from the merged config.
     INCLUDE_KEY = '.include'.freeze
 
+    # The tag on a list of keys that stands for the merged config's value
+    # at that path; an unquoted integer indexes a list.
+    REFERENCE_TAG = '!reference'.freeze
+
+    # What a tagged node becomes until the merge is complete: this prefix
+    # and its index in the references read during the load.
+    PLACEHOLDER = "\u0000driftless:ref:".freeze
+
     PERMITTED_YAML_CLASSES = [
       Hash, Array, String, Integer, Float, TrueClass, FalseClass, NilClass,
     ].freeze
@@ -41,8 +51,10 @@ module Driftless
     # @param no_config [Boolean] If true, skip all files + return empty config
     # @return [Config] Loaded config instance.
     def self.load(config_path: nil, no_config: false)
-      sources = discover_sources(config_path: config_path, no_config: no_config)
+      references = []
+      sources = discover_sources(config_path: config_path, no_config: no_config, references: references)
       merged  = sources.reduce({}) { |acc, (_path, data)| deep_merge(acc, data) }
+      merged  = resolve_references(merged, references)
       new(merged: merged, sources: sources.map(&:first))
     end
 
@@ -72,8 +84,10 @@ module Driftless
     # Returns the sources that actually exist on disk (or just the
     # explicit --config path). Each entry is [absolute_path, parsed_hash].
     #
+    # @param references [Array<Hash>] filled with each `!reference` read,
+    #   in placeholder order
     # @return [Array<[String, Hash]>] In load order.
-    def self.discover_sources(config_path:, no_config:)
+    def self.discover_sources(config_path:, no_config:, references: [])
       return [] if no_config
 
       if config_path
@@ -81,12 +95,12 @@ module Driftless
         # a silent no-op — the user said "use THIS file" and we can't.
         path = File.expand_path(config_path)
         raise ConfigLoadError, "#{path}: file not found" unless File.file?(path)
-        load_with_includes(path, [])
+        load_with_includes(path, [], references)
       else
         # Implicit search chain: lenient. Absent files are the common case
         # (most users won't have all three).
         search_chain.flat_map do |path|
-          File.file?(path) ? load_with_includes(path, []) : []
+          File.file?(path) ? load_with_includes(path, [], references) : []
         end
       end
     end
@@ -98,12 +112,12 @@ module Driftless
     # @param chain [Array<String>] the files whose includes led here
     # @raise [ConfigLoadError] on a file including itself through any chain,
     #   or naming a file that is not there
-    def self.load_with_includes(path, chain)
+    def self.load_with_includes(path, chain, references = [])
       if chain.include?(path)
         raise ConfigLoadError, "#{chain.last}: #{INCLUDE_KEY} loops back to #{path} (via #{chain.join(' -> ')})"
       end
 
-      data     = load_file(path)
+      data     = load_file(path, references: references)
       includes = data.delete(INCLUDE_KEY)
       unless includes.nil? || includes.is_a?(Array) || includes.is_a?(String)
         raise ConfigLoadError, "#{path}: #{INCLUDE_KEY} must be a path or a list of paths, got #{includes.class}"
@@ -113,17 +127,25 @@ module Driftless
         target = File.expand_path(rel.to_s, File.dirname(path))
         raise ConfigLoadError, "#{path}: #{INCLUDE_KEY} names #{target}, which is not there" unless File.file?(target)
 
-        load_with_includes(target, chain + [path])
+        load_with_includes(target, chain + [path], references)
       end
       included + [[path, data]]
     end
 
-    # Reads and parses one config file. Empty files are treated as `{}`.
+    # Reads and parses one config file. Empty files are treated as `{}`;
+    # anchors, aliases, and merge keys are resolved. Each `!reference` is
+    # recorded and left as a placeholder for {resolve_references}.
     #
+    # @param references [Array<Hash>] appended to, one per tagged node
     # @raise [ConfigLoadError] if the file is unreadable or contains invalid YAML.
-    def self.load_file(path)
-      raw    = File.read(path)
-      parsed = YAML.safe_load(raw, permitted_classes: PERMITTED_YAML_CLASSES, aliases: true, filename: path)
+    def self.load_file(path, references: [])
+      stream = Psych.parse_stream(File.read(path), filename: path)
+      docs   = stream.children
+      raise ConfigLoadError, "#{path}: holds #{docs.size} YAML documents, expected one" if docs.size > 1
+      return {} if docs.empty?
+
+      mark_references(docs.first.root, docs.first, 0, path, references)
+      parsed = YAML.safe_load(stream.to_yaml, permitted_classes: PERMITTED_YAML_CLASSES, aliases: true, filename: path)
       case parsed
       when nil  then {}   # empty file
       when Hash then parsed
@@ -134,6 +156,66 @@ module Driftless
       raise ConfigLoadError, "#{path}: invalid YAML — #{e.message}"
     rescue Errno::ENOENT
       raise ConfigLoadError, "#{path}: file not found"
+    end
+
+    # Swaps every node tagged `!reference` under `node` for a placeholder,
+    # recording its keys and position.
+    #
+    # @raise [ConfigLoadError] on a tagged node that is not a list of keys
+    def self.mark_references(node, parent, index, path, references)
+      if node.tag == REFERENCE_TAG
+        unless node.is_a?(Psych::Nodes::Sequence) && node.children.any? && node.children.all?(Psych::Nodes::Scalar)
+          raise ConfigLoadError, "#{path}:#{node.start_line + 1}: #{REFERENCE_TAG} takes a list of keys, like [section, key]"
+        end
+
+        keys = node.children.map { |c| (!c.quoted && c.value.match?(/\A\d+\z/)) ? c.value.to_i : c.value }
+        references << { keys: keys, file: path, line: node.start_line + 1 }
+        parent.children[index] = Psych::Nodes::Scalar.new("#{PLACEHOLDER}#{references.size - 1}")
+        return
+      end
+
+      node.children&.each_with_index { |child, i| mark_references(child, node, i, path, references) }
+    end
+
+    # The merged config with every placeholder replaced by a copy of the
+    # value its reference names, references inside that value included.
+    #
+    # @raise [ConfigLoadError] on a path with nothing at it, or a reference
+    #   that reaches itself
+    def self.resolve_references(merged, references, resolving = [])
+      return merged if references.empty?
+
+      substitute(merged, merged, references, resolving)
+    end
+
+    def self.substitute(value, merged, references, resolving)
+      case value
+      when Hash  then value.to_h { |k, v| [k, substitute(v, merged, references, resolving)] }
+      when Array then value.map { |v| substitute(v, merged, references, resolving) }
+      when String
+        return value unless value.start_with?(PLACEHOLDER)
+
+        resolve_one(references.fetch(value.delete_prefix(PLACEHOLDER).to_i), merged, references, resolving)
+      else value
+      end
+    end
+
+    def self.resolve_one(ref, merged, references, resolving)
+      where = "#{ref[:file]}:#{ref[:line]}"
+      if resolving.include?(ref)
+        chain = resolving.map { |r| "#{r[:file]}:#{r[:line]}" }.join(', ')
+        raise ConfigLoadError, "#{where}: #{REFERENCE_TAG} #{ref[:keys].inspect} reaches itself (via #{chain})"
+      end
+
+      target =
+        begin
+          merged.dig(*ref[:keys])
+        rescue TypeError
+          nil
+        end
+      raise ConfigLoadError, "#{where}: #{REFERENCE_TAG} #{ref[:keys].inspect}: nothing at that path in the merged config" if target.nil?
+
+      substitute(target, merged, references, resolving + [ref])
     end
 
     # Deep-merge two hashes:

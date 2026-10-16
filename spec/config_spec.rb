@@ -201,6 +201,70 @@ RSpec.describe Driftless::Config do
       end
     end
 
+    context 'with !reference' do
+      def write(cwd, rel, content)
+        path = File.join(cwd, rel)
+        FileUtils.mkdir_p(File.dirname(path))
+        File.write(path, content)
+        path
+      end
+
+      it 'takes a value from anywhere in the merged config, across files, transitively, by index' do
+        with_isolated_env do |cwd:, **|
+          write(cwd, 'conf/vars.yaml', <<~YAML)
+            .project_list: [foo, project::bar]
+            .lists:
+              roles: [role::web, role::db]
+            detectors:
+              data:paths-for-unreported-nodes:
+                exclude_paths: !reference [.unreported]
+            .unreported: [data/nodes/a.yaml, data/nodes/b.yaml]
+          YAML
+          write_project_config(cwd, <<~YAML)
+            .include: conf/vars.yaml
+            puppet:
+              top_scope_variables:
+                project: !reference [.project_list]
+                role: !reference [.lists, roles]
+                first: !reference [.lists, roles, 0]
+            detectors:
+              hierarchy:files-missed-by-reported-fact-values:
+                exclude_paths: !reference [detectors, data:paths-for-unreported-nodes, exclude_paths]
+          YAML
+          cfg = described_class.load
+          expect(cfg.dig('puppet', 'top_scope_variables')).to eq(
+            'project' => ['foo', 'project::bar'], 'role' => ['role::web', 'role::db'], 'first' => 'role::web',
+          )
+          expect(cfg.dig('detectors', 'hierarchy:files-missed-by-reported-fact-values', 'exclude_paths'))
+            .to eq(['data/nodes/a.yaml', 'data/nodes/b.yaml'])
+          expect(cfg.dig('detectors', 'data:paths-for-unreported-nodes', 'exclude_paths')).to eq(['data/nodes/a.yaml', 'data/nodes/b.yaml'])
+        end
+      end
+
+      it 'leaves anchors and merge keys working beside references' do
+        with_isolated_env do |cwd:, **|
+          write_project_config(cwd, "a: &a [1, 2]\nb: *a\nc: !reference [a]\nd:\n  <<: {x: 1}\n  y: !reference [b, 1]\n")
+          cfg = described_class.load
+          expect(cfg['c']).to eq([1, 2])
+          expect(cfg['d']).to eq('x' => 1, 'y' => 2)
+        end
+      end
+
+      it 'names the file and line for a tag that is not a list, a path with nothing at it, and a loop' do
+        with_isolated_env do |cwd:, **|
+          write_project_config(cwd, "a: 1\nb: !reference plain\n")
+          expect { described_class.load }.to raise_error(Driftless::ConfigLoadError, /driftless\.yaml:2: !reference takes a list of keys/)
+
+          write(cwd, 'conf/x.yaml', "z:\n  q: !reference [nope, key]\n")
+          write_project_config(cwd, ".include: conf/x.yaml\n")
+          expect { described_class.load }.to raise_error(Driftless::ConfigLoadError, %r{conf/x\.yaml:2: !reference \["nope", "key"\]: nothing at that path})
+
+          write_project_config(cwd, "a: !reference [b]\nb: !reference [a]\n")
+          expect { described_class.load }.to raise_error(Driftless::ConfigLoadError, /driftless\.yaml:1: !reference \["b"\] reaches itself/)
+        end
+      end
+    end
+
     context 'with edge-case file contents' do
       it 'treats an empty file as an empty hash (not nil)' do
         with_isolated_env do |cwd:, **|

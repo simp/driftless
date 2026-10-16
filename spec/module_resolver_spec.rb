@@ -67,6 +67,22 @@ RSpec.describe Driftless::ModuleResolver do
     expect(split.puppet_range).to be_nil
   end
 
+  it 'holds every module to the control repo\'s own requirement, named first among the counterparts' do
+    entries = [entry('old', puppet: '< 8.0.0'), entry('wide', puppet: '>= 7.0.0 < 9.0.0'), entry('any')]
+    expect(resolve(entries).conflicts).to eq([])
+    expect(resolve(entries).puppet_range).to eq('>=7.0.0 <8.0.0')
+
+    result = resolve(entries, requirements: { 'puppet' => '>= 8.0.0 < 9.0.0' })
+    expect(result.conflicts.map { |c| [c.module, c.detail] }).to eq([
+      ['old', 'requires puppet < 8.0.0; no version in common with the control repo (>= 8.0.0 < 9.0.0)'],
+    ])
+    expect(result.puppet_range).to be_nil
+    expect(resolve(entries, requirements: { 'openvox' => '>= 7.5.0' }).puppet_range).to eq('>=7.5.0 <8.0.0')
+    expect(resolve(entries, requirements: { 'puppet' => '>= 8.0.0' }, exclude: { 'requirements' => ['the control *'] }).conflicts).to eq([])
+    expect { described_class.new(requirements: { 'puppet' => 'banana' }) }
+      .to raise_error(described_class::Error, /modules\.requirements: cannot parse version requirement "banana"/)
+  end
+
   it 'treats openvox as a puppet requirement' do
     result = resolve([
       entry('a', puppet: '>= 8.0.0'),

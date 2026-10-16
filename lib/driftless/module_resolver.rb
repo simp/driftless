@@ -16,6 +16,11 @@ module Driftless
                about: 'Operating systems, with releases, that every module declaring operatingsystem_support ' \
                       'must include. A release matches as written or as the major of a dotted release. ' \
                       'Empty: operating systems are not checked'
+    config_key 'modules.requirements', type: :hash, default: nil,
+               example: { 'puppet' => '>= 8.0.0 < 9.0.0' },
+               about: 'The Puppet versions the control repo itself runs or is moving to, as a module\'s ' \
+                      'metadata.json would declare them (`puppet` or `openvox`); a module whose requirement ' \
+                      'shares no version with it is a puppet-version conflict'
     config_key 'modules.exclude_modules', type: :array, default: [],
                about: 'Globs (case-insensitive) of module names left out of every check: never a row, ' \
                       'a dependency anyone is held to, or a module another is compared with'
@@ -28,6 +33,13 @@ module Driftless
     config_key 'modules.exclude_operatingsystems', type: :array, default: [],
                about: 'Globs (case-insensitive) dropping operating-system conflicts: matched against the module, ' \
                       '"OS release", or "module:OS release"'
+
+    # A site requirement that does not parse.
+    class Error < StandardError; end
+
+    # How the control repo's own requirement is named among a row's
+    # counterparts.
+    SITE = 'the control repo'.freeze
 
     KINDS = %w[missing-dependency dependency-version puppet-version operatingsystem].freeze
 
@@ -66,9 +78,13 @@ module Driftless
     #   `modules.operatingsystems`: OS name => releases of interest, or none
     # @param exclude [Hash{String => Array<String>}] the `modules.exclude_*`
     #   globs, keyed modules, dependencies, requirements, operatingsystems
-    def initialize(operatingsystems: {}, exclude: {})
+    # @param requirements [Hash{String => String}] `modules.requirements`:
+    #   `puppet` or `openvox` to a version range
+    # @raise [Error] on a requirement that does not parse
+    def initialize(operatingsystems: {}, exclude: {}, requirements: {})
       @operatingsystems = (operatingsystems || {}).to_h { |os, rel| [os.to_s, Array(rel).map(&:to_s)] }
       @exclude = (exclude || {}).to_h { |list, globs| [list.to_s, Array(globs).map(&:to_s)] }
+      @site_range = site_range(requirements || {})
     end
 
     # @param entries [Array<ModuleInventory::Entry>]
@@ -109,34 +125,59 @@ module Driftless
       end
     end
 
-    # Each module against the rest, pairwise: a module is in conflict with
-    # every module whose Puppet range shares no version with its own, the
-    # ones `exclude_requirements` names left out.
+    # Each module against the rest, pairwise, the control repo's own
+    # requirement among them: a module is in conflict with every one whose
+    # Puppet range shares no version with its own, the ones
+    # `exclude_requirements` names left out. The control repo gets no row
+    # of its own; the modules disagreeing with it are the list.
     #
     # @return [Array(Array<Conflict>, String|nil, Integer)] conflicts, the
-    #   range every module allows, and how many rows the exclusions emptied
+    #   range every requirement allows, and how many rows the exclusions
+    #   emptied
     def puppet(mods, warnings)
       ranges = mods.filter_map do |e|
         declared = e.metadata.requirements.values_at(*Inputs::ModuleMetadata::PUPPET_REQUIREMENT_NAMES).compact
         parsed   = declared.filter_map { |r| range_for(r, "#{e.metadata.name}: requirement puppet", warnings) }
-        [e, parsed.reduce { |a, b| a.intersection(b) }] unless parsed.empty?
+        [e.metadata.name, parsed.reduce { |a, b| a.intersection(b) }] unless parsed.empty?
       end
+      ranges.unshift([SITE, @site_range]) if @site_range
       overall = ranges.map(&:last).reduce(ALL) { |a, b| a.intersection(b) }
       return [[], overall.to_s, 0] unless overall == EMPTY
 
       suppressed = 0
-      conflicts  = ranges.filter_map do |e, range|
-        disagreeing = ranges.reject { |other, r| other.equal?(e) || range.intersection(r) != EMPTY }
-        against     = disagreeing.reject { |other, _| matches?('requirements', other.metadata.name) }
+      conflicts  = ranges.filter_map do |pair|
+        name, range = pair
+        next if name == SITE
+
+        disagreeing = ranges.reject { |other| other.equal?(pair) || range.intersection(other.last) != EMPTY }
+        against     = disagreeing.reject { |other_name, _| matches?('requirements', other_name) }
         suppressed += 1 if against.empty? && disagreeing.any?
         next if against.empty?
 
-        named = against.first(5).map { |other, r| "#{other.metadata.name} (#{r})" }
+        named = against.first(5).map { |other_name, r| "#{other_name} (#{r})" }
         named << "#{against.size - 5} more" if against.size > 5
-        Conflict.new(kind: 'puppet-version', module: e.metadata.name, subject: 'puppet',
+        Conflict.new(kind: 'puppet-version', module: name, subject: 'puppet',
                      detail: "requires puppet #{range}; no version in common with #{named.join(', ')}")
       end
       [conflicts, nil, suppressed]
+    end
+
+    # The control repo's requirement as one range: `puppet` and `openvox`
+    # intersected when both are given.
+    #
+    # @return [SemanticPuppet::VersionRange, nil] nil when none is declared
+    def site_range(requirements)
+      names    = Inputs::ModuleMetadata::PUPPET_REQUIREMENT_NAMES
+      declared = requirements.to_h { |k, v| [k.to_s, v] }.values_at(*names).compact
+      return nil if declared.empty?
+
+      declared.map { |r| parse_site_range(r) }.reduce { |a, b| a.intersection(b) }
+    end
+
+    def parse_site_range(requirement)
+      SemanticPuppet::VersionRange.parse(requirement.to_s)
+    rescue ArgumentError
+      raise Error, "modules.requirements: cannot parse version requirement #{requirement.inspect}"
     end
 
     def operatingsystems(mods)

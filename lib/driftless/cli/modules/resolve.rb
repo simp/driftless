@@ -49,7 +49,8 @@ module Driftless
           @sort  = columns_from(@options[:sort], '--sort-by')
 
           inventory = ::Driftless::ModuleInventory.new(repo.dir)
-          resolver  = ::Driftless::ModuleResolver.new(operatingsystems: @options[:operatingsystems], exclude: @options[:exclude])
+          resolver  = ::Driftless::ModuleResolver.new(operatingsystems: @options[:operatingsystems], exclude: @options[:exclude],
+                                                      requirements: @options[:requirements])
           current   = resolver.resolve(inventory.entries)
           log_warnings(inventory.warnings + current.warnings)
 
@@ -68,7 +69,7 @@ module Driftless
 
           ::Driftless.logger.info(summary(result, shown))
           exit(shown.empty? ? 0 : 1)
-        rescue ::Driftless::ModuleProposal::Error => e
+        rescue ::Driftless::ModuleProposal::Error, ::Driftless::ModuleResolver::Error => e
           fatal!("modules resolve: #{e.message}")
         end
 
@@ -190,6 +191,7 @@ module Driftless
           cfg = ::Driftless.config
           {
             operatingsystems: cfg.dig('modules', 'operatingsystems'),
+            requirements:     cfg.dig('modules', 'requirements'),
             order:            cfg.dig('modules', 'resolve_order'),
             sort:             cfg.dig('modules', 'resolve_sort'),
             exclude:          {

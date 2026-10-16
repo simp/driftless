@@ -50,6 +50,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `params.exclude_paths|classes|modules|params`
 - New config file subsystem `modules`:
   - `modules.operatingsystems`: the OS releases every module must declare support for
+  - `modules.requirements`: the Puppet range the control repo itself requires, as a
+    module's `metadata.json` would declare it; modules outside it are `puppet-version` rows
   - `modules.exclude_modules`: globs of modules left out of every check
   - `modules.exclude_dependencies`, `modules.exclude_requirements`,
     `modules.exclude_operatingsystems`: globs dropping known conflicts of each kind

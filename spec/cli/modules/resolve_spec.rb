@@ -23,7 +23,8 @@ RSpec.describe Driftless::CLI::Modules::Resolve do
                                 { 'name' => 'puppetlabs/concat', 'version_requirement' => '>= 2.0.0' }])
     metadata(File.join(dir, 'modules/nginx'),
              'name' => 'org-nginx', 'version' => '1.0.0',
-             'dependencies' => [{ 'name' => 'puppetlabs/stdlib', 'version_requirement' => '< 9.0.0' }])
+             'dependencies' => [{ 'name' => 'puppetlabs/stdlib', 'version_requirement' => '< 9.0.0' }],
+             'requirements' => [{ 'name' => 'puppet', 'version_requirement' => '< 8.0.0' }])
     metadata(File.join(dir, 'modules/stdlib'), 'name' => 'puppetlabs-stdlib', 'version' => '9.4.0')
     File.write(File.join(dir, 'Puppetfile'), "mod 'puppetlabs-apache', '10.0.0'\nmod 'puppetlabs-stdlib', '9.4.0'\n")
   end
@@ -177,6 +178,20 @@ RSpec.describe Driftless::CLI::Modules::Resolve do
         ['-', 'dependency-version', 'org-nginx'],
         ['-', 'dependency-version', 'puppetlabs-apache'],
       ])
+    end
+  end
+
+  it 'reports modules the configured Puppet requirement excludes, and refuses one that does not parse' do
+    Dir.mktmpdir do |dir|
+      control_repo(dir)
+      cfg = File.join(dir, 'driftless.yaml')
+      File.write(cfg, "modules:\n  requirements:\n    puppet: '>= 8.0.0'\n")
+      status, out = run(['-c', cfg, '-d', dir, '--conflicts', 'puppet-version'])
+      expect(status).to eq(1)
+      expect(cells(out).last).to eq(['puppet-version', 'org-nginx', 'puppet', 'requires puppet < 8.0.0; no version in common with the control repo (>= 8.0.0)'])
+
+      File.write(cfg, "modules:\n  requirements:\n    puppet: banana\n")
+      expect(run(['-c', cfg, '-d', dir]).first).to eq(2)
     end
   end
 

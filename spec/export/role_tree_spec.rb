@@ -61,13 +61,15 @@ RSpec.describe Driftless::Export::RoleTree do
     expect(JSON.parse(File.read(File.join(root, 'role::web/web1.json')))).to eq('k' => 1)
   end
 
-  it 'picks randomly by default from the collector\'s nodes in the role' do
-    picks = Array.new(6) do
+  it 'picks at random by default from the collector\'s nodes in the role' do
+    # Seeds 1 and 2 draw web2 and web1 from a two-node pool; a seed makes
+    # the draw repeatable, where six unseeded draws missed a node now and then.
+    picks = [1, 2].map do |seed|
       FileUtils.rm_rf(root)
-      run(incoming, root)
+      run(incoming, root, random: Random.new(seed))
       tree(root).grep(%r{\Arole::web/web[12]\.json\z}).first
     end
-    expect(picks.uniq.sort).to eq(%w[role::web/web1.json role::web/web2.json])
+    expect(picks).to eq(%w[role::web/web2.json role::web/web1.json])
   end
 
   it 'refreshes files already in the tree instead of picking again' do

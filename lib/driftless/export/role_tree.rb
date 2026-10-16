@@ -47,8 +47,10 @@ module Driftless
       # @param ignore_stale [Boolean] warn about stale files instead of stopping
       # @param selector [NodeSelector, nil] narrows candidate nodes; its roles
       #   also narrow which role directories are maintained
+      # @param random [Random] what a random pick draws from; seeded by specs
       def initialize(incoming_dir:, root:, limit: 1, pick: 'random', prune: false, ignore_stale: false,
-                     selector: nil, environments: nil, proceed_with_subset_of_configured_envs: false)
+                     selector: nil, environments: nil, proceed_with_subset_of_configured_envs: false,
+                     random: Random.new)
         raise Error, "unknown pick: #{pick.inspect} (known: #{PICKS.join(', ')})" unless PICKS.include?(pick)
 
         @loader = Inputs::NodeReportLoader.new(
@@ -61,6 +63,7 @@ module Driftless
         @prune         = prune
         @ignore_stale  = ignore_stale
         @selector      = selector || NodeSelector.new
+        @random        = random
         @profile       = 'onceover'
         @serialization = 'json'
         @warnings      = []
@@ -192,7 +195,7 @@ module Driftless
       def choose(pool, count)
         return [] if count <= 0 || pool.empty?
         sorted = pool.sort_by { |n| name_for(n) }
-        (@pick == 'first') ? sorted.first(count) : sorted.sample(count)
+        (@pick == 'first') ? sorted.first(count) : sorted.sample(count, random: @random)
       end
 
       # The filename stem: trusted.certname, else certname.

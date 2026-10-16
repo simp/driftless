@@ -186,7 +186,7 @@ RSpec.describe Driftless::Site::BuildData do
       scan_doc('repo' => { 'dir' => '/srv/repo', 'git' => nil, 'deployments' => deployments })
     end
 
-    it 'gains a web template per deployment, at its ref, from its own remote' do
+    it 'gains a web template and a tree link per deployment, at its ref, from its own remote' do
       deployments = {
         'modules/stdlib'  => { 'remote' => 'git@github.com:puppetlabs/puppetlabs-stdlib.git', 'ref' => 'v9.0.0',
                                'ref_type' => 'tag', 'sha' => 'abc' },
@@ -196,10 +196,13 @@ RSpec.describe Driftless::Site::BuildData do
       }
       out = described_class.assemble(scan: with_deployments(deployments))['repo']['deployments']
       expect(out['modules/stdlib']).to eq(deployments['modules/stdlib'].merge(
-        'web' => 'https://github.com/puppetlabs/puppetlabs-stdlib/blob/v9.0.0/{path}#L{line}',
+        'web'  => 'https://github.com/puppetlabs/puppetlabs-stdlib/blob/v9.0.0/{path}#L{line}',
+        'tree' => 'https://github.com/puppetlabs/puppetlabs-stdlib/tree/v9.0.0',
       ))
       expect(out['data']['web']).to eq('https://git.example.com/tenant/data/-/blob/def/{path}#L{line}')
+      expect(out['data']['tree']).to eq('https://git.example.com/tenant/data/-/tree/def')
       expect(out['modules/local']['web']).to be_nil
+      expect(out['modules/local']['tree']).to be_nil
     end
 
     it 'is empty for a scan document without any' do

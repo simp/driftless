@@ -24,6 +24,15 @@ RSpec.describe Driftless::Site::WebLinks do
     end
   end
 
+  describe '.tree' do
+    it 'turns a file template into the link to the repo at that ref' do
+      expect(described_class.tree('https://h/g/p/-/blob/v9.0.0/{path}#L{line}')).to eq('https://h/g/p/-/tree/v9.0.0')
+      expect(described_class.tree('https://github.com/o/r/blob/main/{path}#L{line}')).to eq('https://github.com/o/r/tree/main')
+      expect(described_class.tree('https://codeberg.org/o/r/src/tag/v1/{path}#L{line}')).to eq('https://codeberg.org/o/r/src/tag/v1')
+      expect(described_class.tree(nil)).to be_nil
+    end
+  end
+
   describe '.template' do
     it 'uses the gitlab layout when nothing says otherwise' do
       expect(template(remote: 'git@git.example.com:group/proj.git'))

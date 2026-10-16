@@ -54,6 +54,19 @@ module Driftless
           .gsub('{ref}', at).gsub('{ref_kind}', ref ? ref_kind(ref_type) : 'commit')
       end
 
+      # The link to a repo's tree at the same ref as a file template: the
+      # template up to its `{path}`, with a `blob` segment read as `tree`
+      # (GitLab and GitHub); a layout without one, such as Forgejo's `src`,
+      # serves both already.
+      #
+      # @param template [String, nil] from {template}
+      # @return [String, nil]
+      def tree(template)
+        return nil unless template
+
+        template.sub(%r{/\{path\}.*\z}, '').sub(%r{/blob/}, '/tree/')
+      end
+
       # @return [Hash{host:, project:}, nil]
       def parse_remote(remote)
         return nil if remote.nil? || remote.empty?

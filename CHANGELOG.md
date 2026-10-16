@@ -77,6 +77,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - `site` links to filters now match the whole word, not a prefix
+- `site`: deployed module finding (`code:unused-modules`) link to
+  that module's repository at its ref instead of a 404 in the control repo
 - `scan` links now handle git web ui links to repos deployed via
   `default_branch` differently than `:control_branch`
 - `hierarchy:tiers-interpolating-bare-variables` and `data:bare-variables` now skip compiler variables

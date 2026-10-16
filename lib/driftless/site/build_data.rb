@@ -59,13 +59,15 @@ module Driftless
 
       # The scan document's repo with a `web` link template on it and on each
       # deployment: where the page links a path:line under that repo, or nil.
+      # Each deployment also gets `tree`, the link to the repo itself at that
+      # ref, for a finding whose path is the deployment directory.
       #
       # @param repo_url [String, nil] overrides the control repo's derived
       #   template
       def repo_with_links(repo, repo_url, config)
         deployments = (repo['deployments'] || {}).to_h do |path, d|
-          [path, d.merge('web' => WebLinks.template(remote: d['remote'], ref: d['ref'], ref_type: d['ref_type'],
-                                                    sha: d['sha'], config: config))]
+          web = WebLinks.template(remote: d['remote'], ref: d['ref'], ref_type: d['ref_type'], sha: d['sha'], config: config)
+          [path, d.merge('web' => web, 'tree' => WebLinks.tree(web))]
         end
         repo.merge('web' => control_web(repo_url, repo['git'], config), 'deployments' => deployments)
       end

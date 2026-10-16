@@ -5,10 +5,10 @@ require 'driftless/inputs/puppetfile'
 
 module Driftless
   module Inputs
-    # Reads a branchfile: the branch to follow for each module, for modules
-    # whose Puppetfile entry pins a tag or commit. Either a YAML mapping of
-    # module name to branch, or a Puppetfile overlay whose `mod` entries
-    # carry `:branch`.
+    # Reads and writes a branchfile: the branch to follow for each module,
+    # for modules whose Puppetfile entry pins a tag or commit. Either a
+    # YAML mapping of module name to branch, or a Puppetfile overlay whose
+    # `mod` entries carry `:branch`.
     class Branchfile
       extend ConfigKeys::DSL
 
@@ -55,6 +55,36 @@ module Driftless
 
         YAML_EXTENSIONS.include?(File.extname(path).downcase) ? from_yaml(path) : from_puppetfile(path)
       end
+
+      # Records a module's branch, replacing an entry for the module in
+      # either spelling and creating the file when it is absent. A YAML
+      # file is rewritten whole; a Puppetfile overlay has one `mod` line
+      # replaced or appended, the rest of its text untouched.
+      #
+      # @param path [String]
+      # @param name [String] the module's declared name
+      # @param branch [String]
+      # @return [String] path
+      # @raise [Error] when the file cannot be read as a branchfile
+      def self.record(path, name, branch)
+        if YAML_EXTENSIONS.include?(File.extname(path).downcase)
+          current = load(path)
+          raise Error, current.error if current.error
+
+          data = File.file?(path) ? YAML.safe_load(File.read(path), aliases: true, filename: path) || {} : {}
+          data.delete_if { |k, _| normalize(k) == normalize(name) }
+          File.write(path, YAML.dump(data.merge(name.to_s => branch.to_s)))
+        else
+          lines = File.file?(path) ? File.readlines(path) : []
+          entry = "mod '#{name}', :branch => '#{branch}'\n"
+          index = lines.index { |l| (m = l.match(/\A\s*mod\s+['"]([^'"]+)['"]/)) && normalize(m[1]) == normalize(name) }
+          index ? lines[index] = entry : lines << entry
+          File.write(path, lines.join)
+        end
+        path
+      end
+
+      class Error < StandardError; end
 
       def self.from_yaml(path)
         data = YAML.safe_load(File.read(path), aliases: true, filename: path)

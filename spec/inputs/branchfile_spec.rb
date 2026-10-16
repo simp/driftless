@@ -30,6 +30,29 @@ RSpec.describe Driftless::Inputs::Branchfile do
     expect(load('b.yml', "a: [\n").error).not_to be_nil
   end
 
+  it 'records a branch in a YAML file, creating or replacing as needed' do
+    Dir.mktmpdir do |dir|
+      path = File.join(dir, 'branches.yaml')
+      described_class.record(path, 'puppetlabs-stdlib', 'main')
+      File.write(path, File.read(path) + "concat: develop\n")
+      described_class.record(path, 'puppetlabs/stdlib', 'next')
+      expect(YAML.safe_load(File.read(path))).to eq('concat' => 'develop', 'puppetlabs/stdlib' => 'next')
+      File.write(path, "- a\n")
+      expect { described_class.record(path, 'x', 'y') }.to raise_error(described_class::Error, /expected a mapping/)
+    end
+  end
+
+  it 'records a branch in a Puppetfile overlay, replacing one mod line or appending' do
+    Dir.mktmpdir do |dir|
+      path = File.join(dir, 'Branchfile')
+      File.write(path, "# keep me\nmod 'puppetlabs/stdlib', git: 'g', branch: 'main'\nmod 'org-x', :branch => 'dev'\n")
+      described_class.record(path, 'puppetlabs-stdlib', 'next')
+      described_class.record(path, 'org-new', 'main')
+      expect(File.read(path)).to eq("# keep me\nmod 'puppetlabs-stdlib', :branch => 'next'\nmod 'org-x', :branch => 'dev'\nmod 'org-new', :branch => 'main'\n")
+      expect(described_class.load(path).branches).to eq('puppetlabs-stdlib' => 'next', 'org-x' => 'dev', 'org-new' => 'main')
+    end
+  end
+
   it 'reads a Puppetfile overlay, taking :branch and warning about the rest' do
     result = load('Branchfile', "mod 'puppetlabs-stdlib', git: 'g', branch: 'main'\nmod 'org-x', git: 'g', tag: 'v1'\nmod 'org-f', '1.0.0'\n")
     expect(result.branches).to eq('puppetlabs-stdlib' => 'main')

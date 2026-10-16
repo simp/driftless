@@ -8,9 +8,9 @@ module Driftless
     class Modules
       # `driftless modules gitlog`
       #
-      # The git log of one deployed module: with a ref, the commits that
-      # ref has beyond the clone's HEAD; without one, the branch a
-      # branchfile names for the module, else the clone's history.
+      # The git log of one deployed module: with a ref or --branch, the
+      # commits it has beyond the clone's HEAD; without either, the branch
+      # a branchfile names for the module, else the clone's history.
       class Gitlog < Base
         include Modules::OneModule
 
@@ -21,9 +21,11 @@ module Driftless
         def execute(argv)
           fatal!('modules gitlog takes a module and an optional ref', help: true) unless argv.size.between?(1, 2)
           selector, ref = argv
+          fatal!('modules gitlog: give a ref or --branch, not both', help: true) if ref && @options[:branch]
           repo = control_repo!('modules gitlog')
           entry, clone = git_module!('modules gitlog', repo, selector)
-          ref ||= branch_from_file(repo, entry)
+          ref ||= @options[:branch] || branch_from_file(repo, entry)
+          record_branch(repo, entry) if @options[:branch] && @options[:branchfile_given]
 
           if @options[:fetch]
             fatal!("modules gitlog: fetch from #{clone.remote || 'origin'} failed", 3) unless clone.fetch
@@ -48,10 +50,14 @@ module Driftless
           o.on('-n', '--count=NUM', Integer, 'Show at most NUM commits') { |v| @options[:count] = v }
           o.on('-f', '--name-status', 'List the files each commit changed') { @options[:name_status] = true }
           o.on('--fetch', 'Fetch origin first, so a branch or tag the clone has not seen shows') { @options[:fetch] = true }
+          o.on('--branch=BRANCH', 'Follow BRANCH, as <ref> would; with --branchfile, record it there') { |v| @options[:branch] = v }
           o.on('--branchfile=FILE',
-               'Without <ref>, follow the branch FILE names for the module: YAML of',
-               'module to branch, or a Puppetfile overlay of mod entries with :branch',
-               '(default: modules.branchfile in driftless.yaml)') { |v| @options[:branchfile] = v }
+               'Without <ref> or --branch, follow the branch FILE names for the module:',
+               'YAML of module to branch, or a Puppetfile overlay of mod entries with',
+               ':branch (default: modules.branchfile in driftless.yaml, read only)') do |v|
+            @options[:branchfile]       = v
+            @options[:branchfile_given] = true
+          end
           o.separator ''
           o.separator '<ref> is a branch, tag, or sha, tried as origin/<ref> first (a deployed clone\'s own'
           o.separator 'branches are stale) and then as given; the log then covers HEAD..<ref>, what the'
@@ -76,6 +82,17 @@ module Driftless
           branch = [entry.declared&.name, entry.metadata.name, File.basename(entry.path)].compact.filter_map { |n| result.branch_for(n) }.first
           ::Driftless.logger.info("modules gitlog: #{entry.path} follows #{branch} per #{path}") if branch
           branch
+        end
+
+        # Writes --branch for the module into the branchfile given on the
+        # command line, under the Puppetfile's name for it.
+        def record_branch(repo, entry)
+          path = File.expand_path(@options[:branchfile], repo.dir)
+          name = entry.declared&.name || entry.metadata.name || File.basename(entry.path)
+          ::Driftless::Inputs::Branchfile.record(path, name, @options[:branch])
+          ::Driftless.logger.info("modules gitlog: recorded #{name}: #{@options[:branch]} in #{path}")
+        rescue ::Driftless::Inputs::Branchfile::Error => e
+          fatal!("modules gitlog: branchfile #{e.message}", 3)
         end
 
         def config_defaults

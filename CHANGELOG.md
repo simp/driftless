@@ -39,6 +39,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - New subcommand `driftless modules gitlog MODULE [REF] [-n NUM] [-f] [--fetch]`: display a deployed module's git log along its branch to see updates
   - `--branchfile FILE` (config: `modules.branchfile`) maps modules to branches to track updates.
     - `FILE` can be a YAML file of `module: branch` pairs, or a Puppetfile overlay of `mod` entries with `:branch`
+  - `--branch BRANCH` follows that branch instead; with `--branchfile FILE` on the command line,
+    the pair is recorded in FILE
 - New subcommand `driftless modules update MODULE REF [--dry-run]`: updates deployed module to REF
 - New subcommand `driftless params` to:
   - `record` every class parameter signatures across the repo to a schema file

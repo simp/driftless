@@ -78,6 +78,21 @@ RSpec.describe Driftless::CLI::Modules::Gitlog do
     end
   end
 
+  it 'follows --branch, recording it when a branchfile is named on the command line' do
+    Dir.mktmpdir do |dir|
+      control_repo(dir)
+      status, out = run(['--no-config', '-d', dir, 'stdlib', '--branch', 'main'])
+      expect(status).to eq(0)
+      expect(subjects(out)).to match([a_string_matching(/ two\z/)])
+      expect(File).not_to exist(File.join(dir, 'branches.yaml'))
+
+      status, = run(['--no-config', '-d', dir, 'stdlib', '--branch', 'main', '--branchfile', 'branches.yaml'])
+      expect(status).to eq(0)
+      expect(File.read(File.join(dir, 'branches.yaml'))).to eq("---\npuppetlabs-stdlib: main\n")
+      expect(run(['--no-config', '-d', dir, 'stdlib', 'v2', '--branch', 'main']).first).to eq(2)
+    end
+  end
+
   it 'follows the branch a branchfile names when no ref is given' do
     Dir.mktmpdir do |dir|
       up = control_repo(dir)

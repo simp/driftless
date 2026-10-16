@@ -72,10 +72,10 @@ RSpec.describe Driftless::GitClone do
     git(tmp, 'clone', '-q', upstream, deployed)
     git(upstream, 'commit', '-q', '--allow-empty', '-m', 'three')
     clone = described_class.new(deployed)
-    expect(clone.log('HEAD..origin/main')).to eq('')
+    expect(clone.log('--oneline', '--decorate', 'HEAD..origin/main')).to eq('')
     expect(clone.fetch).not_to be_nil
-    expect(clone.log('HEAD..origin/main')).to match(%r{\A[0-9a-f]+ \(origin/main, origin/HEAD\) three\z})
-    expect(clone.log('-n', '1', 'HEAD')).to match(/ two\z/)
+    expect(clone.log('--oneline', '--decorate', 'HEAD..origin/main')).to match(%r{\A[0-9a-f]+ \(origin/main, origin/HEAD\) three\z})
+    expect(clone.log('--oneline', '-n', '1', 'HEAD')).to match(/ two\z/)
     expect(described_class.new(tmp).fetch).to be_nil
   end
 

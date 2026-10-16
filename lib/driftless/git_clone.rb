@@ -87,11 +87,10 @@ module Driftless
       output('checkout', '--quiet', '--detach', sha)
     end
 
-    # @param args [Array<String>] `git log` arguments after the defaults
-    # @return [String, nil] the log, one line per commit with refs decorated;
-    #   nil when git fails
+    # @param args [Array<String>] `git log` arguments, as given
+    # @return [String, nil] the log; nil when git fails
     def log(*args)
-      output('log', '--oneline', '--decorate', *args)
+      output('log', *args)
     end
 
     private

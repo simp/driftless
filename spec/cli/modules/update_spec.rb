@@ -83,7 +83,7 @@ RSpec.describe Driftless::CLI::Modules::Update do
       status, out = run(['--no-config', '-d', dir, 'puppetlabs-stdlib', 'main'])
       expect(status).to eq(0)
       expect(out).to match(%r{\Amodules/stdlib: v1 -> main})
-      expect(head(dir).log('-n', '1', 'HEAD')).to match(/ three\z/)
+      expect(head(dir).log('--oneline', '-n', '1', 'HEAD')).to match(/ three\z/)
     end
   end
 

@@ -35,8 +35,10 @@ RSpec.describe Driftless::CLI::Modules::Gitlog do
     up
   end
 
-  # [exit status, stdout]
+  # [exit status, stdout]; the date is off unless the arguments say
+  # otherwise, so the subject checks stay readable
   def run(argv)
+    argv = ['--no-date'] + argv unless argv.include?('--date')
     out      = StringIO.new
     original = $stdout
     $stdout  = out
@@ -57,9 +59,11 @@ RSpec.describe Driftless::CLI::Modules::Gitlog do
 
   around(:each) do |ex|
     original = Driftless.instance_variable_get(:@config)
+    color    = Driftless::Ansi.preference
     ex.run
   ensure
     Driftless.instance_variable_set(:@config, original)
+    Driftless::Ansi.preference = color
   end
 
   before(:each) { silence_driftless_logger }
@@ -113,6 +117,22 @@ RSpec.describe Driftless::CLI::Modules::Gitlog do
       expect(status).to eq(0)
       expect(subjects(out)).to match([a_string_matching(/ one\z/)])
       expect(run(['--no-config', '-d', dir, 'stdlib', '--branchfile', 'nope.yaml']).first).to eq(3)
+    end
+  end
+
+  it 'shows the commit date unless told not to, and colours when colour is on' do
+    Dir.mktmpdir do |dir|
+      control_repo(dir)
+      status, out = run(['--no-config', '--no-color', '-d', dir, 'stdlib', '--date'])
+      expect(status).to eq(0)
+      expect(out).to match(/\A[0-9a-f]+  \d{4}-\d\d-\d\d \d\d:\d\d:\d\d \(HEAD, tag: v1\) one\n\z/)
+      _, out = run(['--no-config', '--no-color', '-d', dir, 'stdlib', '--no-date'])
+      expect(out).to match(/\A[0-9a-f]+ \(HEAD, tag: v1\) one\n\z/)
+
+      _, out = run(['--no-config', '--color', '-d', dir, 'stdlib'])
+      expect(out).to include("\e[")
+      _, out = run(['--no-config', '--no-color', '-d', dir, 'stdlib'])
+      expect(out).not_to include("\e[")
     end
   end
 

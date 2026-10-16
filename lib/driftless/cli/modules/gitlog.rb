@@ -31,7 +31,9 @@ module Driftless
             fatal!("modules gitlog: fetch from #{clone.remote || 'origin'} failed", 3) unless clone.fetch
           end
 
-          args = []
+          args = ['--abbrev-commit', "--format=format:#{line_format}",
+                  "--color=#{::Driftless::Ansi.enabled?($stdout) ? 'always' : 'never'}"]
+          args << '--date=format:%Y-%m-%d %H:%M:%S' if @options[:date]
           args.push('-n', @options[:count].to_s) if @options[:count]
           args << '--name-status' if @options[:name_status]
           args << range_for(clone, ref)
@@ -45,10 +47,15 @@ module Driftless
 
         protected
 
+        def option_defaults
+          { date: true }
+        end
+
         def configure_parser(o)
           declare_repo_option(o)
           o.on('-n', '--count=NUM', Integer, 'Show at most NUM commits') { |v| @options[:count] = v }
           o.on('-f', '--name-status', 'List the files each commit changed') { @options[:name_status] = true }
+          o.on('--[no-]date', 'Show each commit\'s date after its hash (default: on)') { |v| @options[:date] = v }
           o.on('--fetch', 'Fetch origin first, so a branch or tag the clone has not seen shows') { @options[:fetch] = true }
           o.on('--branch=BRANCH', 'Follow BRANCH, as <ref> would; with --branchfile, record it there') { |v| @options[:branch] = v }
           o.on('--branchfile=FILE',
@@ -62,9 +69,17 @@ module Driftless
           o.separator '<ref> is a branch, tag, or sha, tried as origin/<ref> first (a deployed clone\'s own'
           o.separator 'branches are stale) and then as given; the log then covers HEAD..<ref>, what the'
           o.separator 'ref has that the clone does not. Without one, the log is the clone\'s history.'
+          o.separator 'Lines are coloured when --[no-]color, output.color, or a terminal says so.'
         end
 
         private
+
+        # One line per commit: hash, the date unless --no-date, decoration,
+        # and subject. git drops the colour codes under --color=never.
+        def line_format
+          date = @options[:date] ? '  %C(bold green)%cd%C(reset)' : ''
+          "%C(bold blue)%h%C(reset)#{date}%C(bold yellow)%d%C(reset) %s"
+        end
 
         # The branch the branchfile names for the module, when there is a
         # branchfile and it names one.

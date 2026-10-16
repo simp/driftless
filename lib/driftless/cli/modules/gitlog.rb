@@ -95,7 +95,7 @@ module Driftless
           result.warnings.each { |w| ::Driftless.logger.warn(w) }
 
           branch = [entry.declared&.name, entry.metadata.name, File.basename(entry.path)].compact.filter_map { |n| result.branch_for(n) }.first
-          ::Driftless.logger.info("modules gitlog: #{entry.path} follows #{branch} per #{path}") if branch
+          ::Driftless.logger.debug("modules gitlog: #{entry.path} follows #{branch} per #{path}") if branch
           branch
         end
 

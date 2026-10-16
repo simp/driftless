@@ -44,8 +44,8 @@ module Driftless
         raise Error, 'repo_url required'     if @repo_url.nil?     || @repo_url.empty?
         raise Error, 'incoming_dir required' if @incoming_dir.nil? || @incoming_dir.empty?
 
-        Driftless.logger.info("import git: source #{@repo_url}")
-        Driftless.logger.info(
+        Driftless.logger.debug("import git: source #{@repo_url}")
+        Driftless.logger.debug(
           "import git: target #{@incoming_dir}" \
           "#{" (summaries -> #{@summary_dir})" if @summary_dir}" \
           "#{' (dry-run)' if @dry_run}",
@@ -63,7 +63,7 @@ module Driftless
               Driftless.logger.warn("import git: no branches match prefix #{@branch_prefix.inspect}")
             end
             branches.each do |branch|
-              Driftless.logger.info("import git: branch #{branch}")
+              Driftless.logger.debug("import git: branch #{branch}")
               checkout(env, config_args, workdir, branch)
               r, s = copy_from_branch(workdir)
               reports_copied   += r
@@ -158,7 +158,7 @@ module Driftless
             esac; }; f
           SH
           config_args += ['-c', 'credential.helper=', '-c', "credential.helper=#{helper}"]
-          Driftless.logger.info('import git: HTTPS auth via DRIFTLESS_REPORT_PULL_TOKEN')
+          Driftless.logger.debug('import git: HTTPS auth via DRIFTLESS_REPORT_PULL_TOKEN')
         end
 
         if (key_material = ENV['DRIFTLESS_REPORT_PULL_SSH_KEY'])
@@ -176,7 +176,7 @@ module Driftless
 
           extra_env['SSH_AUTH_SOCK'] = sock
           extra_env['SSH_AGENT_PID'] = pid
-          Driftless.logger.info('import git: SSH auth via DRIFTLESS_REPORT_PULL_SSH_KEY')
+          Driftless.logger.debug('import git: SSH auth via DRIFTLESS_REPORT_PULL_SSH_KEY')
         end
 
         yield extra_env, config_args

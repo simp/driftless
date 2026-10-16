@@ -63,15 +63,15 @@ module Driftless
 
       hiera_tiers, hl_findings = phase('hierarchy load') { Inputs::HierarchyLoader.load(@repo_dir) }
       findings.concat(hl_findings)
-      Driftless.logger.info("Loaded #{hiera_tiers.size} hierarchy tiers")
+      Driftless.logger.debug("Loaded #{hiera_tiers.size} hierarchy tiers")
 
       manifest_files, mpl_findings = phase('manifest discovery') { Inputs::ModulepathLoader.load(@repo_dir) }
       findings.concat(mpl_findings)
-      Driftless.logger.info("Discovered #{manifest_files.size} Puppet manifest files")
+      Driftless.logger.debug("Discovered #{manifest_files.size} Puppet manifest files")
 
       puppetfile = phase('Puppetfile load') { Inputs::Puppetfile.load(@repo_dir) }
       warnings << "Puppetfile not evaluated: #{puppetfile.error}" if puppetfile.error
-      Driftless.logger.info("Read #{puppetfile.modules.size} module declarations from the Puppetfile") if puppetfile.exists?
+      Driftless.logger.debug("Read #{puppetfile.modules.size} module declarations from the Puppetfile") if puppetfile.exists?
 
       puppet_classes    = {}
       code_lookup_calls = []
@@ -85,7 +85,7 @@ module Driftless
           code_lookup_calls.concat(LookupCallExtractor.extract(program: program, file: path))
         end
       end
-      Driftless.logger.info("Extracted #{puppet_classes.size} classes and #{code_lookup_calls.size} lookup calls from manifests")
+      Driftless.logger.debug("Extracted #{puppet_classes.size} classes and #{code_lookup_calls.size} lookup calls from manifests")
 
       epp_paths = epp_templates
       phase('EPP template scan') do
@@ -97,16 +97,16 @@ module Driftless
           code_lookup_calls.concat(LookupCallExtractor.extract(program: program, file: path))
         end
       end
-      Driftless.logger.info("Scanned #{epp_paths.size} EPP templates")
+      Driftless.logger.debug("Scanned #{epp_paths.size} EPP templates")
 
       data_files, dl_findings = phase('data file load') { Inputs::DatadirLoader.load(hiera_tiers) }
       findings.concat(dl_findings)
-      Driftless.logger.info("Loaded #{data_files.size} Hiera data files")
+      Driftless.logger.debug("Loaded #{data_files.size} Hiera data files")
 
       module_data_keys = phase('module data load') do
         Inputs::ModuleDataLoader.load(Inputs::ModulepathLoader.module_dirs(@repo_dir))
       end
-      Driftless.logger.info("Loaded #{module_data_keys.size} keys from module data")
+      Driftless.logger.debug("Loaded #{module_data_keys.size} keys from module data")
 
       data_lookup_calls = phase('lookup extraction from Hiera data') do
         data_files.select { |df| File.file?(df.path) }

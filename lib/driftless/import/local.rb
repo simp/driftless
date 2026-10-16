@@ -42,7 +42,7 @@ module Driftless
         session_id  = summary.fetch('session_id')
 
         Driftless.logger.info("import local: session #{session_id} collector #{collector}")
-        Driftless.logger.info(
+        Driftless.logger.debug(
           "import local: target #{@incoming_dir}" \
           "#{" (summary -> #{@summary_dir})" if @summary_dir}" \
           "#{' (dry-run)' if @dry_run}",

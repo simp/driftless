@@ -43,7 +43,7 @@ module Driftless
     end
 
     def run
-      Driftless.logger.info("Scanning control repo: #{repo_dir}")
+      Driftless.logger.debug("Scanning control repo: #{repo_dir}")
 
       code = Codebase.load(repo_dir)
       code.warnings.each { |w| warn(w) }
@@ -53,24 +53,24 @@ module Driftless
       reported, rl_findings = phase('report load') { Inputs::ReportLoader.load(incoming_dir) }
       phase('duplicate certname check') { check_duplicate_certnames!(reported) }
       meta_findings.concat(rl_findings)
-      Driftless.logger.info("Loaded PuppetDB reports from #{incoming_dir}")
+      Driftless.logger.debug("Loaded PuppetDB reports from #{incoming_dir}")
 
       phase('summary coverage check') { check_summary_coverage! }
 
       if environments&.any?
         reported = phase('environment filter') { apply_environment_filter(reported) }
-        Driftless.logger.info("Filtered reports to environments: #{environments.join(', ')}")
+        Driftless.logger.debug("Filtered reports to environments: #{environments.join(', ')}")
       end
 
       @corpus = corpus = code.corpus(repo_dir: repo_dir, reported: reported)
 
       detectors = selected_detectors
-      Driftless.logger.info("Running #{detectors.size} detectors")
+      Driftless.logger.debug("Running #{detectors.size} detectors")
       detector_findings = detectors.flat_map do |klass|
         instance = klass.new(corpus)
 
         unless instance.option(:enabled)
-          Driftless.logger.info("  #{klass.key} → disabled by config")
+          Driftless.logger.debug("  #{klass.key} → disabled by config")
           next []
         end
 
@@ -81,7 +81,7 @@ module Driftless
         excluded = raw.size - filtered.size
         summary  = "#{filtered.size} findings"
         summary += " (#{excluded} excluded by config)" if excluded > 0
-        Driftless.logger.info("  #{klass.key} → #{summary}")
+        Driftless.logger.debug("  #{klass.key} → #{summary}")
         filtered
       end
 
@@ -116,7 +116,7 @@ module Driftless
 
         instance = registration.new
         unless instance.option(:enabled)
-          Driftless.logger.info("  #{key} → disabled by config")
+          Driftless.logger.debug("  #{key} → disabled by config")
           next []
         end
         apply_exclude_paths(group, instance.option(:exclude_paths), key)

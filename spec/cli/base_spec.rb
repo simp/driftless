@@ -445,14 +445,14 @@ RSpec.describe Driftless::CLI::Base do
       end
     end
 
-    it 'defaults to WARN when neither flag is set' do
+    it 'defaults to INFO when neither flag is set' do
       leaf.new.run([])
-      expect(Driftless.logger.level).to eq(Logger::WARN)
+      expect(Driftless.logger.level).to eq(Logger::INFO)
     end
 
-    it 'sets INFO when --verbose is parsed' do
+    it 'sets DEBUG when --verbose is parsed' do
       leaf.new.run(['--verbose'])
-      expect(Driftless.logger.level).to eq(Logger::INFO)
+      expect(Driftless.logger.level).to eq(Logger::DEBUG)
     end
 
     it 'sets ERROR when --quiet is parsed' do
@@ -487,22 +487,22 @@ RSpec.describe Driftless::CLI::Base do
 
     it 'applies inherited parent_options[:verbose] too' do
       leaf.new(parent_options: { verbose: true }).run([])
-      expect(Driftless.logger.level).to eq(Logger::INFO)
+      expect(Driftless.logger.level).to eq(Logger::DEBUG)
     end
 
     it 'respects @options[:log_level] (from config) when no CLI verbosity flag is set' do
-      leaf.new(parent_options: { log_level: 'info' }).run([])
-      expect(Driftless.logger.level).to eq(Logger::INFO)
+      leaf.new(parent_options: { log_level: 'warn' }).run([])
+      expect(Driftless.logger.level).to eq(Logger::WARN)
     end
 
     it 'CLI --verbose overrides config-derived log_level' do
       leaf.new(parent_options: { log_level: 'error' }).run(['-v'])
-      expect(Driftless.logger.level).to eq(Logger::INFO)
+      expect(Driftless.logger.level).to eq(Logger::DEBUG)
     end
 
-    it 'unknown log_level names fall through to default WARN' do
+    it 'unknown log_level names fall through to default INFO' do
       leaf.new(parent_options: { log_level: 'BOGUS' }).run([])
-      expect(Driftless.logger.level).to eq(Logger::WARN)
+      expect(Driftless.logger.level).to eq(Logger::INFO)
     end
   end
 

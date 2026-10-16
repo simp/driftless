@@ -61,7 +61,7 @@ module Driftless
         classify!(sessions, expected)
         supersede!(sessions)
 
-        Driftless.logger.info(
+        Driftless.logger.debug(
           "import cleanup: incoming=#{@incoming_dir} summary=#{@summary_dir}" \
           "#{' (dry-run)' if @dry_run}",
         )

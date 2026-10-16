@@ -50,7 +50,7 @@ RSpec.describe Driftless::Scan do
     around(:each) do |example|
       captured        = StringIO.new
       original_logger = Driftless.logger
-      Driftless.logger = Logger.new(captured, level: Logger::INFO)
+      Driftless.logger = Logger.new(captured, level: Logger::DEBUG)
       Driftless.logger.formatter = Driftless::Logging.formatter
       @captured = captured
       example.run
@@ -76,8 +76,8 @@ RSpec.describe Driftless::Scan do
 
         described_class.new(repo_dir: dir, incoming_dir: File.join(dir, 'incoming')).run
 
-        expect(@captured.string).to include('info: Scanning control repo: ')
-        expect(@captured.string).to match(/info: Loaded \d+ hierarchy tiers/)
+        expect(@captured.string).to include('debug: Scanning control repo: ')
+        expect(@captured.string).to match(/debug: Loaded \d+ hierarchy tiers/)
         expect(@captured.string).to match(/info: Scan complete: \d+ findings/)
       end
     end
@@ -132,7 +132,7 @@ RSpec.describe Driftless::Scan do
     around(:each) do |ex|
       captured        = StringIO.new
       original_logger = Driftless.logger
-      Driftless.logger = Logger.new(captured, level: Logger::INFO)
+      Driftless.logger = Logger.new(captured, level: Logger::DEBUG)
       Driftless.logger.formatter = Driftless::Logging.formatter
       @captured = captured
       ex.run

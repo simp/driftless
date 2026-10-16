@@ -37,18 +37,18 @@ module Driftless
       # @raise [ScanError] when the report is absent, or the environment
       #   filter rejects the tree
       def load
-        Driftless.logger.info("#{label}: reading #{incoming_dir}")
+        Driftless.logger.debug("#{label}: reading #{incoming_dir}")
         reported, _findings = ReportLoader.load(incoming_dir)
         if reported.missing?(report)
           raise ScanError, "no report:#{report} data under #{incoming_dir.inspect}"
         end
-        Driftless.logger.info(
+        Driftless.logger.debug(
           "#{label}: loaded #{reported.report(report).size} from #{describe_sessions(reported)}",
         )
 
         if environments&.any?
           reported = apply_environment_filter(reported)
-          Driftless.logger.info(
+          Driftless.logger.debug(
             "#{label}: #{reported.report(report).size} in environments #{environments.join(', ')}",
           )
         end

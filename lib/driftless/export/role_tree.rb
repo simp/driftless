@@ -209,7 +209,7 @@ module Driftless
         FileUtils.mkdir_p(dir)
         path = File.join(dir, "#{name_for(node)}.json")
         File.write(path, serialize(payload(node)))
-        Driftless.logger.info("export factsets: wrote #{path}")
+        Driftless.logger.debug("export factsets: wrote #{path}")
       end
     end
   end

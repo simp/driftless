@@ -72,6 +72,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Every command now says what it did by default
+  - `logging.level` defaults to `info`
+   - progress and per-file detail moved to `debug`
+    `-v` now means debug (`-vv` is the same)
 - `export factsets --onceover-role-tree` stale-factset warnings say why the file is stale
 - messages about writing factset files have been moved from debug to info
 - messages about rejecting factsets from other environments have been moved from info to debug

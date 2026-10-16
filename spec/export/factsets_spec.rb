@@ -310,9 +310,9 @@ RSpec.describe Driftless::Export::Factsets do
 
         described_class.new(incoming_dir: tmp, output_dir: out, profile: 'onceover').run
 
-        expect(captured.string).to include("info: factsets: reading #{tmp}")
-        expect(captured.string).to include('info: factsets: loaded 1 from coll--2026-08-14T00-00-00Z')
-        expect(captured.string).to include("info: export factsets: wrote #{File.join(out, 'web01.example.com.json')}")
+        expect(captured.string).to include("debug: factsets: reading #{tmp}")
+        expect(captured.string).to include('debug: factsets: loaded 1 from coll--2026-08-14T00-00-00Z')
+        expect(captured.string).to include("debug: export factsets: wrote #{File.join(out, 'web01.example.com.json')}")
       end
     end
   end

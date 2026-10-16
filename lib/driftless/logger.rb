@@ -9,8 +9,8 @@ module Driftless
   module Logging
     extend ConfigKeys::DSL
 
-    config_key 'logging.level', type: :string, default: 'warn',
-               about: 'debug, info, warn, error, or fatal'
+    config_key 'logging.level', type: :string, default: 'info',
+               about: 'debug (progress and per-file detail), info (what each command did), warn, error, or fatal'
 
     # Styling for the severity label. Debug is absent: the whole line dims.
     SEVERITY_STYLES = {

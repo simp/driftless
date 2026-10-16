@@ -192,7 +192,7 @@ module Driftless
           o.separator 'Options:'
           configure_parser(o)
           add_config_flags(o)
-          o.on('-v', '--verbose', 'Verbose output (repeat for debug: -vv)') do
+          o.on('-v', '--verbose', 'Debug output: progress and per-file detail (-vv is the same)') do
             if @options[:verbose]
               @options[:debug] = true
             else
@@ -244,7 +244,8 @@ module Driftless
       end
 
       # Precedence: CLI flags (verbose/debug/quiet) win, then config-derived
-      # @options[:log_level] (populated by Root from logging.level), then default WARN.
+      # @options[:log_level] (populated by Root from logging.level), then default INFO:
+      # what each command did, with progress kept for debug.
       # rubocop:disable Lint/UselessConstantScoping -- public access intended
       LOG_LEVEL_NAMES = {
         'debug' => Logger::DEBUG,
@@ -257,13 +258,12 @@ module Driftless
 
       def apply_log_level
         ::Driftless.logger.level =
-          if    @options[:quiet]   then Logger::ERROR
-          elsif @options[:debug]   then Logger::DEBUG
-          elsif @options[:verbose] then Logger::INFO
+          if    @options[:quiet] then Logger::ERROR
+          elsif @options[:debug] || @options[:verbose] then Logger::DEBUG
           elsif @options[:log_level]
-            LOG_LEVEL_NAMES.fetch(@options[:log_level].to_s.downcase, Logger::WARN)
+            LOG_LEVEL_NAMES.fetch(@options[:log_level].to_s.downcase, Logger::INFO)
           else
-            Logger::WARN
+            Logger::INFO
           end
       end
 

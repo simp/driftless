@@ -75,12 +75,12 @@ module Driftless
         @warnings = @loader.warnings
         unless @selector.empty?
           nodes = @selector.select(nodes, @loader.reported)
-          Driftless.logger.info("export factsets: #{nodes.size} match the selection")
+          Driftless.logger.debug("export factsets: #{nodes.size} match the selection")
         end
         nodes = nodes.sort_by { |n| n.certname.to_s }
         if @limit
           nodes = nodes.first(@limit)
-          Driftless.logger.info("export factsets: limited to #{nodes.size}")
+          Driftless.logger.debug("export factsets: limited to #{nodes.size}")
         end
 
         FileUtils.mkdir_p(@output_dir)
@@ -92,7 +92,7 @@ module Driftless
             warn("export factsets: skipped a factset from #{node.collector || '(unknown collector)'} with no certname")
             next
           end
-          Driftless.logger.info("export factsets: wrote #{write_one(node)}")
+          Driftless.logger.debug("export factsets: wrote #{write_one(node)}")
           written += 1
         end
         Result.new(written: written, skipped_no_certname: skipped_no_certname)

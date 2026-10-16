@@ -11,17 +11,6 @@ module Driftless
       quality  :wrong
       about '`lookup()` calls for keys not defined anywhere in Hiera'
 
-      # Matches any file under a Puppet module directory (modules/ or
-      # site-modules/), capturing the module name. Includes .pp AND .epp
-      # AND any other file inside the module tree. Greedy `.*` at the start
-      # implicitly resolves nested cases (a/modules/b/modules/c/x.pp → c).
-      MODULE_FILE_RE = %r{/(?:site-)?modules/([^/]+)/}.freeze
-
-      # Matches Puppet manifest files under a module and captures both the
-      # module name AND the subpath inside manifests/, for class-name
-      # derivation via Puppet's autoloading convention.
-      CLASS_PATH_RE = %r{/(?:site-)?modules/([^/]+)/manifests/(.*)\.pp\z}.freeze
-
       config_option :ignore_lookups_with_defaults, type: :boolean, default: false,
         about: 'Skip flagging lookup() calls that provide an explicit default value'
 
@@ -32,7 +21,7 @@ module Driftless
         corpus.code_lookup_calls.each do |lc|
           next if defined_keys.include?(lc.key)
           next if lc.has_default && option(:ignore_lookups_with_defaults)
-          next if skip_as_module_local?(lc)
+          next if lc.module_local?
 
           findings << build_finding(
             path:    lc.file,
@@ -51,37 +40,6 @@ module Driftless
         keys = Set.new
         corpus.data_files.each { |df| keys.merge(df.top_level_keys.keys) }
         keys.merge(corpus.module_data_keys)
-      end
-
-      # Whether a lookup call is inside a module and for that module's own
-      # namespace. Those are the module's concern, not the control repo's.
-      # Role/profile classes are arranged in module layout but are the
-      # control repo's code, so their lookups are checked.
-      def skip_as_module_local?(lc)
-        return false unless lc.file
-        m = MODULE_FILE_RE.match(lc.file)
-        return false unless m
-        module_name = m[1]
-
-        class_name = derive_class_name(lc.file)
-        return false if RoleProfile.role?(class_name) || RoleProfile.profile?(class_name)
-
-        key_ns = lc.key.split('::', 2).first
-        module_name == key_ns
-      end
-
-      # Puppet autoloading convention:
-      #   <modulepath>/<module>/manifests/init.pp     → <module>
-      #   <modulepath>/<module>/manifests/foo.pp      → <module>::foo
-      #   <modulepath>/<module>/manifests/foo/bar.pp  → <module>::foo::bar
-      # Returns nil for paths outside this pattern (EPP templates, etc.).
-      def derive_class_name(path)
-        m = CLASS_PATH_RE.match(path)
-        return nil unless m
-        module_name = m[1]
-        subpath = m[2]
-        return module_name if subpath == 'init'
-        ([module_name] + subpath.split('/')).join('::')
       end
     end
   end

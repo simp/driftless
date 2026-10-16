@@ -14,7 +14,10 @@ module Driftless
     # `data:codebase-missing-class`), and under a role or profile namespace
     # is not held to naming a param either (as `data:codebase-missing-class-param`
     # with allow_role_profile_keys), since those namespaces hold Hiera-only
-    # keys by convention. A lookup() under those namespaces is not checked.
+    # keys by convention. A lookup() under those namespaces is not checked,
+    # and neither is a module's lookup() of its own namespace (as
+    # `code:lookup-missing-hiera-keys`): that is the module reading its own
+    # data, which is not scanned.
     class Validate
       extend ConfigKeys::DSL
 
@@ -72,7 +75,7 @@ module Driftless
         lookups.each do |lc|
           path = ParamsSchema.relative(lc.file, corpus.repo_dir)
           next if excluded_path?(path)
-          next if RoleProfile.role?(lc.key) || RoleProfile.profile?(lc.key)
+          next if RoleProfile.role?(lc.key) || RoleProfile.profile?(lc.key) || lc.module_local?
 
           issues << check(lc.key, path, lc.line, missing_class: false, hiera_only_ok: false)
         end

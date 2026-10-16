@@ -33,6 +33,8 @@ RSpec.describe Driftless::ParamsSchema do
       ) { }
     PP
     File.write(File.join(dir, 'modules/apache/manifests/vhost.pp'), "define apache::vhost (String $root) { }\n")
+    FileUtils.mkdir_p(File.join(dir, 'modules/timezone/manifests'))
+    File.write(File.join(dir, 'modules/timezone/manifests/init.pp'), "class timezone { $c = lookup('timezone::hwclock_cmd') }\n")
     File.write(File.join(dir, 'site-modules/profile/manifests/web.pp'), <<~PP)
       class profile::web (String $vhost) {
         $x = lookup('profile::web::packages')
@@ -68,7 +70,7 @@ RSpec.describe Driftless::ParamsSchema do
         doc = described_class.assemble(corpus: corpus_for(dir), now: Time.utc(2026, 10, 14))
         expect(doc).to include('document' => 'params', 'schema_version' => 1, 'generated_at' => '2026-10-14T00:00:00Z')
         expect(doc['repo']).to include('dir' => dir, 'deployments' => {})
-        expect(doc['classes'].keys).to eq(%w[apache apache::vhost profile::web])
+        expect(doc['classes'].keys).to eq(%w[apache apache::vhost profile::web timezone])
         expect(doc['classes']['apache']).to eq(
           'file'   => 'modules/apache/manifests/init.pp',
           'params' => {
@@ -86,7 +88,7 @@ RSpec.describe Driftless::ParamsSchema do
       Dir.mktmpdir do |dir|
         control_repo(dir)
         path = described_class.write(described_class.assemble(corpus: corpus_for(dir)), File.join(dir, 'out/params.json'))
-        expect(described_class.read(path)['classes'].keys).to eq(%w[apache apache::vhost profile::web])
+        expect(described_class.read(path)['classes'].keys).to eq(%w[apache apache::vhost profile::web timezone])
         other = File.join(dir, 'scan.json')
         File.write(other, JSON.generate('document' => 'scan', 'schema_version' => 1))
         expect { described_class.read(other) }.to raise_error(Driftless::JsonDocument::Error, /expected "params"/)
@@ -138,6 +140,14 @@ RSpec.describe Driftless::ParamsSchema do
   describe Driftless::ParamsSchema::Validate do
     def schema(dir)
       Driftless::ParamsSchema.assemble(corpus: corpus_for(dir))
+    end
+
+    it 'spares a module looking up its own namespace, as the lookup detector does' do
+      Dir.mktmpdir do |dir|
+        control_repo(dir)
+        issues = described_class.new(schema(dir)).call(corpus_for(dir))
+        expect(issues.map(&:key)).not_to include('timezone::hwclock_cmd')
+      end
     end
 
     it 'flags Hiera keys and lookups the schema does not record, sparing looked-up keys as the detectors do' do

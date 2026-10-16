@@ -61,6 +61,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     before it.  `.include:` can be nested.
   - `!reference [key, subkey, ...]` on a value takes the value at that path.
     Works across merged files.
+  - a list inside a list is flattened, so `- *shared` inserts items in a list.
 - New config file subsystem `export`:
   - `export.factsets.exclude_certnames`: certname globs `export factsets` never
     exports

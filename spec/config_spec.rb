@@ -241,6 +241,25 @@ RSpec.describe Driftless::Config do
         end
       end
 
+      it 'splices a list aliased or referenced inside a list' do
+        with_isolated_env do |cwd:, **|
+          write_project_config(cwd, <<~YAML)
+            .shared: &shared [modules/**, vendor/**]
+            detectors:
+              defaults:
+                exclude_paths:
+                  - spec/**
+                  - *shared
+                  - !reference [.shared]
+            puppet:
+              environments: [[a, [b]], c]
+          YAML
+          cfg = described_class.load
+          expect(cfg.dig('detectors', 'defaults', 'exclude_paths')).to eq(%w[spec/** modules/** vendor/** modules/** vendor/**])
+          expect(cfg.dig('puppet', 'environments')).to eq(%w[a b c])
+        end
+      end
+
       it 'leaves anchors and merge keys working beside references' do
         with_isolated_env do |cwd:, **|
           write_project_config(cwd, "a: &a [1, 2]\nb: *a\nc: !reference [a]\nd:\n  <<: {x: 1}\n  y: !reference [b, 1]\n")

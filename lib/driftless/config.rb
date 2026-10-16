@@ -54,7 +54,7 @@ module Driftless
       references = []
       sources = discover_sources(config_path: config_path, no_config: no_config, references: references)
       merged  = sources.reduce({}) { |acc, (_path, data)| deep_merge(acc, data) }
-      merged  = resolve_references(merged, references)
+      merged  = flatten_lists(resolve_references(merged, references))
       new(merged: merged, sources: sources.map(&:first))
     end
 
@@ -216,6 +216,17 @@ module Driftless
       raise ConfigLoadError, "#{where}: #{REFERENCE_TAG} #{ref[:keys].inspect}: nothing at that path in the merged config" if target.nil?
 
       substitute(target, merged, references, resolving + [ref])
+    end
+
+    # Every list with any list inside it spliced flat, one level per pass
+    # until none remain: `- *shared` where the anchor is a list, or a
+    # `!reference` to one, nests it, and no setting takes a list of lists.
+    def self.flatten_lists(value)
+      case value
+      when Hash  then value.to_h { |k, v| [k, flatten_lists(v)] }
+      when Array then value.flatten.map { |v| flatten_lists(v) }
+      else value
+      end
     end
 
     # Deep-merge two hashes:

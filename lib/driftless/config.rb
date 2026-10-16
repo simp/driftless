@@ -12,6 +12,10 @@ module Driftless
   # `--config=PATH` replaces the entire chain (this file is the only source).
   # `--no-config` skips all files (returns an empty config).
   #
+  # Any file may name further files under `.include:`; each is a layer
+  # merged before the file naming it, so the includer wins on scalars and
+  # lists union, and includes nest.
+  #
   # @!attribute [r] sources
   #   @return [Array<String>] Absolute paths of every file that actually
   #     contributed to the merged config, in load order (lowest to highest
@@ -20,6 +24,10 @@ module Driftless
     SYSTEM_PATH        = '/etc/puppetlabs/driftless/config.yaml'.freeze
     PROJECT_FILENAME   = 'driftless.yaml'.freeze
     XDG_CONFIG_DEFAULT = '~/.config'.freeze
+
+    # The key under which a file lists the files to merge before it,
+    # relative to its own directory. Dropped from the merged config.
+    INCLUDE_KEY = '.include'.freeze
 
     PERMITTED_YAML_CLASSES = [
       Hash, Array, String, Integer, Float, TrueClass, FalseClass, NilClass,
@@ -73,15 +81,41 @@ module Driftless
         # a silent no-op — the user said "use THIS file" and we can't.
         path = File.expand_path(config_path)
         raise ConfigLoadError, "#{path}: file not found" unless File.file?(path)
-        [[path, load_file(path)]]
+        load_with_includes(path, [])
       else
         # Implicit search chain: lenient. Absent files are the common case
         # (most users won't have all three).
-        search_chain.filter_map do |path|
-          next unless File.file?(path)
-          [path, load_file(path)]
+        search_chain.flat_map do |path|
+          File.file?(path) ? load_with_includes(path, []) : []
         end
       end
+    end
+
+    # One file and, before it, every file its `.include` names, each with
+    # their own includes first: `[[path, hash], ...]` in merge order.
+    #
+    # @param path [String] absolute
+    # @param chain [Array<String>] the files whose includes led here
+    # @raise [ConfigLoadError] on a file including itself through any chain,
+    #   or naming a file that is not there
+    def self.load_with_includes(path, chain)
+      if chain.include?(path)
+        raise ConfigLoadError, "#{chain.last}: #{INCLUDE_KEY} loops back to #{path} (via #{chain.join(' -> ')})"
+      end
+
+      data     = load_file(path)
+      includes = data.delete(INCLUDE_KEY)
+      unless includes.nil? || includes.is_a?(Array) || includes.is_a?(String)
+        raise ConfigLoadError, "#{path}: #{INCLUDE_KEY} must be a path or a list of paths, got #{includes.class}"
+      end
+
+      included = Array(includes).flat_map do |rel|
+        target = File.expand_path(rel.to_s, File.dirname(path))
+        raise ConfigLoadError, "#{path}: #{INCLUDE_KEY} names #{target}, which is not there" unless File.file?(target)
+
+        load_with_includes(target, chain + [path])
+      end
+      included + [[path, data]]
     end
 
     # Reads and parses one config file. Empty files are treated as `{}`.
@@ -96,7 +130,7 @@ module Driftless
       else
         raise ConfigLoadError, "#{path}: top-level YAML must be a mapping, got #{parsed.class}"
       end
-    rescue Psych::SyntaxError, Psych::BadAlias => e
+    rescue Psych::SyntaxError, Psych::BadAlias, Psych::DisallowedClass => e
       raise ConfigLoadError, "#{path}: invalid YAML — #{e.message}"
     rescue Errno::ENOENT
       raise ConfigLoadError, "#{path}: file not found"

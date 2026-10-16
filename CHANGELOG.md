@@ -57,6 +57,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Now resolves YAML anchors, aliases, and merge keys
   - The config validator ignores any key starting with `.` at every level, as a
   place to hold anchors
+  - `.include: [path, ...]` in any config file merges those (relative) paths
+    before it.  `.include:` can be nested.
 - New config file subsystem `export`:
   - `export.factsets.exclude_certnames`: certname globs `export factsets` never exports
 

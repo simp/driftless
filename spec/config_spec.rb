@@ -147,6 +147,60 @@ RSpec.describe Driftless::Config do
       end
     end
 
+    context 'with .include' do
+      def write(cwd, rel, content)
+        path = File.join(cwd, rel)
+        FileUtils.mkdir_p(File.dirname(path))
+        File.write(path, content)
+        path
+      end
+
+      it 'merges included files before the includer, paths relative to the including file, nested' do
+        with_isolated_env do |cwd:, **|
+          a = write(cwd, 'conf/a.yaml', ".include: deeper/b.yaml\nlogging:\n  level: info\nscan:\n  fail_on: any\n.shared: [x]\n")
+          b = write(cwd, 'conf/deeper/b.yaml', "logging:\n  level: debug\nscan:\n  fail_on: none\n")
+          write_project_config(cwd, ".include:\n  - conf/a.yaml\nlogging:\n  level: warn\n")
+          cfg = described_class.load
+          expect(cfg.dig('logging', 'level')).to eq('warn')
+          expect(cfg.dig('scan', 'fail_on')).to eq('any')
+          expect(cfg['.shared']).to eq(['x'])
+          expect(cfg['.include']).to be_nil
+          expect(cfg.sources).to eq([b, a, File.join(cwd, 'driftless.yaml')])
+        end
+      end
+
+      it 'unions lists with the includer, as layers do' do
+        with_isolated_env do |cwd:, **|
+          write(cwd, 'more.yaml', "puppet:\n  environments: [a, b]\n")
+          write_project_config(cwd, ".include: more.yaml\npuppet:\n  environments: [b, c]\n")
+          expect(described_class.load.dig('puppet', 'environments')).to eq(%w[a b c])
+        end
+      end
+
+      it 'works from a --config file too' do
+        with_isolated_env do |cwd:, **|
+          write(cwd, 'ci/extra.yaml', "a: extra\n")
+          override = write(cwd, 'ci/ci.yaml', ".include: [extra.yaml]\nb: ci\n")
+          cfg = described_class.load(config_path: override)
+          expect([cfg['a'], cfg['b']]).to eq(%w[extra ci])
+        end
+      end
+
+      it 'raises on a missing include, a loop, and a value that is not a path list' do
+        with_isolated_env do |cwd:, **|
+          write_project_config(cwd, ".include: nope.yaml\n")
+          expect { described_class.load }.to raise_error(Driftless::ConfigLoadError, %r{driftless\.yaml: \.include names .*/nope\.yaml, which is not there})
+
+          write(cwd, 'loop.yaml', ".include: driftless.yaml\n")
+          write_project_config(cwd, ".include: loop.yaml\n")
+          expect { described_class.load }.to raise_error(Driftless::ConfigLoadError, /loop\.yaml: \.include loops back to .*driftless\.yaml/)
+
+          write_project_config(cwd, ".include: {a: b}\n")
+          expect { described_class.load }.to raise_error(Driftless::ConfigLoadError, /must be a path or a list of paths/)
+        end
+      end
+    end
+
     context 'with edge-case file contents' do
       it 'treats an empty file as an empty hash (not nil)' do
         with_isolated_env do |cwd:, **|
@@ -183,6 +237,14 @@ RSpec.describe Driftless::Config do
           cfg = described_class.load
           expect(cfg.dig('export', 'factsets', 'exclude_certnames')).to eq(%w[production dev])
           expect(cfg.dig('modules', 'operatingsystems')).to eq('site_region' => %w[east west], 'RedHat' => ['9'])
+        end
+      end
+
+      it 'raises on a value of a class safe_load does not permit' do
+        with_isolated_env do |cwd:, **|
+          write_project_config(cwd, "puppet:\n  environments: [:sym]\n")
+          expect { described_class.load }
+            .to raise_error(Driftless::ConfigLoadError, /invalid YAML/)
         end
       end
 

@@ -29,66 +29,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `--role` can narrow which `<role::name>/` directories are updated
 - New `--exclude-certname GLOB` flag for `list facts|factsets|nodes` and
   `export factsets` to drop exclude matching nodes
-- New subcommand `driftless modules resolve [-d DIR] [--propose PUPPETFILE]`: 
-  - identifies conflicts and exit 1 when any are present
-  - `--propose` resolves as if `PUPPETFILE` replaced the current
-    entries, fetching `metadata.json` from git for changed modules
-  - `--ignore MODULES` resolves as if those modules were removed
-  - row filters `--modules`, `--subjects`, `--conflicts`, and `--skip-conflicts CONFLICTS`
-  - `--order COLUMNS` and `--sort-by COLUMNS`
-  - `--exclude-modules`, `--exclude-deps`, `--exclude-requirements`, and
-    `--exclude-operatingsystems` add globs to the matching `modules.exclude_*` list for one run
-  - `--summary` shows one row per module with conflicts: a count per kind, after the filters
-- New subcommand `driftless modules gitlog MODULE [REF] [-n NUM] [-f] [--fetch]`: display a deployed module's git log along its branch to see updates
-  - `--branchfile FILE` (config: `modules.branchfile`) maps modules to branches to track updates.
-    - `FILE` can be a YAML file of `module: branch` pairs, or a Puppetfile overlay of `mod` entries with `:branch`
-  - `--branch BRANCH` follows that branch instead; with `--branchfile FILE` on the command line,
-    the pair is recorded in FILE
-- New subcommand `driftless modules update MODULE REF [--dry-run]`: updates deployed module to REF
 - New subcommand `driftless params` to:
   - `record` every class parameter signatures across the repo to a schema file
-  - `validate` hiera data against the signatures in that file, and
-  - `compare` param schema files for differences
+  - `validate` hiera data against the signatures in that file
 - New config file subsystem `params`: `params.schema_file` and
   `params.exclude_paths|classes|modules|params`
-- New config file subsystem `modules`:
-  - `modules.operatingsystems`: the OS releases every module must declare support for
-  - `modules.requirements`: the Puppet range the control repo itself requires, as a
-    module's `metadata.json` would declare it; modules outside it are `puppet-version` rows
-  - `modules.exclude_modules`: globs of modules left out of every check
-  - `modules.exclude_dependencies`, `modules.exclude_requirements`,
-    `modules.exclude_operatingsystems`: globs dropping known conflicts of each kind
-- `driftless.yaml`
-  - Now resolves YAML anchors, aliases, and merge keys
-  - The config validator ignores any key starting with `.` at every level, as a
-    place to hold anchors
-  - `.include: [path, ...]` in any config file merges those (relative) paths
-    before it.  `.include:` can be nested.
-  - `!reference [key, subkey, ...]` on a value takes the value at that path.
-    Works across merged files.
-  - a list inside a list is flattened, so `- *shared` inserts items in a list.
-- New config file subsystem `export`:
-  - `export.factsets.exclude_certnames`: certname globs `export factsets` never
-    exports
-
-### Changed
-
-- Every command now says what it did by default
-  - `logging.level` defaults to `info`
-   - progress and per-file detail moved to `debug`
-    `-v` now means debug (`-vv` is the same)
-- `export factsets --onceover-role-tree` stale-factset warnings say why the file is stale
-- messages about writing factset files have been moved from debug to info
-- messages about rejecting factsets from other environments have been moved from info to debug
-
-### Fixed
-
-- `site` links to filters now match the whole word, not a prefix
-- `site`: deployed module finding (`code:unused-modules`) link to
-  that module's repository at its ref instead of a 404 in the control repo
-- `scan` links now handle git web ui links to repos deployed via
-  `default_branch` differently than `:control_branch`
-- `hierarchy:tiers-interpolating-bare-variables` and `data:bare-variables` now skip compiler variables
 
 ## [0.4.0] - 2026-09-08
 

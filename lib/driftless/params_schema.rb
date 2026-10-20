@@ -9,7 +9,7 @@ module Driftless
   # The document `params record` writes: every class on the modulepath with
   # its params, each param's type and default as written in the manifest,
   # beside the repo description. `params validate` checks a repo's Hiera
-  # keys and lookup() calls against one; `params compare` diffs two.
+  # keys and lookup() calls against one
   module ParamsSchema
     extend ConfigKeys::DSL
 

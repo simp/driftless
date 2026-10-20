@@ -90,25 +90,4 @@ RSpec.describe Driftless::CLI::Params do
       expect(run(Driftless::CLI::Params::Validate, ['--no-config', '-d', dir]).first).to eq(3)
     end
   end
-
-  it 'compares two recordings' do
-    Dir.mktmpdir do |dir|
-      control_repo(dir)
-      run(Driftless::CLI::Params::Record, ['--no-config', '-d', dir, '-o', 'before.json'])
-      File.write(File.join(dir, 'modules/apache/manifests/init.pp'), "class apache (Stdlib::Port $port = 80, Boolean $ssl = false) { }\n")
-      run(Driftless::CLI::Params::Record, ['--no-config', '-d', dir, '-o', 'after.json'])
-
-      before = File.join(dir, 'before.json')
-      after  = File.join(dir, 'after.json')
-      status, out = run(Driftless::CLI::Params::Compare, ['--no-config', before, after])
-      expect(status).to eq(1)
-      expect(cells(out)).to eq([
-        %w[change class param detail],
-        ['type-changed', 'apache', 'port', 'Integer -> Stdlib::Port'],
-        ['param-added', 'apache', 'ssl', 'Boolean = false'],
-      ])
-      expect(run(Driftless::CLI::Params::Compare, ['--no-config', before, before])).to eq([0, "no differences\n"])
-      expect(run(Driftless::CLI::Params::Compare, ['--no-config', before]).first).to eq(2)
-    end
-  end
 end

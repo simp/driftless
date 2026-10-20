@@ -33,6 +33,9 @@ module Driftless
                    about: 'Which of conflict, module, and subject `modules resolve` sorts rows by, in precedence; ' \
                           'columns left out break ties in their default order'
 
+        # The one-row-per-module table: counts per conflict kind, then all.
+        SUMMARY_COLUMNS = (['module'] + ::Driftless::ModuleResolver::KINDS + ['total']).freeze
+
         # What each named column shows for a conflict.
         CELL = { 'conflict' => :kind, 'module' => :module, 'subject' => :subject }.freeze
 
@@ -60,11 +63,19 @@ module Driftless
             result   = resolver.resolve(proposal.entries)
             log_warnings(proposal.warnings + result.warnings)
             shown = shown_rows(result)
-            print_table(['change'] + @order + ['detail'], change_rows(shown_rows(current), shown))
+            if @options[:summary]
+              print_table(SUMMARY_COLUMNS, summary_rows(shown))
+            else
+              print_table(['change'] + @order + ['detail'], change_rows(shown_rows(current), shown))
+            end
           else
             result = current
             shown  = shown_rows(result)
-            print_table(@order + ['detail'], shown.map { |c| row(c) })
+            if @options[:summary]
+              print_table(SUMMARY_COLUMNS, summary_rows(shown))
+            else
+              print_table(@order + ['detail'], shown.map { |c| row(c) })
+            end
           end
 
           ::Driftless.logger.info(summary(result, shown))
@@ -109,6 +120,7 @@ module Driftless
 
           o.separator ''
           o.separator "Layout (columns: #{COLUMNS.join(', ')}; those left out follow in that order):"
+          o.on('--summary', 'One row per module with conflicts: a count per kind, after the filters') { @options[:summary] = true }
           o.on('--order=COLUMNS', Array, 'Column order, left to right (config: modules.resolve_order)') { |v| @options[:order] = v }
           o.on('--sort-by=COLUMNS', Array, 'Sort rows by these columns, in precedence (config: modules.resolve_sort)') do |v|
             @options[:sort] = v
@@ -162,6 +174,15 @@ module Driftless
           puppet = result.puppet_range ? "puppet #{result.puppet_range} satisfies every requirement" : 'no puppet version satisfies every requirement'
           count  = (shown.size == result.conflicts.size) ? "#{result.conflicts.size} conflict(s)" : "#{shown.size} of #{result.conflicts.size} conflict(s) shown"
           "modules resolve: #{count}, #{result.excluded} excluded; #{puppet}"
+        end
+
+        # One row per module among the shown conflicts, by module name: a
+        # count per kind and the total.
+        def summary_rows(conflicts)
+          conflicts.group_by(&:module).sort.map do |name, rows|
+            counts = ::Driftless::ModuleResolver::KINDS.map { |kind| rows.count { |c| c.kind == kind } }
+            [name] + counts.map(&:to_s) + [rows.size.to_s]
+          end
         end
 
         # The conflicts the row filters let through, in the sort order.

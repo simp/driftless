@@ -38,6 +38,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `--order COLUMNS` and `--sort-by COLUMNS`
   - `--exclude-modules`, `--exclude-deps`, `--exclude-requirements`, and
     `--exclude-operatingsystems` add globs to the matching `modules.exclude_*` list for one run
+  - `--summary` shows one row per module with conflicts: a count per kind, after the filters
 - New subcommand `driftless modules gitlog MODULE [REF] [-n NUM] [-f] [--fetch]`: display a deployed module's git log along its branch to see updates
   - `--branchfile FILE` (config: `modules.branchfile`) maps modules to branches to track updates.
     - `FILE` can be a YAML file of `module: branch` pairs, or a Puppetfile overlay of `mod` entries with `:branch`

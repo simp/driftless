@@ -209,6 +209,23 @@ RSpec.describe Driftless::CLI::Modules::Resolve do
     end
   end
 
+  it 'summarises one row per module with --summary, after the filters' do
+    Dir.mktmpdir do |dir|
+      control_repo(dir)
+      status, out = run(['--no-config', '-d', dir, '--summary'])
+      expect(status).to eq(1)
+      expect(cells(out)).to eq([
+        %w[module missing-dependency dependency-version puppet-version operatingsystem total],
+        %w[org-nginx 0 1 0 0 1],
+        %w[puppetlabs-apache 1 1 0 0 2],
+      ])
+      _, out = run(['--no-config', '-d', dir, '--summary', '--skip-conflicts', 'dependency-version'])
+      expect(cells(out).map(&:first)).to eq(%w[module puppetlabs-apache])
+      _, out = run(['--no-config', '-d', dir, '--summary', '--ignore', 'puppetlabs/stdlib'])
+      expect(cells(out).map { |r| [r[0], r[1]] }).to eq([%w[module missing-dependency], %w[org-nginx 1], %w[puppetlabs-apache 2]])
+    end
+  end
+
   it 'fails on a proposed Puppetfile that cannot be read' do
     Dir.mktmpdir do |dir|
       control_repo(dir)

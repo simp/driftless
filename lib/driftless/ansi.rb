@@ -11,6 +11,7 @@ module Driftless
       magenta: "\e[0;35m",
       cyan:    "\e[0;36m",
       white:   "\e[0;37m",
+      grey:    "\e[0;90m",
       on_red:  "\e[41m",
       bold:    "\e[1m",
       dim:     "\e[2m",

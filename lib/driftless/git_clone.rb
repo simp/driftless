@@ -21,22 +21,22 @@ module Driftless
 
     # @return [String, nil] HEAD's 40-hex sha
     def sha
-      output('rev-parse', 'HEAD')
+      output('rev-parse', 'HEAD', why: 'sha at HEAD')
     end
 
     # @return [String, nil] the checked-out branch, or "HEAD" when detached
     def current_branch
-      output('rev-parse', '--abbrev-ref', 'HEAD')
+      output('rev-parse', '--abbrev-ref', 'HEAD', why: 'branch at HEAD')
     end
 
     # @return [String, nil] the `origin` remote's URL
     def remote
-      output('remote', 'get-url', 'origin')
+      output('remote', 'get-url', 'origin', why: 'remote URL')
     end
 
     # @return [String, nil] a tag at HEAD, the nearest by name when several
     def tag_at_head
-      output('describe', '--tags', '--exact-match', 'HEAD')
+      output('describe', '--tags', '--exact-match', 'HEAD', why: 'tag at HEAD')
     end
 
     # A branch whose tip is HEAD, from the local and remote-tracking refs:
@@ -45,7 +45,7 @@ module Driftless
     # @return [String, nil] nil when no branch tip is at HEAD, as after the
     #   branch moved on
     def branch_at_head(prefer: nil)
-      out = output('for-each-ref', '--points-at', 'HEAD', '--format=%(refname:short)', 'refs/heads', 'refs/remotes')
+      out = output('for-each-ref', '--points-at', 'HEAD', '--format=%(refname:short)', 'refs/heads', 'refs/remotes', why: 'branches at HEAD')
       return nil unless out
 
       branches = out.lines.map { |l| l.strip.sub(%r{\A[^/]+/}, '') }.reject { |b| b.empty? || b == 'HEAD' }.uniq.sort
@@ -58,7 +58,7 @@ module Driftless
     # @return [String, nil] its sha; nil when nothing here answers to the ref
     def resolve(ref)
       [ref.to_s, "origin/#{ref}"].each do |candidate|
-        sha = output('rev-parse', '--verify', '--quiet', "#{candidate}^{commit}")
+        sha = output('rev-parse', '--verify', '--quiet', "#{candidate}^{commit}", why: "resolving #{candidate}")
         return sha if sha
       end
       nil
@@ -69,13 +69,13 @@ module Driftless
     # @return [String, nil] git's output, empty when quiet; nil when the
     #   fetch failed
     def fetch
-      output('fetch', '--quiet', '--tags', 'origin')
+      output('fetch', '--quiet', '--tags', 'origin', why: 'fetching origin')
     end
 
     # @return [Boolean, nil] whether the work tree has uncommitted changes;
     #   nil when git cannot say
     def dirty?
-      out = output('status', '--porcelain')
+      out = output('status', '--porcelain', why: 'looking for local changes')
       out && !out.empty?
     end
 
@@ -85,20 +85,21 @@ module Driftless
     # @param force [Boolean] whether to discard local changes in the way
     # @return [String, nil] git's output; nil when the checkout failed
     def checkout(sha, force: false)
-      output('checkout', '--quiet', '--detach', *(force ? ['--force'] : []), sha)
+      output('checkout', '--quiet', '--detach', *(force ? ['--force'] : []), sha, why: "checking out #{sha[0, 12]}")
     end
 
     # @param args [Array<String>] `git log` arguments, as given
     # @return [String, nil] the log; nil when git fails
     def log(*args)
-      output('log', *args)
+      output('log', *args, why: 'log')
     end
 
     private
 
-    def output(*args)
+    # @param why [String, nil] what the command is for, named in the trace line
+    def output(*args, why: nil)
       out, err, status = Open3.capture3('git', '-C', @dir, *args)
-      Driftless.logger.trace("git -C #{@dir} #{args.join(' ')}: exit #{status.exitstatus}#{"; #{err.strip.lines.last.strip}" unless err.strip.empty?}")
+      Driftless.logger.trace("git -C #{@dir} #{args.join(' ')}#{" (#{why})" if why}: exit #{status.exitstatus}#{"; #{err.strip.lines.last.strip}" unless err.strip.empty?}")
       status.success? ? out.strip : nil
     rescue Errno::ENOENT
       nil

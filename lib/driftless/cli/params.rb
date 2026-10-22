@@ -9,7 +9,7 @@ module Driftless
     # `driftless params`: the parent of the class-param schema commands.
     class Params < Base
       register_command name: 'params', subcommand_of: Root
-      desc 'Record and validate against the schema of class params (see subcommands)'
+      desc 'Record the schema of class params, validate data against it, or compare two recordings'
 
       # What `record` and `validate` share: finding the repo and loading its
       # code and data.

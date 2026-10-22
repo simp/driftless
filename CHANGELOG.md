@@ -5,14 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-<!--
 ## [Unreleased]
 
 ### Added
+
+- `driftless params compare FROM TO`: what changed between two schemas that
+  `params record` wrote: the repo revision and deployments, then classes and
+  params added, removed, retyped, or redefaulted. Moved from pupgrade, where
+  `module diff` and `impact` cover the same ground
+- `Ansi` has a `grey` style
+
 ### Changed
-### Fixed
-### Removed
--->
+
+- A command's `--help` states what the command is for, under the usage line,
+  and lists its subcommands in alphabetical order
+- `GitClone` names what each git command is for in its trace line
 
 ## [0.5.0] - 2026-10-21
 

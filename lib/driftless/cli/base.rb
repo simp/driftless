@@ -186,7 +186,7 @@ module Driftless
 
       def build_parser
         OptionParser.new do |o|
-          o.banner = usage_line
+          o.banner = self.class.desc ? "#{usage_line}\n\n#{self.class.desc}" : usage_line
           add_subcommand_section(o)
           o.separator ''
           o.separator 'Options:'
@@ -201,9 +201,9 @@ module Driftless
             @options[:quiet] = true
             apply_log_level
           end
-          o.on('--[no-]color',    'Colorize terminal output (default: auto — on when stdout is a TTY)') { |v| @options[:color] = v }
+          o.on('--[no-]color', 'Colorize terminal output (default: auto — on when stdout is a TTY)') { |v| @options[:color] = v }
           o.on('--width=N', Integer, 'Wrap tables to N columns (default: the terminal\'s width; 0 for no limit)') { |v| @options[:width] = v }
-          o.on('-h', '--help',    'Show this help') do
+          o.on('-h', '--help', 'Show this help') do
             puts o
             exit 0
           end
@@ -277,7 +277,7 @@ module Driftless
       end
 
       def add_subcommand_section(o)
-        subs = self.class.subcommands
+        subs = self.class.subcommands.sort_by(&:canonical_name)
         return if subs.empty?
         o.separator ''
         o.separator 'Subcommands:'

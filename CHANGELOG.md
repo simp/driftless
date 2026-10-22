@@ -52,6 +52,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   after `;` and `,` before spaces, so nothing is cut; `--width N` sets the
   limit by hand (0 for none), and output that is not a terminal has none. A
   newline in a cell never breaks a row
+- `GitClone#checkout` takes `force:` to discard local changes in the way, and
+  every git command is logged at `trace` with its exit status
 
 ## [0.4.0] - 2026-09-08
 

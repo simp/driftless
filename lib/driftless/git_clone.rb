@@ -82,9 +82,10 @@ module Driftless
     # Checks out a commit, detached, the way r10k deploys.
     #
     # @param sha [String]
+    # @param force [Boolean] whether to discard local changes in the way
     # @return [String, nil] git's output; nil when the checkout failed
-    def checkout(sha)
-      output('checkout', '--quiet', '--detach', sha)
+    def checkout(sha, force: false)
+      output('checkout', '--quiet', '--detach', *(force ? ['--force'] : []), sha)
     end
 
     # @param args [Array<String>] `git log` arguments, as given
@@ -96,7 +97,8 @@ module Driftless
     private
 
     def output(*args)
-      out, _err, status = Open3.capture3('git', '-C', @dir, *args)
+      out, err, status = Open3.capture3('git', '-C', @dir, *args)
+      Driftless.logger.trace("git -C #{@dir} #{args.join(' ')}: exit #{status.exitstatus}#{"; #{err.strip.lines.last.strip}" unless err.strip.empty?}")
       status.success? ? out.strip : nil
     rescue Errno::ENOENT
       nil

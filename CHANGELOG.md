@@ -5,7 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+<!--
 ## [Unreleased]
+
+### Added
+### Changed
+### Fixed
+### Removed
+-->
+
+## [0.5.0] - 2026-10-21
 
 ### Added
 
@@ -37,21 +46,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Logging has seven levels, named as Puppet names them: `trace`, `debug`,
-  `info`, `notice`, `warning`, `error`, `fatal`. The default is `notice`: what
-  each command did. `-v` adds `info` (each item worked on), `-vv` `debug` (each
-  decision and file), `-vvv` `trace` (command output); `-q` keeps errors only.
-  A flag takes effect as soon as it is parsed, wherever it sits on the command
-  line, and `logging.level` takes the same names. Lines that were `info:` are
-  now `notice:` or `warning:` (`warn:` is gone), so anything matching on the
-  prefix needs updating. `Driftless.logger` is a `Driftless::Logging::Logger`,
-  a `::Logger` subclass with `trace`, `notice`, and `warning` methods. The
-  config loader says which files it read at `info`
-- Tables fit the terminal: a table wider than it has its widest columns
-  narrowed and their long cells wrapped onto continuation lines, breaking
-  after `;` and `,` before spaces, so nothing is cut; `--width N` sets the
-  limit by hand (0 for none), and output that is not a terminal has none. A
-  newline in a cell never breaks a row
+- The Logger now has seven levels: `trace`, `debug`, `info`, `notice`, `warning`, `error`, `fatal`
+  - The default level is `notice`, what each command did
+  - `-v` adds `info` (each item worked on)
+  - `-vv` `debug` (each decision and file)
+  - `-vvv` `trace` (command output)
+  - `-q` keeps errors only
+- Tables are now fit to the terminal width
+  - tables wider than that  has its widest columns narrowed and its long cells
+    wrapped onto continuation lines, breaking after words
+  - `--width N` sets the limit by hand (`0` for no limit)
+  - Newlines in cells don't break the row
 - `GitClone#checkout` takes `force:` to discard local changes in the way, and
   every git command is logged at `trace` with its exit status
 
@@ -226,7 +231,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial MVP
 
-[unreleased]: https://github.com/op-ct/driftless/compare/v0.4.0...HEAD
+[unreleased]: https://github.com/op-ct/driftless/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/op-ct/driftless/compare/v0.5.0...v0.5.0
 [0.4.0]: https://github.com/op-ct/driftless/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/op-ct/driftless/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/op-ct/driftless/compare/v0.1.0...v0.2.0

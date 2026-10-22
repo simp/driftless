@@ -1,5 +1,7 @@
 require 'yaml'
 
+require 'driftless/logger'
+
 module Driftless
   # Layered driftless.yaml config loader.
   #
@@ -53,6 +55,9 @@ module Driftless
     def self.load(config_path: nil, no_config: false)
       references = []
       sources = discover_sources(config_path: config_path, no_config: no_config, references: references)
+      none = no_config ? 'skipped (--no-config)' : 'no file found'
+      Driftless.logger.info(sources.empty? ? "config: #{none}" : "config: #{sources.map(&:first).join(', ')}")
+      Driftless.logger.debug("config: #{references.size} reference(s)") unless references.empty?
       merged  = sources.reduce({}) { |acc, (_path, data)| deep_merge(acc, data) }
       merged  = flatten_lists(resolve_references(merged, references))
       new(merged: merged, sources: sources.map(&:first))

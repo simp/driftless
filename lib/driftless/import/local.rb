@@ -53,7 +53,7 @@ module Driftless
 
         if @rm_after && !@dry_run && copied.positive?
           FileUtils.rm_rf(session_dir)
-          Driftless.logger.info("import local: removed session dir #{session_dir}")
+          Driftless.logger.notice("import local: removed session dir #{session_dir}")
         end
 
         Result.new(

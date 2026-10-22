@@ -24,10 +24,10 @@ RSpec.configure do |config|
 end
 
 # Capture what Driftless logs while the block runs, and return it as a string.
-def capture_log(level: Logger::DEBUG)
+def capture_log(level: :trace)
   captured        = StringIO.new
   original_logger = Driftless.logger
-  Driftless.logger           = Logger.new(captured, level: level)
+  Driftless.logger           = Driftless::Logging::Logger.new(captured, level: level)
   Driftless.logger.formatter = Driftless::Logging.formatter
   yield
   captured.string
@@ -56,7 +56,8 @@ end
 # It's really annoying when PuppetDB reports stderr warnings show up in the
 # middle of RSPec test results
 def silence_driftless_logger
-  fake_logger = instance_double(Logger, debug: true, info: true, warn: true, error: true, fatal: true)
+  fake_logger = instance_double(Driftless::Logging::Logger, trace: true, debug: true, info: true, notice: true,
+                                                            warning: true, warn: true, error: true, fatal: true)
   allow(fake_logger).to receive(:level=)
   allow(Driftless).to receive(:logger).and_return(fake_logger)
 end

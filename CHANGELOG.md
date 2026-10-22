@@ -35,6 +35,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - New config file subsystem `params`: `params.schema_file` and
   `params.exclude_paths|classes|modules|params`
 
+### Changed
+
+- Logging has seven levels, named as Puppet names them: `trace`, `debug`,
+  `info`, `notice`, `warning`, `error`, `fatal`. The default is `notice`: what
+  each command did. `-v` adds `info` (each item worked on), `-vv` `debug` (each
+  decision and file), `-vvv` `trace` (command output); `-q` keeps errors only.
+  A flag takes effect as soon as it is parsed, wherever it sits on the command
+  line, and `logging.level` takes the same names. Lines that were `info:` are
+  now `notice:` or `warning:` (`warn:` is gone), so anything matching on the
+  prefix needs updating. `Driftless.logger` is a `Driftless::Logging::Logger`,
+  a `::Logger` subclass with `trace`, `notice`, and `warning` methods. The
+  config loader says which files it read at `info`
+
 ## [0.4.0] - 2026-09-08
 
 ### Added

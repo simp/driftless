@@ -87,7 +87,7 @@ module Driftless
 
       all_findings = apply_registration_config(meta_findings) + detector_findings
       relativize_finding_paths!(all_findings)
-      Driftless.logger.info("Scan complete: #{all_findings.size} findings")
+      Driftless.logger.notice("Scan complete: #{all_findings.size} findings")
       all_findings
     end
 

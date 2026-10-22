@@ -192,14 +192,15 @@ module Driftless
           o.separator 'Options:'
           configure_parser(o)
           add_config_flags(o)
-          o.on('-v', '--verbose', 'Debug output: progress and per-file detail (-vv is the same)') do
-            if @options[:verbose]
-              @options[:debug] = true
-            else
-              @options[:verbose] = true
-            end
+          o.on('-v', '--verbose', 'More output: -v each item (info), -vv each decision and file (debug),',
+               'and -vvv command output (trace); applied as soon as it is parsed') do
+            @options[:verbosity] = @options.fetch(:verbosity, 0) + 1
+            apply_log_level
           end
-          o.on('-q', '--quiet',   'Suppress non-error output') { @options[:quiet] = true }
+          o.on('-q', '--quiet', 'Only errors') do
+            @options[:quiet] = true
+            apply_log_level
+          end
           o.on('--[no-]color',    'Colorize terminal output (default: auto — on when stdout is a TTY)') { |v| @options[:color] = v }
           o.on('-h', '--help',    'Show this help') do
             puts o
@@ -231,6 +232,7 @@ module Driftless
         require 'driftless'
         ::Driftless::ConfigValidator.new(::Driftless.config).validate!
         @options[:log_level] ||= ::Driftless.config.dig('logging', 'level')
+        apply_log_level
         ::Driftless::Ansi.configured = ::Driftless.config.dig('output', 'color')
       rescue ::Driftless::ConfigLoadError, ::Driftless::ConfigValidationError => e
         fatal!("config error: #{e.message}")
@@ -243,28 +245,26 @@ module Driftless
         @options = option_defaults.merge(config_defaults).merge(@options)
       end
 
-      # Precedence: CLI flags (verbose/debug/quiet) win, then config-derived
-      # @options[:log_level] (populated by Root from logging.level), then default INFO:
-      # what each command did, with progress kept for debug.
-      # rubocop:disable Lint/UselessConstantScoping -- public access intended
-      LOG_LEVEL_NAMES = {
-        'debug' => Logger::DEBUG,
-        'info'  => Logger::INFO,
-        'warn'  => Logger::WARN,
-        'error' => Logger::ERROR,
-        'fatal' => Logger::FATAL,
-      }.freeze
-      # rubocop:enable Lint/UselessConstantScoping
-
+      # Precedence: -q, then -v/-vv/-vvv, then logging.level from the config
+      # (@options[:log_level]), then notice. Called as each flag is parsed and
+      # again once the config is loaded, so a flag counts wherever it sits.
       def apply_log_level
         ::Driftless.logger.level =
-          if    @options[:quiet] then Logger::ERROR
-          elsif @options[:debug] || @options[:verbose] then Logger::DEBUG
-          elsif @options[:log_level]
-            LOG_LEVEL_NAMES.fetch(@options[:log_level].to_s.downcase, Logger::INFO)
+          if @options[:quiet] then :error
           else
-            Logger::INFO
+            case @options.fetch(:verbosity, 0)
+            when 0 then config_log_level
+            when 1 then :info
+            when 2 then :debug
+            else        :trace
+            end
           end
+      end
+
+      # The configured level when it names one, else notice.
+      def config_log_level
+        name = @options[:log_level].to_s.downcase.to_sym
+        ::Driftless::Logging::Logger::NAMES.key?(name) ? name : :notice
       end
 
       def usage_line

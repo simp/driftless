@@ -44,7 +44,7 @@ module Driftless
           else
             print_table(COLUMNS, issues.map { |i| [i.kind, i.path, i.line.to_s, i.key, i.detail] })
           end
-          ::Driftless.logger.info("params validate: #{issues.size} issue(s) against #{path}")
+          ::Driftless.logger.notice("params validate: #{issues.size} issue(s) against #{path}")
           exit(issues.empty? ? 0 : 1)
         end
 

@@ -192,7 +192,7 @@ module Driftless
           overrides:    ::Driftless::ScanData.overrides_from(scanner),
         )
         path = ::Driftless::ScanData.write(data, File.expand_path(@options[:data_file]))
-        ::Driftless.logger.info("scan data written: #{path}")
+        ::Driftless.logger.notice("scan data written: #{path}")
       end
 
       # The default format follows $stdout even when -o redirects to a file, so

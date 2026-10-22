@@ -296,7 +296,7 @@ RSpec.describe Driftless::Export::Factsets do
 
     around(:each) do |example|
       original_logger = Driftless.logger
-      Driftless.logger = Logger.new(captured, level: Logger::DEBUG)
+      Driftless.logger = Driftless::Logging::Logger.new(captured, level: :trace)
       Driftless.logger.formatter = Driftless::Logging.formatter
       example.run
     ensure

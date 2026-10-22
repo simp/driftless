@@ -137,7 +137,7 @@ module Driftless
       def write_data_file(reporter)
         path = File.expand_path(@options[:data_file])
         ::Driftless::ReportData.write(::Driftless::ReportData.assemble(reporter), path)
-        ::Driftless.logger.info("report data written: #{path}")
+        ::Driftless.logger.notice("report data written: #{path}")
       end
 
       def config_defaults

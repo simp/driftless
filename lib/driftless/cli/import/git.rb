@@ -42,7 +42,7 @@ module Driftless
             ).run
 
             verb = @options[:dry_run] ? 'would import' : 'imported'
-            Driftless.logger.info(
+            Driftless.logger.notice(
               "import git: #{verb} #{result.reports_copied} report file(s) " \
               "and #{result.summaries_copied} summary file(s) " \
               "from #{result.branches_imported} branch(es)",
@@ -65,7 +65,7 @@ module Driftless
               fatal!("import git: cleanup failed: #{e.message}")
             end
           else
-            Driftless.logger.info('import git: cleanup skipped (--no-summaries)')
+            Driftless.logger.notice('import git: cleanup skipped (--no-summaries)')
           end
 
           exit 0

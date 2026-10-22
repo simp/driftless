@@ -270,7 +270,7 @@ module Driftless
         end
 
         FileUtils.rm_rf(dir)
-        Driftless.logger.info("import cleanup: purged #{dir} (#{files} file(s))")
+        Driftless.logger.notice("import cleanup: purged #{dir} (#{files} file(s))")
         files
       end
     end

@@ -52,7 +52,7 @@ module Driftless
         verb = dry_run ? 'would ' : ''
         superseded = result.archive ? 'archived' : 'deleted'
         purged = result.purged ? ", #{verb}purged #{result.purged} archived file(s)" : ''
-        Driftless.logger.info(
+        Driftless.logger.notice(
           "#{caller_prefix}: #{verb}kept #{result.live.size} live, " \
           "#{verb}#{superseded} #{result.archived.size}, " \
           "#{verb}quarantined #{result.quarantined.size}#{purged}",

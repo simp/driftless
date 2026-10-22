@@ -253,7 +253,7 @@ RSpec.describe Driftless::CLI::Base do
     end
 
     it 'logs the message at fatal severity' do
-      log = capture_log do
+      log = capture_log(level: :notice) do
         expect { leaf_raising.new.run(['--no-color']) }.to raise_error(SystemExit)
       end
       expect(log).to eq("FATAL: it broke\n")
@@ -351,7 +351,7 @@ RSpec.describe Driftless::CLI::Base do
         with_config("logging:\n  level: debug\n") do |child_path|
           branch.new.run(['-c', parent_path, 'child', '-c', child_path])
           expect(Driftless.config.sources).to eq([child_path])
-          expect(Driftless.logger.level).to eq(Logger::DEBUG)
+          expect(Driftless.logger.level).to eq(Driftless::Logging::Logger::DEBUG)
         end
       end
     end
@@ -416,9 +416,9 @@ RSpec.describe Driftless::CLI::Base do
       expect(child.seen_options[:foo]).to eq(:bar)
     end
 
-    it 'child inherits parent @options set via CLI flags (verbose flows down)' do
+    it 'child inherits parent @options set via CLI flags (verbosity flows down)' do
       branch.new.run(['--verbose', 'child'])
-      expect(child.seen_options[:verbose]).to be(true)
+      expect(child.seen_options[:verbosity]).to eq(1)
     end
 
     it 'child mutations do not leak back to parent (snapshot semantics)' do
@@ -445,64 +445,88 @@ RSpec.describe Driftless::CLI::Base do
       end
     end
 
-    it 'defaults to INFO when neither flag is set' do
+    def level
+      Driftless.logger.level_name
+    end
+
+    it 'defaults to notice when neither flag is set' do
       leaf.new.run([])
-      expect(Driftless.logger.level).to eq(Logger::INFO)
+      expect(level).to eq(:notice)
     end
 
-    it 'sets DEBUG when --verbose is parsed' do
+    it 'sets info when --verbose is parsed' do
       leaf.new.run(['--verbose'])
-      expect(Driftless.logger.level).to eq(Logger::DEBUG)
+      expect(level).to eq(:info)
     end
 
-    it 'sets ERROR when --quiet is parsed' do
+    it 'sets error when --quiet is parsed' do
       leaf.new.run(['--quiet'])
-      expect(Driftless.logger.level).to eq(Logger::ERROR)
+      expect(level).to eq(:error)
     end
 
     it 'quiet wins over verbose when both are set' do
       leaf.new.run(['--verbose', '--quiet'])
-      expect(Driftless.logger.level).to eq(Logger::ERROR)
+      expect(level).to eq(:error)
     end
 
-    it 'sets DEBUG when --verbose is repeated (-vv)' do
+    it 'sets debug when --verbose is repeated (-vv), however spelled' do
       leaf.new.run(['-vv'])
-      expect(Driftless.logger.level).to eq(Logger::DEBUG)
-    end
-
-    it 'sets DEBUG for two separate -v flags (equivalent to -vv)' do
+      expect(level).to eq(:debug)
       leaf.new.run(['-v', '-v'])
-      expect(Driftless.logger.level).to eq(Logger::DEBUG)
+      expect(level).to eq(:debug)
+      leaf.new.run(['--verbose', '--verbose'])
+      expect(level).to eq(:debug)
     end
 
-    it 'sets DEBUG for two --verbose flags' do
-      leaf.new.run(['--verbose', '--verbose'])
-      expect(Driftless.logger.level).to eq(Logger::DEBUG)
+    it 'sets trace for three or more' do
+      leaf.new.run(['-vvv'])
+      expect(level).to eq(:trace)
+      leaf.new.run(['-vvvv'])
+      expect(level).to eq(:trace)
     end
 
     it 'quiet still wins over debug' do
       leaf.new.run(['-vv', '-q'])
-      expect(Driftless.logger.level).to eq(Logger::ERROR)
+      expect(level).to eq(:error)
     end
 
-    it 'applies inherited parent_options[:verbose] too' do
-      leaf.new(parent_options: { verbose: true }).run([])
-      expect(Driftless.logger.level).to eq(Logger::DEBUG)
+    it 'applies inherited parent_options[:verbosity] too' do
+      leaf.new(parent_options: { verbosity: 2 }).run([])
+      expect(level).to eq(:debug)
     end
 
     it 'respects @options[:log_level] (from config) when no CLI verbosity flag is set' do
       leaf.new(parent_options: { log_level: 'warn' }).run([])
-      expect(Driftless.logger.level).to eq(Logger::WARN)
+      expect(level).to eq(:warning)
     end
 
     it 'CLI --verbose overrides config-derived log_level' do
       leaf.new(parent_options: { log_level: 'error' }).run(['-v'])
-      expect(Driftless.logger.level).to eq(Logger::DEBUG)
+      expect(level).to eq(:info)
     end
 
-    it 'unknown log_level names fall through to default INFO' do
+    it 'unknown log_level names fall through to the default' do
       leaf.new(parent_options: { log_level: 'BOGUS' }).run([])
-      expect(Driftless.logger.level).to eq(Logger::INFO)
+      expect(level).to eq(:notice)
+    end
+
+    it 'applies -v as it is parsed, before the config loads and whatever else follows it' do
+      seen = nil
+      watcher = Class.new(described_class) do
+        register_command name: 'watch'
+        desc 'watches'
+        define_singleton_method(:seen=) { |v| seen = v }
+      end
+      watcher.class_eval do
+        define_method(:configure_parser) { |o| o.on('--peek') { self.class.seen = Driftless.logger.level_name } }
+        define_method(:execute) { |_argv| }
+      end
+      watcher.new.run(['-vv', '--peek'])
+      expect(seen).to eq(:debug)
+      Driftless.logger.level = :notice
+      watcher.new.run(['--peek', '-v'])
+      expect(seen).to eq(:notice)
+      expect(Driftless.logger.level_name).to eq(:info)
     end
   end
 

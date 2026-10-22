@@ -38,11 +38,6 @@ RSpec.describe Driftless::Scan do
 
   # It's really annoying when PuppetDB reports stderr warnings show up in the
   # middle of RSPec test results
-  def silence_driftless_logger
-    fake_logger = instance_double(Logger, debug: true, info: true, warn: true, error: true, fatal: true)
-    allow(Driftless).to receive(:logger).and_return(fake_logger)
-  end
-
   # Spot-check: confirm scan.rb actually calls Driftless.logger during a run.
   # A single canary test proves the wire between the log-emitter and the logger
   # is intact end-to-end; per-line coverage is deferred until it earns its keep.
@@ -50,7 +45,7 @@ RSpec.describe Driftless::Scan do
     around(:each) do |example|
       captured        = StringIO.new
       original_logger = Driftless.logger
-      Driftless.logger = Logger.new(captured, level: Logger::DEBUG)
+      Driftless.logger = Driftless::Logging::Logger.new(captured, level: :trace)
       Driftless.logger.formatter = Driftless::Logging.formatter
       @captured = captured
       example.run
@@ -58,7 +53,7 @@ RSpec.describe Driftless::Scan do
       Driftless.logger = original_logger
     end
 
-    it 'emits INFO milestones during a scan against a minimal control repo' do
+    it 'emits milestones during a scan against a minimal control repo' do
       Dir.mktmpdir do |dir|
         File.write(File.join(dir, 'hiera.yaml'), <<~YAML)
           ---
@@ -78,7 +73,7 @@ RSpec.describe Driftless::Scan do
 
         expect(@captured.string).to include('debug: Scanning control repo: ')
         expect(@captured.string).to match(/debug: Loaded \d+ hierarchy tiers/)
-        expect(@captured.string).to match(/info: Scan complete: \d+ findings/)
+        expect(@captured.string).to match(/notice: Scan complete: \d+ findings/)
       end
     end
   end
@@ -132,7 +127,7 @@ RSpec.describe Driftless::Scan do
     around(:each) do |ex|
       captured        = StringIO.new
       original_logger = Driftless.logger
-      Driftless.logger = Logger.new(captured, level: Logger::DEBUG)
+      Driftless.logger = Driftless::Logging::Logger.new(captured, level: :trace)
       Driftless.logger.formatter = Driftless::Logging.formatter
       @captured = captured
       ex.run

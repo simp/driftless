@@ -19,7 +19,7 @@ RSpec.describe Driftless::CLI::Export::Factsets do
     original_err    = $stderr
     original_logger = Driftless.logger
     $stderr          = err
-    Driftless.logger = Logger.new(err)
+    Driftless.logger = Driftless::Logging::Logger.new(err)
     Driftless.logger.formatter = Driftless::Logging.formatter
     status = nil
     begin

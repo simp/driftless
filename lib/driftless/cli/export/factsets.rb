@@ -41,7 +41,7 @@ module Driftless
           ).run
 
           extra = result.skipped_no_certname.zero? ? '' : " (#{result.skipped_no_certname} skipped, no certname)"
-          Driftless.logger.info(
+          Driftless.logger.notice(
             "export factsets: wrote #{result.written} file(s) to " \
             "#{@options[:output_dir]} [#{@options[:profile]}:#{@options[:serialization]}]#{extra}",
           )
@@ -129,7 +129,7 @@ module Driftless
             proceed_with_subset_of_configured_envs: @options[:proceed_with_subset_of_configured_envs] || false,
           ).run
 
-          Driftless.logger.info(
+          Driftless.logger.notice(
             "export factsets: role tree #{root}: #{result.written} picked, #{result.updated} refreshed, " \
             "#{result.pruned} pruned, #{result.stale} stale",
           )

@@ -47,6 +47,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   prefix needs updating. `Driftless.logger` is a `Driftless::Logging::Logger`,
   a `::Logger` subclass with `trace`, `notice`, and `warning` methods. The
   config loader says which files it read at `info`
+- Tables fit the terminal: a table wider than it has its widest columns
+  narrowed and their long cells wrapped onto continuation lines, breaking
+  after `;` and `,` before spaces, so nothing is cut; `--width N` sets the
+  limit by hand (0 for none), and output that is not a terminal has none. A
+  newline in a cell never breaks a row
 
 ## [0.4.0] - 2026-09-08
 

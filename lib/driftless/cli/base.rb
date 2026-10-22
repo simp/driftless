@@ -202,6 +202,7 @@ module Driftless
             apply_log_level
           end
           o.on('--[no-]color',    'Colorize terminal output (default: auto — on when stdout is a TTY)') { |v| @options[:color] = v }
+          o.on('--width=N', Integer, 'Wrap tables to N columns (default: the terminal\'s width; 0 for no limit)') { |v| @options[:width] = v }
           o.on('-h', '--help',    'Show this help') do
             puts o
             exit 0

@@ -48,8 +48,9 @@ RSpec.describe Driftless::Logging do
         expect(described_class.format_line('NOTICE', 'done')).to eq("notice: done\n")
       end
 
-      it 'leaves info unstyled' do
-        expect(described_class.format_line('INFO', 'milestone')).to eq("info: milestone\n")
+      it 'colours the info label green' do
+        expect(described_class.format_line('INFO', 'milestone'))
+          .to eq("#{Driftless::Ansi.wrap('info:', :green)} milestone\n")
       end
     end
   end

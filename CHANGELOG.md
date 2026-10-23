@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - A command's `--help` states what the command is for, under the usage line,
   and lists its subcommands in alphabetical order
 - `GitClone` names what each git command is for in its trace line
+- The `info:` log label is green
 
 ## [0.5.0] - 2026-10-21
 

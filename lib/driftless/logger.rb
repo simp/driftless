@@ -19,6 +19,7 @@ module Driftless
       'fatal'   => %i[on_red white bold],
       'error'   => %i[red bold],
       'warning' => %i[yellow],
+      'info'    => %i[green],
     }.freeze
 
     DIMMED = %w[trace debug].freeze

@@ -97,6 +97,8 @@ module Driftless
     def deployed(dir, declared, metadata)
       return :unknown unless declared
       return :absent unless File.directory?(dir)
+      # r10k counts a local module in sync whatever it holds
+      return :match if declared.local
       return forge_deployed(declared, metadata) unless declared.git
       return :unknown unless declared.ref
 

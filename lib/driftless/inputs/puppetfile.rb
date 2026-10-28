@@ -36,8 +36,12 @@ module Driftless
       # @!attribute [r] version
       #   @return [String, nil] a Forge module's declared version, as written;
       #     nil for a git module or when none is declared
-      Module = Data.define(:name, :path, :git, :ref, :ref_type, :default_branch, :version) do
-        def initialize(version: nil, **rest)
+      # @!attribute [r] local
+      #   @return [Boolean] `:local => true` (or `:type => 'local'`): a
+      #     directory the control repo holds itself, which r10k leaves as
+      #     it is
+      Module = Data.define(:name, :path, :git, :ref, :ref_type, :default_branch, :version, :local) do
+        def initialize(version: nil, local: false, **rest)
           super
         end
       end
@@ -95,6 +99,7 @@ module Driftless
           ref_type: ref_type,
           default_branch: opts[:default_branch]&.to_s,
           version:  (args.is_a?(Hash) ? opts[:version] : args)&.to_s,
+          local:    opts[:local] == true || opts[:type].to_s == 'local',
         )
       end
 

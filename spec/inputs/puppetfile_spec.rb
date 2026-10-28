@@ -66,6 +66,13 @@ RSpec.describe Driftless::Inputs::Puppetfile do
     end
   end
 
+  it 'marks a local module, by :local or :type, and no other' do
+    with_puppetfile("mod 'site', :local => true\nmod 'data', type: 'local'\nmod 'puppetlabs-apt'\nmod 'a', git: 'g'\n") do |result|
+      expect(result.modules.map(&:local)).to eq([true, true, false, false])
+      expect(result.modules.map(&:version)).to eq([nil, nil, nil, nil])
+    end
+  end
+
   it 'returns the error for a Puppetfile it cannot evaluate, with no modules' do
     with_puppetfile("mod 'a', git: 'g'\nnot_a_declaration 'x'\n") do |result|
       expect(result.exists?).to be true

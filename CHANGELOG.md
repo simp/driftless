@@ -22,6 +22,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `GitClone` names what each git command is for in its trace line
 - The `info:` log label is green
 
+### Fixed
+
+- A Puppetfile `mod 'x', :local => true` (or `type: 'local'`) entry is read
+  as a local module (`Puppetfile::Module#local`), not as a Forge module with
+  no version, and `ModuleInventory` counts it deployed when its directory is
+  there
+
 ## [0.5.0] - 2026-10-21
 
 ### Added

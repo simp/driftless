@@ -81,6 +81,15 @@ RSpec.describe Driftless::ModuleInventory do
     expect(entries.map(&:found)).to eq([nil, 'v1', nil, nil, '1.0.0', nil, nil, nil])
   end
 
+  it 'counts a local module deployed whenever its directory is there, as r10k does' do
+    control_repo(tmp)
+    FileUtils.mkdir_p(File.join(tmp, 'modules/site'))
+    File.write(File.join(tmp, 'Puppetfile'), "mod 'site', :local => true\nmod 'gone', :local => true\n", mode: 'a')
+    entries = described_class.new(tmp).entries
+    expect(entries.find { |e| e.path == 'modules/site' }.deployed).to eq(:match)
+    expect(entries.find { |e| e.path == 'modules/gone' }.deployed).to eq(:absent)
+  end
+
   it 'finds a module by path, declared name, or metadata name, in either spelling' do
     control_repo(tmp)
     inventory = described_class.new(tmp)

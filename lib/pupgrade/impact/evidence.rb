@@ -26,7 +26,8 @@ module Pupgrade
       #     sites that added it, "file:line" or "enc"
       # @!attribute [r] resources
       #   @return [Array<Hash>] catalog resources: "type" (lowercase),
-      #     "title", "parameters"
+      #     "title", "parameters", "file" (where declared, relative to the
+      #     repo; nil when the catalog does not say)
       # @!attribute [r] functions
       #   @return [Hash{String => Array<String>}] function to call sites
       # @!attribute [r] facts
@@ -138,7 +139,7 @@ module Pupgrade
           if r['type'] == 'Class'
             classes[r['title'].to_s.downcase] = params.keys.to_set
           else
-            resources << { 'type' => r['type'].to_s.downcase, 'title' => r['title'].to_s, 'parameters' => params }
+            resources << { 'type' => r['type'].to_s.downcase, 'title' => r['title'].to_s, 'parameters' => params, 'file' => r['file'] }
           end
         end
         class_sites = {}

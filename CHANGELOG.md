@@ -88,6 +88,10 @@ It's a new gem to help upgrade the module base of large Puppet/OpenVox  control 
   - `--render-as json|yaml`: the rows as data, every use item listed
   - a class row's where lists the sites that added the class (`code:`)
     beside the nodes including it
+  - `--list nodes|modules`: one per line instead of the table, the nodes
+    with a use, or the modules whose code adds a class, calls a function,
+    or declares a resource of the module (a site in no module by its path,
+    the ENC as `enc`)
 
 - **`pupgrade module update`**` MODULE REF [--dry-run] [--force]`
 

@@ -107,6 +107,18 @@ RSpec.describe Pupgrade::CLI::ModuleCommand::Usage do
     expect(run(['stdlib', '--render-as', 'xml']).first).to eq(2)
   end
 
+  it 'lists the nodes with a use or the modules whose code has one with --list' do
+    status, out = run(['stdlib', '--list', 'nodes'])
+    expect(status).to eq(0)
+    expect(out).to eq("db01.example.com\nweb01.example.com\n")
+    expect(run(['stdlib', '--list', 'nodes', '--item', 'stdlib::shout']).last).to eq('')
+    expect(run(['stdlib', '--list', 'modules']).last).to eq("profile\n")
+    expect(run(['apache', '--list', 'modules']).last).to eq("role\n")
+    expect(run(['firewall', '--list', 'modules']).last).to eq("profile\n")
+    expect(run(['role', '--list', 'modules']).last).to eq("manifests/site.pp\n")
+    expect(run(['stdlib', '--list', 'paths']).first).to eq(2)
+  end
+
   it 'filters rows with --used, --unused, --surfaces, --item, --site, and --used-by, and exits 1 when nothing uses the module' do
     expect(cells(run(['stdlib', '--unused']).last).drop(1).map(&:first)).to eq(['class stdlib'])
     expect(cells(run(['stdlib', '--used']).last).drop(1).map(&:first)).not_to include('class stdlib')

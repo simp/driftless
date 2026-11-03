@@ -33,6 +33,18 @@ module Pupgrade
         raise Error, "#{dir}: no <certname>/#{FILENAME} under it"
       end
 
+      # The module a site's path is in: "modules/apache/manifests/init.pp:3"
+      # is apache's, as a path with a module directory between the
+      # modulepath directory and the file; "manifests/site.pp:2" is in
+      # none.
+      #
+      # @param site [String] a "path:line" or "path" relative to the repo
+      # @return [String, nil]
+      def module_of_site(site)
+        parts = site.to_s.split(':').first.to_s.split('/')
+        (parts.size >= 3) ? parts[1] : nil
+      end
+
       # @param path [String] a compile.json
       # @return [Hash] the record
       # @raise [Error] when the file is not a compile record of this schema

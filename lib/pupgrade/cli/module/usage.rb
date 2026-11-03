@@ -7,6 +7,7 @@ require 'pupgrade/cli/impact'
 require 'pupgrade/cli/surface'
 require 'pupgrade/cli/table'
 require 'driftless/module_inventory'
+require 'pupgrade/compile/probe_record'
 require 'pupgrade/impact/evidence'
 require 'pupgrade/impact/usage'
 require 'pupgrade/surface/diff'
@@ -32,6 +33,7 @@ module Pupgrade
         COLUMNS  = %w[item used where].freeze
         SECTIONS = ::Pupgrade::Surface::Diff::SECTIONS
         FORMATS  = %w[json yaml].freeze
+        LISTS    = %w[nodes modules].freeze
 
         # What a --used-by glob can be narrowed to, by prefix.
         USED_BY_KINDS = %w[node resource code path].freeze
@@ -50,7 +52,9 @@ module Pupgrade
           doc,     = reader.document(reader.resolve(File.join(repo.dir, entry.path)))
           rows     = ::Pupgrade::Impact::Usage.new(evidence).rows(doc, params: @options[:params])
           shown    = rows.select { |r| shown?(r) }
-          if @options[:format]
+          if @options[:list]
+            puts listed(shown)
+          elsif @options[:format]
             puts render(shown.map { |r| document(r) })
           else
             print_table(COLUMNS, shown.map { |r| row(r) })
@@ -73,6 +77,7 @@ module Pupgrade
           o.on('--refresh', 'Extract the surface again, ignoring the cache') { @options[:refresh] = :all }
           o.on('--params', 'Also each class parameter: the nodes setting it, and those leaving its default') { @options[:params] = true }
           o.on('--render-as=FORMAT', FORMATS, 'The rows as json or yaml instead of the table') { |v| @options[:format] = v }
+          o.on('--list=WHAT', LISTS, 'One per line instead of the table: the nodes with a use, or the modules whose code has one') { |v| @options[:list] = v }
           o.separator ''
           o.separator 'Row filters (comma-separated, repeatable; globs are case-insensitive):'
           on_un(o, 'used', 'Only what something uses; --unused, what nothing uses') { |v| @options[:used] = v }
@@ -106,6 +111,19 @@ module Pupgrade
           kind, namespace, leaf = usage.parts
           uses = usage.uses.map { |u| { 'label' => u.label, 'items' => u.items.map { |i| { 'name' => i.name, 'certname' => i.certname }.compact } } }
           { 'item' => "#{kind} #{namespace}#{leaf}", 'kind' => kind, 'name' => usage.name, 'param' => usage.param, 'used' => usage.used?, 'uses' => uses }.compact
+        end
+
+        # The nodes with any use of the rows, or the modules whose code adds
+        # a class, calls a function, or declares a resource of them: named
+        # from the site's path; a site in no module (`manifests/site.pp`)
+        # by its path, the ENC as `enc`.
+        #
+        # @return [Array<String>] sorted, unique
+        def listed(rows)
+          items = rows.flat_map { |r| r.uses.flat_map(&:items) }
+          return items.filter_map(&:certname).uniq.sort if @options[:list] == 'nodes'
+
+          items.filter_map(&:site).map { |site| ::Pupgrade::Compile::ProbeRecord.module_of_site(site) || site.sub(/:\d+\z/, '') }.uniq.sort
         end
 
         def render(value)

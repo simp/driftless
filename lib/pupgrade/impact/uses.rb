@@ -36,9 +36,24 @@ module Pupgrade
       #     nil for a node
       # @!attribute [r] certname
       #   @return [String, nil] the node; nil for a file:line
-      Item = Data.define(:name, :certname) do
+      # @!attribute [r] file
+      #   @return [String, nil] where a resource was declared, relative to
+      #     the repo; nil for anything else
+      Item = Data.define(:name, :certname, :file) do
+        def initialize(name: nil, certname: nil, file: nil)
+          super
+        end
+
         def to_s
           [name, certname].compact.join(' on ')
+        end
+
+        # The code the item points at: a resource's declaring file, a call
+        # site, or nothing for a node.
+        #
+        # @return [String, nil] "path:line" or "path"
+        def site
+          file || (certname ? nil : name)
         end
       end
 
@@ -60,7 +75,7 @@ module Pupgrade
       def resources(pairs)
         return [] if pairs.nil? || pairs.empty?
 
-        [list('resources', pairs.map { |certname, r| Item.new(name: "#{r['type']}[#{r['title']}]", certname: certname) })]
+        [list('resources', pairs.map { |certname, r| Item.new(name: "#{r['type']}[#{r['title']}]", certname: certname, file: r['file']) })]
       end
 
       # @param sites [Array<String>, nil] each a file:line

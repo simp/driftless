@@ -54,17 +54,10 @@ module Pupgrade
 
           @used << f['module']
           Array(f['sites']).each do |site|
-            user = module_of_site(site)
+            user = ::Pupgrade::Compile::ProbeRecord.module_of_site(site)
             @calls[user] << f['module'] if user && user != f['module']
           end
         end
-      end
-
-      # "modules/apache/manifests/init.pp:3" -> "apache"; a manifest outside
-      # any module directory -> nil
-      def module_of_site(site)
-        parts = site.to_s.split(':').first.to_s.split('/')
-        (parts.size >= 3) ? parts[1] : nil
       end
     end
   end

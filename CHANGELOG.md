@@ -31,6 +31,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `scan --output FMT` is taken as `--format` again. Since the subcommand
+  refactor it was read as `--output-file`, so `--output json` wrote a
+  text file named `json`
 - A Puppetfile `mod 'x', :local => true` (or `type: 'local'`) entry is read
   as a local module (`Puppetfile::Module#local`), not as a Forge module with
   no version, and `ModuleInventory` counts it deployed when its directory is

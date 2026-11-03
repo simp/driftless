@@ -60,6 +60,13 @@ RSpec.describe Driftless::CLI::Scan do
     end
   end
 
+  it 'takes --output FMT as --format, the flag\'s old name' do
+    s = described_class.new(parent_options: {})
+    s.send(:build_parser).parse!(['--output', 'json'])
+    expect(s.instance_variable_get(:@options)[:format]).to eq('json')
+    expect { s.send(:build_parser).parse!(['--output', 'xml']) }.to raise_error(OptionParser::InvalidArgument)
+  end
+
   describe '--data-file' do
     def control_repo(dir)
       File.write(File.join(dir, 'hiera.yaml'), <<~YAML)

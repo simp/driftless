@@ -121,6 +121,7 @@ module Driftless
         o.on('-f', '--format=FMT', ::Driftless::Outputs.formats,
              "Output format: #{::Driftless::Outputs.formats.join(' or ')} " \
              '(default: text on TTY, json otherwise)') { |v| @options[:format] = v }
+        o.on('--output=FMT', ::Driftless::Outputs.formats, 'The same as --format') { |v| @options[:format] = v }
         o.on('-o', '--output-file=PATH',
              'Write output to this file instead of stdout') do |v|
           @options[:output_file] = v

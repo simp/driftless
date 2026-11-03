@@ -293,6 +293,14 @@ It's a new gem to help upgrade the module base of large Puppet/OpenVox  control 
     its current version
   * `--explain MODULES` prints the solver's whole derivation for a solved,
     nearest, or unresolved module
+  * `-g FILE`, `--graph-tree FILE` writes the derivations as a mermaid
+    flowchart (`-` for stdout): one subgraph per module that stopped short
+    or fits nowhere, those `--explain` names when given, and the one
+    contradiction when no set fits. Each is pruned to the modules its
+    leaves name; a run of linear steps is one subgraph, a step joining two
+    derived lines nests one per line. The subject's own dependency edges
+    are green, the edges standing against them red, `--bump`/`--hold`
+    facts blue, other modules gray, lighter the farther from the subject
   * `--prune-unused` ignores dependency edges to, and from, modules no
     compile used (needs `compile` output)
   * `--write-exclusions-file FILE` records what the result relies on, as

@@ -241,7 +241,7 @@ RSpec.describe Pupgrade::CLI::Solve do
 
   # app 1.1.0 and 2.0.0 are each refused for their own reason, so the
   # derivation joins two derived lines and keeps the solver's steps
-  it 'explains a branching refusal in the solver\'s steps, closed by the finding' do
+  it 'explains a branching refusal in the solver\'s steps, closed by the finding, and draws it as nested subgraphs' do
     dir = File.join(@tmp, 'two-branches')
     Pupgrade::ScenarioBuilder.new(File.expand_path('../fixtures/scenarios/two-branches', __dir__)).build(dir)
     _, out = run(['--explain', 'app'], config: ['--no-config'], dir: dir)
@@ -249,5 +249,36 @@ RSpec.describe Pupgrade::CLI::Solve do
     expect(out).to include("\n  Thus, if x >= 0 and app > 1.0.0 then b >= 1.0.0, < 2.0.0.\n",
                            "    and app is held above 1.0.0 (--explain),\n",
                            "  So, because a is on the modulepath\n    and x is on the modulepath,\n    app cannot go past 1.0.0.\n")
+    _, out = run(['--explain', 'app', '-g', '-'], config: ['--no-config'], dir: dir)
+    graph = out.split("flowchart TB\n", 2).last
+    expect(graph).to include('  subgraph r0 ["app cannot go past 1.0.0"]',
+                             '    subgraph r0_0 ["every version of x is incompatible with app #gt;= 2.0.0"]',
+                             '      r0_x -- "depends on y #gt;= 2.0.0, #lt; 3.0.0" --> r0_y',
+                             '    subgraph r0_1 ["app #gt; 1.0.0, #lt; 2.0.0 requires b #gt;= 1.0.0, #lt; 2.0.0"]',
+                             '    r0_app_3["app #gt;= 1.1.0, #lt; 2.0.0"]:::subject', '    r0_b["b 1.0.0 (current) · 2.0.0"]:::near', '    r0_a["every version of a"]:::far')
+    expect(graph.lines.grep(/\A  linkStyle/).map(&:strip)).to eq(['linkStyle 2,4 stroke:#2e7d32,color:#2e7d32', 'linkStyle 0,1,3 stroke:#c62828,color:#c62828'])
+    expect(graph).not_to include('on the modulepath', '(--explain)')
+  end
+
+  it 'writes the derivations as a mermaid flowchart with -g: one tree per module stopped short, levers blue, nothing when none' do
+    path = File.join(@tmp, 'solve.mmd')
+    run(['--explain', 'stdlib,apache', '-g', path], config: ['--no-config'])
+    graph = File.read(path)
+    expect(graph).to start_with("flowchart TB\n  classDef subject")
+    expect(graph.scan(/^  subgraph r\d+ \["(.*)"\]/).flatten).to eq(['stdlib cannot go past 8.6.0', 'apache cannot go past 10.1.1'])
+    expect(graph).to include('    r0_baseline -- "depends on stdlib #gt;= 4.13.1, #lt; 9.0.0" --> r0_stdlib',
+                             '    r0_fact(["no versions satisfy stdlib #gt; 8.6.0, #lt; 9.0.0"]):::conflict',
+                             '    r1_apache_2 -- "depends on stdlib #gt;= 9.0.0, #lt; 10.0.0" --> r1_stdlib',
+                             '    r1_stdlib["stdlib 8.6.0 (current) · 9.0.0 · 9.4.0 · 9.6.0"]:::near')
+    expect(graph.lines.grep(/\A  linkStyle/).map(&:strip)).to eq(['linkStyle 4 stroke:#2e7d32,color:#2e7d32', 'linkStyle 1,2,3 stroke:#c62828,color:#c62828', 'linkStyle 0 stroke:#9e9e9e,color:#616161'])
+    # a lever is a blue fact beside its module
+    _, out = run(['--bump', 'puppetlabs-stdlib', '--explain', 'baseline', '-g', '-'], config: ['--no-config'])
+    expect(out).to include('  subgraph r0 ["no version of baseline fits the rest"]', '    r0_fact(["stdlib is bumped to 9.6.0 (--bump)"]):::lever',
+                           '    r0_baseline["every version of baseline"]:::subject')
+    # without --explain every module with a derivation is drawn; a module that moved freely has none
+    run(['-g', path], config: ['--no-config'])
+    expect(File.read(path).scan(/^  subgraph r\d+ \["(.*)"\]/).flatten).to include('stdlib cannot go past 8.6.0', 'no version of tomcat fits the rest')
+    _, out = run(['--explain', 'timezone', '-g', '-'], config: ['--no-config'])
+    expect(out).to include("flowchart TB\n", '  %% nothing stood in the way')
   end
 end

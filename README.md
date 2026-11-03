@@ -333,6 +333,7 @@ pupgrade solve --order nearest --bump puppetlabs-stdlib=v9.6.0  # move stdlib, d
 pupgrade solve --hold puppetlabs-apache        # keep one where it is
 pupgrade solve --prune-unused -o Puppetfile.proposed   # ignore edges to and from modules no catalog used
 pupgrade solve --explain stdlib,baseline       # the solver's reasoning in full
+pupgrade solve --explain stdlib -g stdlib.mmd  # the same as a mermaid flowchart
 ```
 
 A module short of its newest candidate is `solved`, and its note says which

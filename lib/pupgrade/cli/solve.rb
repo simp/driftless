@@ -12,6 +12,7 @@ require 'pupgrade/module_proposal'
 require 'pupgrade/module_resolver'
 require 'pupgrade/solve/candidates'
 require 'pupgrade/solve/evidence'
+require 'pupgrade/solve/graph'
 require 'pupgrade/solve/solver'
 
 module Pupgrade
@@ -75,13 +76,16 @@ module Pupgrade
         shown = plan.choices.select { |c| @options[:all] || c.moved? || c.solved? || c.unresolved? || c.note == 'held at current' || !c.violations.empty? || !c.prior.empty? }
         print_table(COLUMNS, shown.map { |c| row(c) })
         print_explanations(plan) if @options[:explain]
+        write_graph(plan.choices.select(&:refusal).select { |c| explained?(c) }.map(&:refusal)) if @options[:graph]
         plan.implicit.each { |i| ::Pupgrade.logger.warn("solve: #{i}: used, but not a declared dependency") }
         write_puppetfile(plan) if @options[:output]
         write_exclusions(plan) if @options[:write_exclusions]
         ::Pupgrade.logger.notice(summary(plan, evidence))
         exit((plan.choices.any? { |c| c.unresolved? || !c.prior.empty? }) ? 1 : 0)
-      rescue ::Pupgrade::Solve::Evidence::Error, ::Pupgrade::Solve::Solver::Error, ::Pupgrade::ModuleResolver::Error, ::Pupgrade::Exclusions::Error,
-             ArgumentError => e
+      rescue ::Pupgrade::Solve::Solver::Error => e
+        write_graph([e.refusal]) if @options[:graph] && e.refusal
+        fatal!("solve: #{e.message}", 3)
+      rescue ::Pupgrade::Solve::Evidence::Error, ::Pupgrade::ModuleResolver::Error, ::Pupgrade::Exclusions::Error, ArgumentError => e
         fatal!("solve: #{e.message}", 3)
       end
 
@@ -95,6 +99,8 @@ module Pupgrade
              'that held at the current versions') { @options[:all] = true }
         o.on('--explain=MODULES', Array, 'After the table, the solver\'s whole reasoning for these modules (globs, or',
              'all): why a solved one stopped short, why an unresolved one fits nowhere') { |v| accumulate(:explain, v) }
+        o.on('-g', '--graph-tree=FILE', 'Write the derivations as a mermaid flowchart, one tree per module that stopped',
+             'short or fits nowhere (those --explain names, when given); - for stdout') { |v| @options[:graph] = v }
         o.on('--ignore=MODULES', Array,
              'Solve as if these modules were removed from the Puppetfile (globs on any spelling of the name,',
              'or the deploy path; comma-separated, repeatable). Unlike modules.exclude_modules, which leaves a',
@@ -162,12 +168,27 @@ module Pupgrade
       # words: why a solved module stopped short, or why nothing fits an
       # unresolved one.
       def print_explanations(plan)
-        globs  = @options[:explain]
-        wanted = plan.choices.select { |c| globs.include?('all') || ::Pupgrade::ModuleName.any?(globs, c.name, c.entry.metadata.name, File.basename(c.entry.path)) }
-        wanted.each do |choice|
+        plan.choices.select { |c| explained?(c) }.each do |choice|
           puts ''
           puts "#{paint(choice.name, :bold)}: #{choice.chosen.ref} (#{[ note(choice) ].compact.uniq.join(', ')})"
           puts(choice.derivation ? choice.derivation.lines.map { |l| "  #{l}" }.join.chomp : paint('  nothing stood in the way', :dim))
+        end
+      end
+
+      # Whether --explain names the module; every module when it is not given.
+      def explained?(choice)
+        globs = @options[:explain]
+        globs.nil? || globs.include?('all') || ::Pupgrade::ModuleName.any?(globs, choice.name, choice.entry.metadata.name, File.basename(choice.entry.path))
+      end
+
+      # The derivations as one mermaid flowchart, to the file or stdout.
+      def write_graph(refusals)
+        text = ::Pupgrade::Solve::Graph.mermaid(refusals)
+        if @options[:graph] == '-'
+          puts text
+        else
+          File.write(File.expand_path(@options[:graph]), text)
+          ::Pupgrade.logger.notice("solve: wrote #{refusals.size} tree(s) to #{File.expand_path(@options[:graph])}")
         end
       end
 

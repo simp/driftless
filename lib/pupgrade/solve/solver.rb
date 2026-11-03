@@ -8,6 +8,7 @@ require 'pupgrade/logging'
 require 'pupgrade/module_name'
 require 'pupgrade/module_resolver'
 require 'pupgrade/solve/candidates'
+require 'pupgrade/solve/graph'
 require 'pupgrade/solve/pub_grub'
 
 module Pupgrade
@@ -23,7 +24,17 @@ module Pupgrade
     # constraints. A module short of its newest candidate ("solved") is
     # asked about again, and the solver's explanation becomes its note.
     class Solver
-      class Error < StandardError; end
+      # Raised when no set fits even with every misfit pinned; carries the
+      # derivation for `solve -g`.
+      class Error < StandardError
+        # @return [Graph::Refusal, nil]
+        attr_reader :refusal
+
+        def initialize(message, refusal: nil)
+          @refusal = refusal
+          super(message)
+        end
+      end
 
       ORDERS = %w[newest nearest].freeze
       # The old name of nearest, still taken.
@@ -92,7 +103,9 @@ module Pupgrade
       # @!attribute [r] derivation
       #   @return [String, nil] the solver's whole explanation behind `why`,
       #     or behind an unresolved module's pinning
-      Choice = Data.define(:entry, :candidates, :chosen, :violations, :prior, :note, :why, :derivation) do
+      # @!attribute [r] refusal
+      #   @return [Graph::Refusal, nil] the same derivation, for `solve -g`
+      Choice = Data.define(:entry, :candidates, :chosen, :violations, :prior, :note, :why, :derivation, :refusal) do
         def moved?
           !chosen.current
         end
@@ -173,6 +186,7 @@ module Pupgrade
         end
         @versions = @lists.transform_values { |list| versions_of(list) }
         @current  = @lists.transform_values { |list| list.find(&:current) || list.first }
+        @labels   = @lists.to_h { |short, list| [short, label_for(short, list)] }
         @levers   = @by_name.filter_map { |short, entry| (lever = lever_for(entry, @lists[short])) && [short, lever] }.to_h
         unmatched_levers
 
@@ -198,12 +212,15 @@ module Pupgrade
           break if decisions
 
           short = misfit(failure, source, pinned)
-          raise Error, "no set of versions fits, and nothing more can give:\n#{failure.explanation}" unless short
+          unless short
+            raise Error.new("no set of versions fits, and nothing more can give:\n#{failure.explanation}",
+                            refusal: graph_refusal(nil, failure, source, 'no set of versions fits', nil))
+          end
 
           # a lever kept where it puts the module is what does not fit
           kind, candidate = @levers[short]
           finding = kind ? "#{short} cannot be #{LEVER_WORDS[kind]} #{version_of(candidate)}" : "no version of #{short} fits the rest"
-          pinned[short] = [pin_for(short, state), refusal(failure, finding, lever_fact(short))]
+          pinned[short] = [pin_for(short, state), refusal(failure, finding, lever_fact(short)), graph_refusal(short, failure, source, finding, lever_fact(short))]
           Pupgrade.logger.info("solve: #{short}: #{kind ? "the --#{kind} does not fit the rest" : 'no version fits the rest'}; " \
                                "kept at #{pinned[short].first}, its constraints set aside")
         end
@@ -332,8 +349,8 @@ module Pupgrade
 
       # @param ignored [Set<Array(String, String)>] [module, key] constraints
       #   kept from the solver as unresolvable
-      # @param pinned [Hash{String => Array(Candidate, String)}] modules kept
-      #   at a version whatever they need
+      # @param pinned [Hash{String => Array(Candidate, String, Graph::Refusal)}]
+      #   modules kept at a version whatever they need
       # @param asked [Array<Fact>] more facts, for the second query
       def build_source(ignored, pinned, *asked)
         facts = @levers.keys.map { |short| lever_fact(short) }
@@ -413,34 +430,35 @@ module Pupgrade
         broken  = violations(entry, chosen, decisions)
         prior, fresh = broken.partition { |v| ignored.include?([short, v.key]) }
         # a pinned module breaking nothing at the version kept is noted as chosen
-        note, why, derivation = note_for(short, chosen, fresh.empty? ? pinned.except(short) : pinned, decisions)
+        note, why, derivation, refusal = note_for(short, chosen, fresh.empty? ? pinned.except(short) : pinned, decisions)
         Choice.new(entry: entry, candidates: @lists[short], chosen: chosen, violations: fresh, prior: prior,
-                   note: note, why: why, derivation: derivation)
+                   note: note, why: why, derivation: derivation, refusal: refusal)
       end
 
-      # @return [Array(String, String|nil, String|nil)] note, why, derivation
+      # @return [Array(String, String|nil, String|nil, Graph::Refusal|nil)]
+      #   note, why, derivation, refusal
       def note_for(short, chosen, pinned, decisions)
         if @levers.key?(short)
-          return [(@levers[short].first == :hold) ? 'held at current' : 'bumped', nil, pinned.dig(short, 1)]
+          return [(@levers[short].first == :hold) ? 'held at current' : 'bumped', nil, pinned.dig(short, 1), pinned.dig(short, 2)]
         end
-        return ["unresolved#{" (#{@reasons[short]})" if @reasons[short]}", nil, pinned[short].last] if pinned.key?(short)
-        return [@reasons[short], nil, nil] if @reasons.key?(short)
+        return ["unresolved#{" (#{@reasons[short]})" if @reasons[short]}", nil, pinned[short][1], pinned[short][2]] if pinned.key?(short)
+        return [@reasons[short], nil, nil, nil] if @reasons.key?(short)
 
         newest = @lists[short].map { |c| version_of(c) }.max
-        return ['current', nil, nil] if chosen.current && (version_of(chosen) == newest || @order == 'nearest')
-        return ['newest', nil, nil] if version_of(chosen) == newest && @order == 'newest'
+        return ['current', nil, nil, nil] if chosen.current && (version_of(chosen) == newest || @order == 'nearest')
+        return ['newest', nil, nil, nil] if version_of(chosen) == newest && @order == 'newest'
 
         if @order == 'nearest'
           # moved the least it could: what pushed it off its current version
           current = version_of(@current[short])
-          why, derivation = because(short, pinned, decisions, "stay at #{current}",
-                                    PubGrub::Fact.new(package: short, range: PubGrub.except(current), text: "#{short} is held at #{current} (--explain)"))
-          return ['nearest', why, derivation]
+          why, derivation, refusal = because(short, pinned, decisions, "stay at #{current}",
+                                             PubGrub::Fact.new(package: short, range: PubGrub.except(current), text: "#{short} is held at #{current} (--explain)"))
+          return ['nearest', why, derivation, refusal]
         end
 
-        why, derivation = because(short, pinned, decisions, "go past #{version_of(chosen)}",
-                                  PubGrub::Fact.new(package: short, range: PubGrub.up_to(version_of(chosen)), text: "#{short} is held above #{version_of(chosen)} (--explain)"))
-        ['solved', why, derivation]
+        why, derivation, refusal = because(short, pinned, decisions, "go past #{version_of(chosen)}",
+                                           PubGrub::Fact.new(package: short, range: PubGrub.up_to(version_of(chosen)), text: "#{short} is held above #{version_of(chosen)} (--explain)"))
+        ['solved', why, derivation, refusal]
       end
 
       # Why a module is where it is: the solver is asked, under the same
@@ -454,7 +472,8 @@ module Pupgrade
       # @param decisions [Hash{String => SemanticPuppet::Version}] the set chosen
       # @param move [String] the move asked about: "stay at 10.1.1"
       # @param asked [PubGrub::Fact] the versions ruled out, with its words
-      # @return [Array(String, String|nil)] why, and the whole derivation
+      # @return [Array(String, String|nil, Graph::Refusal|nil)] why, the
+      #   whole derivation, and the derivation for `solve -g`
       def because(short, pinned, decisions, move, asked)
         source = build_source(@ignored, pinned, asked)
         _decisions, failure = PubGrub.solve(source)
@@ -463,7 +482,7 @@ module Pupgrade
           held = decisions.except(short).map { |s, v| PubGrub::Fact.new(package: s, range: PubGrub.except(v), text: "#{s} is #{v} in this set") }
           source = build_source(@ignored, pinned, asked, *held)
           _decisions, failure = PubGrub.solve(source)
-          return ["a set exists where it can #{move}", nil] unless failure
+          return ["a set exists where it can #{move}", nil, nil] unless failure
         end
 
         texts   = PubGrub.leaves(failure.incompatibility).map { |inc| source.keys.fetch(inc) { [nil, nil, inc.to_s] } }.uniq
@@ -475,7 +494,26 @@ module Pupgrade
         lever   = others.find { |t| t.include?('(--hold)') || t.include?('(--bump)') || t.include?('(no version fits)') }
         why     = [own.first, lever || others.first].compact.join('; ')
         Pupgrade.logger.debug("solve: #{short}: #{asked.text}:\n#{failure.explanation}")
-        [why.empty? ? failure.explanation.lines.first.to_s.strip : why, refusal(failure, "#{short} cannot #{move}", asked)]
+        [why.empty? ? failure.explanation.lines.first.to_s.strip : why, refusal(failure, "#{short} cannot #{move}", asked),
+         graph_refusal(short, failure, source, "#{short} cannot #{move}", asked)]
+      end
+
+      # The derivation as `solve -g` draws it.
+      #
+      # @return [Graph::Refusal]
+      def graph_refusal(short, failure, source, conclusion, asked)
+        Graph::Refusal.new(subject: short, conclusion: conclusion, incompatibility: failure.incompatibility, keys: source.keys,
+                           noise: [asked&.text].compact, labels: @labels)
+      end
+
+      # A module's node label: its current version, then its candidates
+      # past it, the middle elided past three.
+      def label_for(short, list)
+        current = list.find(&:current)
+        rest    = list.reject(&:current).map { |c| version_of(c).to_s }.uniq
+        rest    = [rest.first, '…', rest.last] if rest.size > 3
+        versions = [current && "#{version_of(current)} (current)", *rest].compact
+        versions.empty? ? short : "#{short} #{versions.join(' · ')}"
       end
 
       # The solver's derivation. When each step adds one leaf, it is the

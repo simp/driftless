@@ -87,6 +87,26 @@ RSpec.describe Pupgrade::CLI::ModuleCommand::Usage do
     expect(cells(run(['apache', '--params', '--item', 'apache::*']).last).drop(1).map(&:first)).to eq(['param apache::dead_opt', 'param apache::legacy_opt', 'param apache::version'])
   end
 
+  it 'renders the rows as json or yaml with --render-as, the filters applied, every use item listed' do
+    require 'json'
+    require 'yaml'
+    status, out = run(['firewall', '--render-as', 'json', '--item', 'firewall', '--surfaces', 'types'])
+    expect(status).to eq(0)
+    expect(JSON.parse(out)).to eq([{
+      'item' => 'type firewall', 'kind' => 'type', 'name' => 'firewall', 'used' => true,
+      'uses' => [{ 'label' => 'resources', 'items' => [{ 'name' => 'firewall[100 allow ntp 123]', 'certname' => 'db01.example.com' },
+                                                       { 'name' => 'firewall[100 allow ntp 123]', 'certname' => 'web01.example.com' }] }],
+    }])
+    _, out = run(['apache', '--render-as', 'yaml', '--params', '--item', 'apache::version'])
+    expect(YAML.safe_load(out)).to eq([{
+      'item' => 'param apache::version', 'kind' => 'param', 'name' => 'apache', 'param' => 'version', 'used' => false,
+      'uses' => [{ 'label' => 'default', 'items' => [{ 'certname' => 'db01.example.com' }, { 'certname' => 'web01.example.com' }] }],
+    }])
+    expect(JSON.parse(run(['stdlib', '--render-as', 'json', '--item', 'legacy_shout']).last).first['uses'])
+      .to eq([{ 'label' => 'code', 'items' => [{ 'name' => 'site-modules/profile/manifests/base.pp:11' }] }])
+    expect(run(['stdlib', '--render-as', 'xml']).first).to eq(2)
+  end
+
   it 'filters rows with --used, --unused, --surfaces, --item, --site, and --used-by, and exits 1 when nothing uses the module' do
     expect(cells(run(['stdlib', '--unused']).last).drop(1).map(&:first)).to eq(['class stdlib'])
     expect(cells(run(['stdlib', '--used']).last).drop(1).map(&:first)).not_to include('class stdlib')

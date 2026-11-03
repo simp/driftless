@@ -1,3 +1,6 @@
+require 'json'
+require 'yaml'
+
 require 'pupgrade/cli/base'
 require 'pupgrade/cli/module_command'
 require 'pupgrade/cli/impact'
@@ -28,6 +31,7 @@ module Pupgrade
 
         COLUMNS  = %w[item used where].freeze
         SECTIONS = ::Pupgrade::Surface::Diff::SECTIONS
+        FORMATS  = %w[json yaml].freeze
 
         # What a --used-by glob can be narrowed to, by prefix.
         USED_BY_KINDS = %w[node resource code path].freeze
@@ -46,7 +50,11 @@ module Pupgrade
           doc,     = reader.document(reader.resolve(File.join(repo.dir, entry.path)))
           rows     = ::Pupgrade::Impact::Usage.new(evidence).rows(doc, params: @options[:params])
           shown    = rows.select { |r| shown?(r) }
-          print_table(COLUMNS, shown.map { |r| row(r) })
+          if @options[:format]
+            puts render(shown.map { |r| document(r) })
+          else
+            print_table(COLUMNS, shown.map { |r| row(r) })
+          end
 
           items = rows.reject(&:param)
           used  = items.count(&:used?)
@@ -64,6 +72,7 @@ module Pupgrade
           o.on('--cache-dir=DIR', 'Where surface documents are kept (config: surface.cache_dir)') { |v| @options[:cache_dir] = v }
           o.on('--refresh', 'Extract the surface again, ignoring the cache') { @options[:refresh] = :all }
           o.on('--params', 'Also each class parameter: the nodes setting it, and those leaving its default') { @options[:params] = true }
+          o.on('--render-as=FORMAT', FORMATS, 'The rows as json or yaml instead of the table') { |v| @options[:format] = v }
           o.separator ''
           o.separator 'Row filters (comma-separated, repeatable; globs are case-insensitive):'
           on_un(o, 'used', 'Only what something uses; --unused, what nothing uses') { |v| @options[:used] = v }
@@ -89,6 +98,18 @@ module Pupgrade
           kind, namespace, leaf = usage.parts
           item = "#{paint(kind, :cyan)} #{paint(namespace, :cyan) unless namespace.empty?}#{leaf}"
           [item, usage.used? ? paint('yes', :green) : paint('no', :dim), usage.uses.map { |u| use_text(u, []) }.join('; ')]
+        end
+
+        # One row as data: the item named as the table names it, split
+        # into kind, name, and parameter; each use with every item.
+        def document(usage)
+          kind, namespace, leaf = usage.parts
+          uses = usage.uses.map { |u| { 'label' => u.label, 'items' => u.items.map { |i| { 'name' => i.name, 'certname' => i.certname }.compact } } }
+          { 'item' => "#{kind} #{namespace}#{leaf}", 'kind' => kind, 'name' => usage.name, 'param' => usage.param, 'used' => usage.used?, 'uses' => uses }.compact
+        end
+
+        def render(value)
+          (@options[:format] == 'yaml') ? YAML.dump(value) : JSON.pretty_generate(value)
         end
 
         def shown?(usage)

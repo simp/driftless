@@ -85,6 +85,7 @@ It's a new gem to help upgrade the module base of large Puppet/OpenVox  control 
     (a parameter as `CLASS::PARAM`), `--site GLOBS` (a call site's file),
     and `--used-by GLOBS` (any use, or one kind with a `node:`,
     `resource:`, `code:`, or `path:` prefix)
+  - `--render-as json|yaml`: the rows as data, every use item listed
 
 - **`pupgrade module update`**` MODULE REF [--dry-run] [--force]`
 

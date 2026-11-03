@@ -54,5 +54,10 @@ RSpec.describe Pupgrade::CLI::Table do
     cell = "needs stdlib >= 9.0.0 but #{red}stdlib is 8.6.0 and more words here\e[0m"
     lines = render(40, %w[note], [[cell]])
     expect(lines[2..]).to eq(["needs stdlib >= 9.0.0 but #{red}stdlib is\e[0m", "#{red}8.6.0 and more words here\e[0m"])
+    # a colour opening right after the break starts the next line
+    magenta = "\e[35m"
+    cell = "nodes: #{magenta}db01.example.com\e[0m, #{magenta}web01.example.com\e[0m"
+    lines = render(24, %w[where], [[cell]])
+    expect(lines[2..]).to eq(["nodes: #{magenta}db01.example.com\e[0m,", "#{magenta}web01.example.com\e[0m"])
   end
 end

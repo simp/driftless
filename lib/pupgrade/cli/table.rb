@@ -123,17 +123,19 @@ module Pupgrade
         [head, open + tail]
       end
 
-      # The raw index of the visible character `n`.
+      # The raw index of the visible character `n`, before any escape
+      # codes that open on it, so a cut there carries them to the next
+      # line.
       def raw_index(text, n)
         seen = 0
         i = 0
         while i < text.length
+          return i if seen == n
+
           if (m = text.match(ANSI, i)) && m.begin(0) == i
             i = m.end(0)
             next
           end
-          return i if seen == n
-
           seen += 1
           i += 1
         end

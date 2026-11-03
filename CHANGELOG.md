@@ -307,7 +307,8 @@ It's a new gem to help upgrade the module base of large Puppet/OpenVox  control 
 - Logging levels follow Puppet's, `notice` the default; `-v` (info), `-vv`
   (debug), and `-vvv` (trace) show progressively more of what a command is
   doing, wherever they sit on the command line.
-- Tables wrap to the terminal width (`--width N` overrides; `0` for none).
+- Tables wrap to the terminal width (`--width N` overrides; `0` for none);
+  a colored cell keeps its colors across the wrap.
 - `--help` prints the command's desc; subcommands sort by name
 - commands log their stages at notice before slow work; every git trace
   line names its purpose, e.g. `(resolving v9.6.0)`

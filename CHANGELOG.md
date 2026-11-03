@@ -145,6 +145,11 @@ It's a new gem to help upgrade the module base of large Puppet/OpenVox  control 
     `compile.on_mock` holds standing rules, the flag's coming after);
     Puppet's own warnings log at warning with the certname, one line
     each, deprecations at info
+  * the `facts:` mocks are merged over the factset's facts per node, so
+    Puppet code reading `$facts['x']` or `$x` sees them as `Facter.value`
+    does; `${facts.os.name}` and the like resolve per node; a mock the
+    factset lacks is logged at the `--on-mock` level, one overriding a
+    reported value at notice; a read of either is recorded under `mocks`
   * config `compile.ignorable_puppet_compile_messages` (regexes) and
     `compile.suppress_ignorable_puppet_compile_messages`: with the latter
     on, a Puppet warning matching is logged at debug instead of warning,

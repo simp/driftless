@@ -17,8 +17,8 @@ module Pupgrade
     #           os.family: [RedHat, Suse]
     #       - match: '^systemctl '
     #         action: allow                          # run it for real, and record it
-    #     facts:                                     # Facter.value reads the factset lacks
-    #       fips_enabled: false
+    #     facts:                                     # merged over the factset's facts;
+    #       fips_enabled: false                      #   ${facts.os.name} and the like resolve per node
     #     functions:                                 # Puppet functions answered without running
     #       - name: puppetdb_query
     #         returns: []

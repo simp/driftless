@@ -169,7 +169,7 @@ module Pupgrade
         EnvHiera.path = @hiera
         Pupgrade.logger.info("compile: environment #{@environment} at #{@repo_dir}; manifest #{@manifest || conf.manifest}; " \
                              "hiera #{@hiera || File.join(@repo_dir, 'hiera.yaml')}; #{'PSON loaded; ' if @pson}" \
-                             "modulepath #{@modulepath.join(':')}; #{@mocks.commands.size} mock(s); on leak: #{@on_leak}")
+                             "modulepath #{@modulepath.join(':')}; #{@mocks.commands.size} command and #{@mocks.facts.size} fact mock(s); on leak: #{@on_leak}")
         self
       end
 
@@ -186,7 +186,7 @@ module Pupgrade
         begin
           Puppet.override(environments: @loader, current_environment: @env) do
             Puppet[:code] = code_for(@env)
-            catalog = Puppet::Parser::Compiler.compile(node_for(factset, resolved))
+            catalog = Puppet::Parser::Compiler.compile(node_for(factset, resolved, recorder.facts))
           end
         rescue Leak, Puppet::Error, StandardError => e
           error = e.message
@@ -215,7 +215,7 @@ module Pupgrade
         Probes.current = recorder
         Puppet.override(environments: @loader, current_environment: @env) do
           Puppet[:code] = compile ? code_for(@env) : 'undef'
-          compiler = Puppet::Parser::Compiler.new(node_for(factset, resolved))
+          compiler = Puppet::Parser::Compiler.new(node_for(factset, resolved, recorder.facts))
           compiler.compile do |catalog|
             yield compiler.topscope, resolved
             catalog
@@ -298,9 +298,10 @@ module Pupgrade
 
       # @param resolved [Enc::Node] the variables and classes the ENC
       #   stand-in decided for the node
-      def node_for(factset, resolved)
+      # @param facts [Hash] the node's facts, mocks merged ({Recorder#facts})
+      def node_for(factset, resolved, facts)
         node = Puppet::Node.new(factset.certname, environment: @env)
-        node.fact_merge(Puppet::Node::Facts.new(factset.certname, deep_dup(factset.values)))
+        node.fact_merge(Puppet::Node::Facts.new(factset.certname, deep_dup(facts)))
         node.trusted_data = trusted_for(factset)
         node.add_server_facts(@server_facts.merge('serverversion' => Puppet.version))
         node.merge(resolved.vars) unless resolved.vars.empty?

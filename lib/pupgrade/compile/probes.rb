@@ -35,11 +35,13 @@ module Pupgrade
         @on_mock  = on_mock.to_s
         @ignorable = ignorable
         @repo_dir = File.expand_path(repo_dir)
+        @fact_mocks = {}
+        @facts      = nil
         @prefixes = {}
         @modules  = {}
         @functions = Hash.new { |h, k| h[k] = { 'module' => nil, 'calls' => 0, 'sites' => [] } }
         @class_sites = Hash.new { |h, k| h[k] = [] }
-        @facts     = Hash.new(0)
+        @facts_read = Hash.new(0)
         @legacy    = Hash.new(0)
         @lookups   = Hash.new { |h, k| h[k] = { 'found' => false, 'automatic' => 0, 'explicit' => 0 } }
         @providers = {}
@@ -56,6 +58,23 @@ module Pupgrade
       end
 
       # ---- facts -----------------------------------------------------------
+
+      # The node's facts as the compile sees them: the factset's, with the
+      # `facts:` mocks merged over them, each `${...}` resolved for the
+      # node. A mock the factset lacks fills it in, logged at the
+      # `--on-mock` level; one the factset has overrides it, logged at
+      # notice. Either is recorded under `mocks` when the compile reads it.
+      #
+      # @return [Hash]
+      def facts
+        @facts ||= begin
+          facts = deep_dup(@factset.values)
+          merge_mocks(facts, @mocks.facts, nil)
+          facts
+        end
+      end
+
+      # ---- facts: reads ----------------------------------------------------
 
       # Remembers every hash inside `hash` by identity, so a later access on
       # one of them can be named by its path.
@@ -75,7 +94,7 @@ module Pupgrade
         prefix = @prefixes[hash.object_id]
         return if prefix.nil?
 
-        keys.each { |k| @facts[[prefix, k.to_s].reject(&:empty?).join('.')] += 1 }
+        keys.each { |k| fact_read([prefix, k.to_s].reject(&:empty?).join('.')) }
       end
 
       # The `dig` function walking keys from a value: recorded when the value
@@ -84,7 +103,7 @@ module Pupgrade
         prefix = @prefixes[data.object_id]
         return if prefix.nil?
 
-        @facts[([prefix] + keys.map(&:to_s)).reject(&:empty?).join('.')] += 1
+        fact_read(([prefix] + keys.map(&:to_s)).reject(&:empty?).join('.'))
       end
 
       # `key in $facts`: a membership test on a hash inside `$facts` or
@@ -93,7 +112,7 @@ module Pupgrade
         prefix = @prefixes[hash.object_id]
         return if prefix.nil? || !key.is_a?(String)
 
-        @facts[[prefix, key].reject(&:empty?).join('.')] += 1
+        fact_read([prefix, key].reject(&:empty?).join('.'))
       end
 
       # A dotted path walked from a value: Hiera interpolation and the
@@ -102,33 +121,30 @@ module Pupgrade
         prefix = @prefixes[value.object_id]
         return if prefix.nil?
 
-        @facts[([prefix] + segments.map(&:to_s)).reject(&:empty?).join('.')] += 1
+        fact_read(([prefix] + segments.map(&:to_s)).reject(&:empty?).join('.'))
       end
 
       # A variable read: recorded as a legacy fact when the bare name is a
       # top-level fact carrying that value.
       def variable(name, value)
         bare = name.to_s.delete_prefix('::')
-        return if bare.include?('::') || !@factset.values.key?(bare)
+        return if bare.include?('::') || !facts.key?(bare)
+        return unless facts[bare] == value
 
-        @legacy[bare] += 1 if @factset.values[bare] == value
+        @legacy[bare] += 1
+        mocked_read(bare)
       end
 
-      # A `Facter.value` or `Facter.fact` read from Ruby code.
+      # A `Facter.value` or `Facter.fact` read from Ruby code: answered from
+      # the facts the compile sees, mocks merged.
       #
       # @return [Array(Boolean, Object)] whether anything answered, and the value
       def facter_value(query)
         name = query.to_s.downcase
         found, value = dig_fact(name)
         if found
-          @facts["#{name} (Facter)"] += 1
-          return [true, value]
-        end
-
-        found, value = @mocks.fact(name)
-        if found
-          intercepted('fact', name, 'mocked', nil)
-          log_mock("guard: #{@factset.certname}: fact #{name}: mocked")
+          @facts_read["#{name} (Facter)"] += 1
+          mocked_read(name)
           return [true, value]
         end
 
@@ -298,7 +314,7 @@ module Pupgrade
         alias_sites!
         {
           'functions'    => @functions.sort.to_h,
-          'facts'        => @facts.sort.to_h,
+          'facts'        => @facts_read.sort.to_h,
           'legacy_facts' => @legacy.sort.to_h,
           'lookups'      => @lookups.sort.to_h,
           'providers'    => @providers.sort.to_h.values,
@@ -347,9 +363,58 @@ module Pupgrade
         path.to_s.delete_prefix("#{@repo_dir}/")
       end
 
-      # @return [Array(Boolean, Object)] a fact by dotted name
+      # A fact read by path, and a mocked read when a mock answers it.
+      def fact_read(path)
+        @facts_read[path] += 1
+        mocked_read(path)
+      end
+
+      # A read of a path a `facts:` mock answers, at the path or under it,
+      # recorded under `mocks` once per mocked path.
+      def mocked_read(path)
+        return if @fact_mocks.empty? || path.start_with?('trusted')
+
+        @fact_mocks.each do |mocked, action|
+          next unless mocked == path || mocked.start_with?("#{path}.")
+          next if action.nil?
+
+          intercepted('fact', mocked, action, location)
+          @fact_mocks[mocked] = nil
+        end
+      end
+
+      # The `facts:` mocks merged over the factset's facts, leaf by leaf, the
+      # paths applied kept in @fact_mocks with the action to record.
+      def merge_mocks(base, mocks, prefix)
+        mocks.each do |key, value|
+          path  = [prefix, key.to_s].compact.join('.')
+          value = Enc.interpolate(value, @node, 'mock') if @node && value.is_a?(String)
+          if value.is_a?(Hash) && base[key.to_s].is_a?(Hash)
+            merge_mocks(base[key.to_s], value, path)
+            next
+          end
+          if base.key?(key.to_s)
+            @fact_mocks[path] = 'mocked (overrides factset)'
+            Pupgrade.logger.notice("guard: #{@factset.certname}: fact #{path}: mocked, overriding the factset's #{base[key.to_s].inspect}")
+          else
+            @fact_mocks[path] = 'mocked'
+            log_mock("guard: #{@factset.certname}: fact #{path}: mocked")
+          end
+          base[key.to_s] = deep_dup(value)
+        end
+      end
+
+      def deep_dup(obj)
+        case obj
+        when Hash  then obj.to_h { |k, v| [k, deep_dup(v)] }
+        when Array then obj.map { |v| deep_dup(v) }
+        else obj
+        end
+      end
+
+      # @return [Array(Boolean, Object)] a fact by dotted name, mocks merged
       def dig_fact(name)
-        values = @factset.values
+        values = facts
         return [true, values[name]] if values.key?(name)
 
         value = values
@@ -657,7 +722,7 @@ module Pupgrade
 
         def to_hash
           rec = Probes.current
-          rec ? rec.instance_variable_get(:@factset).values : super
+          rec ? rec.facts : super
         end
       end
     end

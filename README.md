@@ -197,7 +197,7 @@ commands:
       os.family: [RedHat, Debian]
   - match: 'systemctl list-unit-files'
     action: allow                       # run it for real, but record it
-facts:                                  # Facter.value reads the factset lacks
+facts:                                  # merged over the factset's facts, per node
   fips_enabled: false
 functions:                              # Puppet functions answered without running
   - name: puppetdb_query

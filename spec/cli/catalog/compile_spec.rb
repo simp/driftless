@@ -324,7 +324,8 @@ RSpec.describe Pupgrade::CLI::Catalog::Compile do
       $stdout = original
     end
     expect(status).to eq(0)
-    expect(log).not_to include('guard:') # --code compiles no module code that runs a command
+    expect(log).not_to include(': execute:') # --code compiles no module code that runs a command
+    expect(log).to include('notice: guard: web01.example.com: fact simplib_fips: mocked') # on_mock names notice for web*
     # compile.on_mock holds standing rules for the site manifest's compile
     $stdout = captured
     log = capture_log(level: :notice) do
@@ -379,6 +380,29 @@ RSpec.describe Pupgrade::CLI::Catalog::Compile do
       $stdout = original
     end
     expect(status).to eq(3)
+  end
+
+  it 'merges the fact mocks into the node, an override noticed, and records the reads under mocks' do
+    mocks = File.join(@tmp, 'fact-mocks.yaml')
+    File.write(mocks, "facts:\n  operatingsystem: '${facts.os.name}'\n  kernel: Mocked\n  os:\n    extra: 'yes'\n  unread: 1\n")
+    allow(Driftless).to receive(:logger).and_call_original
+    status = text = nil
+    log = capture_log(level: :debug) do
+      status, text = run(['-vv', '--mocks', mocks, '--certname', 'web*', '--code',
+                          'notify { "${facts[\'operatingsystem\']} ${facts[\'kernel\']} ${facts[\'os\'][\'extra\']} ${facts[\'os\'][\'family\']} ${operatingsystem}": }'])
+    end
+    expect(status).to eq(0)
+    expect(read('web01.example.com', 'catalog.json')['resources'].map { |r| r['title'] }).to include('Rocky Mocked yes RedHat Rocky')
+    expect(log).to include('notice: guard: web01.example.com: fact kernel: mocked, overriding the factset\'s "Linux"',
+                           'debug: guard: web01.example.com: fact operatingsystem: mocked', 'debug: guard: web01.example.com: fact os.extra: mocked')
+    expect(log).to include('command and 4 fact mock(s)')
+    record = read('web01.example.com', 'compile.json')
+    expect(record['mocks'].map { |m| m.values_at('kind', 'command', 'action') }).to contain_exactly(
+      ['fact', 'operatingsystem', 'mocked'], ['fact', 'kernel', 'mocked (overrides factset)'], ['fact', 'os.extra', 'mocked'],
+    )
+    expect(record['facts']).to include('operatingsystem' => 1, 'kernel' => 1, 'os.extra' => 1)
+    expect(record['legacy_facts']).to include('operatingsystem' => 1)
+    expect(cells(text)[1].values_at(0, 4)).to eq(%w[web01.example.com 3])
   end
 
   it 'counts a fact read with no value under missing, not leaks' do

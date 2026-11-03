@@ -311,7 +311,8 @@ pupgrade catalog show -p mocks 'web*'      # what was mocked
 ```
 
 `--prepend CODE|@FILE` evaluates Puppet code before the manifest, for the
-resources only production has. `--hiera FILE` reads the environment's Hiera
+resources only production has, and before `--code` when that stands in for
+the manifest (a configured `compile.prepend_file` too). `--hiera FILE` reads the environment's Hiera
 layer from FILE in place of the repo's `hiera.yaml`, its `datadir` relative to
 FILE's directory. `--pson` loads the `puppet-pson` gem, which defines the
 `PSON` that Puppet 8 dropped. Code written for Puppet 7 that calls `PSON.load`,

@@ -86,7 +86,8 @@ module Pupgrade
       # @param manifest [String, nil] a manifest file or directory in place of
       #   environment.conf's
       # @param code [String, nil] Puppet code compiled in place of the manifest
-      # @param prepend [String, nil] Puppet code evaluated before the manifest
+      # @param prepend [String, nil] Puppet code evaluated before the
+      #   manifest, or before `code`
       # @param enc [Enc] what decides each node's top-scope variables and
       #   classes; `vars:` is the static shorthand for an ENC setting them
       #   on every node
@@ -111,7 +112,6 @@ module Pupgrade
         rescue OnMock::Error => e
           raise Error, e.message
         end
-        raise Error, 'give code or prepend, not both' if code && prepend
         raise Error, "environment name #{environment.inspect} must be lowercase letters, digits, and underscores" unless environment.match?(/\A[a-z0-9_]+\z/)
 
         @repo_dir     = File.expand_path(repo_dir)
@@ -269,10 +269,11 @@ module Pupgrade
         (clone.own? && clone.sha) || 0
       end
 
-      # @return [String] what Puppet[:code] is set to: the code replacing the
-      #   manifest, the prepended code plus the manifest's text, or nothing
+      # @return [String] what Puppet[:code] is set to: the prepended code,
+      #   then the code replacing the manifest or the manifest's text; or
+      #   nothing, so the manifest is read as it is
       def code_for(env)
-        return @code if @code
+        return [@prepend, @code].compact.join("\n") if @code
         return '' unless @prepend
 
         manifest = env.manifest

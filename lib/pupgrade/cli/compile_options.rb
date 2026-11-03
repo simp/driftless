@@ -28,8 +28,8 @@ module Pupgrade
         o.on('--environment=NAME', 'Environment name (config: compile.environment)') { |v| @options[:environment] = v }
         o.on('--manifest=PATH', 'Override Puppet manifest (config: compile.manifest)') { |v| @options[:manifest] = v }
         o.on('--hiera=FILE', 'Environment-layer hiera.yaml in place of the control repo\'s (config: compile.hiera)') { |v| @options[:hiera] = v }
-        o.on('--code=CODE', 'Puppet code to compile (replaces manifest)') { |v| @options[:code] = v }
-        o.on('--prepend=CODE', 'Puppet code evaluated before manifest; @FILE reads it from a file (config: compile.prepend_file)') { |v| @options[:prepend] = v }
+        o.on('--code=CODE', 'Puppet code to compile in place of the manifest') { |v| @options[:code] = v }
+        o.on('--prepend=CODE', 'Puppet code evaluated before the manifest or --code; @FILE reads it from a file (config: compile.prepend_file)') { |v| @options[:prepend] = v }
         o.on('--var=NAME=VALUE[,…]', 'Set top-scope variable (for every node) (config: compile.vars)') { |v| pair(:vars, v) }
         o.on('--enc=FILE', "Rules for per-node variables and classes (config: compile.enc; default: #{DEFAULT_ENC_FILE}") { |v| @options[:enc] = v }
         o.on('--ruby=FILE', "Rules for per-node ENC variables + classes, exec guard mocks (config: compile.ruby; default: #{DEFAULT_RUBY_FILE}") { |v| @options[:ruby] = v }

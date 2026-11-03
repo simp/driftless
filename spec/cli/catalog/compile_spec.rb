@@ -251,12 +251,17 @@ RSpec.describe Pupgrade::CLI::Catalog::Compile do
     FileUtils.rm_rf(File.join(fixture.dir, 'site-modules/psonfix'))
   end
 
-  it 'compiles code in place of the manifest, with top-scope variables and a certname filter' do
+  it 'compiles code in place of the manifest, with top-scope variables and a certname filter, --prepend before it' do
     status, text = run(['--mocks', 'pupgrade/compiler-mocks.yaml', '--certname', 'web*', '--code', 'notify { "hello ${role}": }', '--var', 'role=db'])
     expect(status).to eq(0)
     expect(cells(text).drop(1).map(&:first)).to eq(['web01.example.com'])
     catalog = read('web01.example.com', 'catalog.json')
     expect(catalog['resources'].map { |r| r['title'] }).to include('hello db')
+    expect(catalog['classes']).to eq(%w[settings])
+    status, = run(['--mocks', 'pupgrade/compiler-mocks.yaml', '--certname', 'web*', '--prepend', '$greeting = "hi"', '--code', 'notify { "${greeting} ${role}": }', '--var', 'role=db'])
+    expect(status).to eq(0)
+    catalog = read('web01.example.com', 'catalog.json')
+    expect(catalog['resources'].map { |r| r['title'] }).to include('hi db')
     expect(catalog['classes']).to eq(%w[settings])
   end
 

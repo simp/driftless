@@ -173,8 +173,8 @@ It's a new gem to help upgrade the module base of large Puppet/OpenVox  control 
     `contain`, a `class { }` declaration, or `enc`), functions and their
     call sites, facts, lookups, types, providers, warnings, mocks, leaks
   * `--environment`, `--manifest PATH`, `--code CODE` (in place of the
-    manifest), `--prepend CODE|@FILE`, `--var NAME=VALUE`, `--server-fact
-    NAME=VALUE`
+    manifest), `--prepend CODE|@FILE` (before the manifest, or before
+    `--code`), `--var NAME=VALUE`, `--server-fact NAME=VALUE`
   * Comes with an execution guard/mocking system to stub server-side functions
     (aka execution leaks) and direct calls to Facter's execution helpers
     - mocks are defined in `--mocks FILE`

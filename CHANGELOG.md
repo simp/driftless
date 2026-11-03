@@ -101,7 +101,8 @@ It's a new gem to help upgrade the module base of large Puppet/OpenVox  control 
 - **`pupgrade module update`**` MODULE REF [--dry-run] [--force]`
 
   Check out `REF` in the deployed git `MODULE`, in place; `--force` goes
-  ahead over uncommitted changes
+  ahead over uncommitted changes; a deleted `spec/`, which r10k removes
+  from every module it deploys, is not one
 - **`pupgrade module diff FROM TO`**
 
   Show what changed between two versions of a module:

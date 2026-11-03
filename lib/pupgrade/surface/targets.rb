@@ -267,7 +267,7 @@ module Pupgrade
         name = git(dir, 'describe', '--tags', '--exact-match', sha, why: 'the tag at it')
         name ||= git(dir, 'symbolic-ref', '--short', '-q', 'HEAD', why: 'the branch checked out')
         changes = git(dir, 'status', '--porcelain', '--', '.', why: 'uncommitted changes').to_s.lines.map(&:strip)
-        dirty   = changes.reject { |line| line.match?(%r{\AD\s+spec/}) }.any?
+        dirty   = changes.reject { |line| line.match?(::Driftless::GitClone::R10K_REMOVED_SPEC) }.any?
         Commit.new(sha: sha, name: name, tags: tags_at(dir, sha), dirty: dirty)
       end
 

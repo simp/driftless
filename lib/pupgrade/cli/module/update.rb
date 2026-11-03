@@ -22,7 +22,11 @@ module Pupgrade
           selector, ref = argv
           repo = control_repo!('module update')
           entry, clone = git_module!('module update', repo, selector)
-          fatal!("module update: #{entry.path} has uncommitted changes; not touching it (--force overrides)", 3) if clone.dirty? && !@options[:force]
+          # a deleted spec/ is r10k's doing, not a local change; the checkout
+          # is forced over it, which discards nothing else since nothing else
+          # is changed
+          removed_spec = clone.dirty?
+          fatal!("module update: #{entry.path} has uncommitted changes; not touching it (--force overrides)", 3) if !@options[:force] && clone.dirty?(ignore: ::Driftless::GitClone::R10K_REMOVED_SPEC)
 
           fatal!("module update: fetch from #{clone.remote || 'origin'} failed", 3) unless clone.fetch
           candidate = ref_candidate(clone, ref)
@@ -35,7 +39,7 @@ module Pupgrade
           elsif @options[:dry_run]
             puts "#{entry.path}: would move #{from} -> #{ref} (#{target[0, 12]})"
           else
-            fatal!("module update: checkout of #{target[0, 12]} failed in #{entry.path}", 3) unless clone.checkout(target, force: @options[:force])
+            fatal!("module update: checkout of #{target[0, 12]} failed in #{entry.path}", 3) unless clone.checkout(target, force: @options[:force] || removed_spec)
             puts "#{entry.path}: #{from} -> #{ref} (#{target[0, 12]})"
           end
           declared = entry.declared&.ref
@@ -55,7 +59,7 @@ module Pupgrade
           o.separator '<ref> is a branch, tag, or sha, tried as origin/<ref> first and then as given, after'
           o.separator 'fetching origin; a rev expression such as HEAD~3 goes to git as written. The'
           o.separator 'checkout is detached, as r10k leaves it. A clone with uncommitted changes is not'
-          o.separator 'touched unless --force.'
+          o.separator 'touched unless --force; a deleted spec/, which r10k removes, is not a change.'
         end
       end
     end

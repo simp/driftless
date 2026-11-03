@@ -20,6 +20,8 @@ RSpec.describe Pupgrade::CLI::ModuleCommand::Update do
     up = File.join(dir, 'up/stdlib')
     FileUtils.mkdir_p(up)
     File.write(File.join(up, 'metadata.json'), JSON.generate('name' => 'puppetlabs-stdlib', 'version' => '1.0.0'))
+    FileUtils.mkdir_p(File.join(up, 'spec'))
+    File.write(File.join(up, 'spec/a_spec.rb'), "# one\n")
     git(up, 'init', '-q', '-b', 'main')
     git(up, 'add', '.')
     git(up, 'commit', '-q', '-m', 'one')
@@ -27,7 +29,8 @@ RSpec.describe Pupgrade::CLI::ModuleCommand::Update do
     FileUtils.mkdir_p(File.join(dir, 'modules'))
     git(File.join(dir, 'modules'), 'clone', '-q', up, File.join(dir, 'modules/stdlib'))
     git(File.join(dir, 'modules/stdlib'), 'checkout', '-q', '--detach', 'v1')
-    git(up, 'commit', '-q', '--allow-empty', '-m', 'two')
+    File.write(File.join(up, 'spec/a_spec.rb'), "# two\n")
+    git(up, 'commit', '-q', '-a', '-m', 'two')
     git(up, 'tag', 'v2')
     git(up, 'commit', '-q', '--allow-empty', '-m', 'three')
     File.write(File.join(dir, 'Puppetfile'), "mod 'puppetlabs-stdlib', git: '#{up}', tag: 'v1'\nmod 'org-forge', '1.0.0'\n")
@@ -93,6 +96,18 @@ RSpec.describe Pupgrade::CLI::ModuleCommand::Update do
       status, out = run(['--no-config', '-d', dir, 'stdlib', 'v2', '--dry-run'])
       expect([status, out]).to match([0, /would move v1 -> v2/])
       expect(head(dir).tag_at_head).to eq('v1')
+    end
+  end
+
+  it 'moves a clone whose spec/ r10k removed, as that is not a local change' do
+    Dir.mktmpdir do |dir|
+      control_repo(dir)
+      FileUtils.rm_rf(File.join(dir, 'modules/stdlib/spec'))
+      expect(head(dir).dirty?).to be true
+      silence_logger
+      status, out = run(['--no-config', '-d', dir, 'stdlib', 'v2'])
+      expect([status, out]).to match([0, %r{\Amodules/stdlib: v1 -> v2}])
+      expect(head(dir).tag_at_head).to eq('v2')
     end
   end
 

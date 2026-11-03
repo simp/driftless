@@ -78,8 +78,9 @@ module Driftless
             @options[:role_tree] = v || DEFAULT_ROLE_TREE
           end
           o.on('--pick=HOW', ::Driftless::Export::RoleTree::PICKS,
-               'How a collector\'s node is chosen for a role with none yet:',
-               'random (default) or first (lowest certname)') { |v| @options[:pick] = v }
+               'How a collector\'s nodes are chosen for a role: random (default) or first',
+               '(lowest certname), up to --limit; select, every node the selection leaves;',
+               'all, every reported node, the selection and environments aside') { |v| @options[:pick] = v }
           o.on('--prune', 'Delete factsets whose node no longer reports with that role') { @options[:prune] = true }
           o.on('--ignore-stale-factsets', 'Warn about such factsets and proceed instead of stopping') do
             @options[:ignore_stale] = true

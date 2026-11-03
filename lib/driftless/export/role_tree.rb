@@ -16,14 +16,20 @@ module Driftless
     #
     # A file already in a role directory is rewritten from the current
     # factset of that certname. Only when a collector has fewer files under a
-    # role than the limit is a node picked to fill the shortfall. A file
+    # role than the limit is a node picked to fill the shortfall; the picks
+    # `select` and `all` take every node instead, the limit aside. A file
     # whose certname no longer reports, no longer carries the role, or falls
     # outside the selector is stale; the run stops on stale files unless told
     # to prune or ignore them.
     class RoleTree
       include FactsetSerializer
 
-      PICKS = %w[random first].freeze
+      # How a collector's nodes are chosen for a role: one at random or the
+      # first by certname, up to the limit; `select`, every node the
+      # selector leaves; `all`, every reported node, the selector and the
+      # environments aside.
+      PICKS = %w[random first select all].freeze
+      EVERY = %w[select all].freeze
 
       # @!attribute [rw] written
       #   @return [Integer] files newly picked and written
@@ -42,7 +48,7 @@ module Driftless
 
       # @param root [String] the tree's root directory
       # @param limit [Integer] factsets per role and collector
-      # @param pick [String] "random" or "first" (lowest certname)
+      # @param pick [String] one of {PICKS}
       # @param prune [Boolean] delete stale files instead of stopping
       # @param ignore_stale [Boolean] warn about stale files instead of stopping
       # @param selector [NodeSelector, nil] narrows candidate nodes; its roles
@@ -54,7 +60,7 @@ module Driftless
         raise Error, "unknown pick: #{pick.inspect} (known: #{PICKS.join(', ')})" unless PICKS.include?(pick)
 
         @loader = Inputs::NodeReportLoader.new(
-          incoming_dir: incoming_dir, environments: environments,
+          incoming_dir: incoming_dir, environments: (pick == 'all') ? nil : environments,
           proceed_with_subset_of_configured_envs: proceed_with_subset_of_configured_envs,
         )
         @root          = root
@@ -62,7 +68,7 @@ module Driftless
         @pick          = pick
         @prune         = prune
         @ignore_stale  = ignore_stale
-        @selector      = selector || NodeSelector.new
+        @selector      = (pick == 'all') ? NodeSelector.new : (selector || NodeSelector.new)
         @random        = random
         @profile       = 'onceover'
         @serialization = 'json'
@@ -93,7 +99,7 @@ module Driftless
             kept = existing.fetch(role, {}).fetch(collector, [])
             kept.each { |node| write(role, node) }
             result.updated += kept.size
-            if kept.size > @limit
+            if kept.size > @limit && !EVERY.include?(@pick)
               result.over_limit += 1
               warn("export factsets: #{role}/ holds #{kept.size} factsets from #{collector}, over the limit of #{@limit}")
               next
@@ -193,8 +199,10 @@ module Driftless
       end
 
       def choose(pool, count)
-        return [] if count <= 0 || pool.empty?
         sorted = pool.sort_by { |n| name_for(n) }
+        return sorted if EVERY.include?(@pick)
+        return [] if count <= 0 || pool.empty?
+
         (@pick == 'first') ? sorted.first(count) : sorted.sample(count, random: @random)
       end
 

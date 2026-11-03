@@ -149,6 +149,19 @@ RSpec.describe Driftless::Export::RoleTree do
     expect(tree(root)).to eq(%w[role::db/db1.json role::db/mixed.json])
   end
 
+  it 'takes every node the selector leaves with pick select, and every reported node with pick all' do
+    result = run(incoming, root, pick: 'select', selector: Driftless::NodeSelector.new(roles: ['role::web']))
+    expect(tree(root)).to eq(%w[role::web/mixed.json role::web/web1.json role::web/web2.json role::web/web3.json])
+    expect(result.to_h).to include(written: 4, over_limit: 0)
+    result = run(incoming, root, pick: 'select', selector: Driftless::NodeSelector.new(roles: ['role::web']))
+    expect(result.to_h).to include(written: 0, updated: 4, over_limit: 0)
+
+    FileUtils.rm_rf(root)
+    result = run(incoming, root, pick: 'all', selector: Driftless::NodeSelector.new(certname_globs: ['web*']), environments: ['staging'])
+    expect(tree(root)).to eq(%w[role::db/db1.json role::db/mixed.json role::web/mixed.json role::web/web1.json role::web/web2.json role::web/web3.json])
+    expect(result.to_h).to include(written: 6, stale: 0)
+  end
+
   it 'raises ScanError without the classes report' do
     FileUtils.rm_rf(File.join(incoming, 'classes-for-all-active-nodes'))
     expect { run(incoming, root) }.to raise_error(Driftless::ScanError, /classes-for-all-active-nodes/)

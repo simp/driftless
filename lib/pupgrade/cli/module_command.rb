@@ -1,3 +1,5 @@
+require 'open3'
+
 require 'pupgrade/cli/base'
 require 'pupgrade/cli/root'
 require 'driftless/git_clone'
@@ -116,6 +118,37 @@ module Pupgrade
           return ['branch', 'control_branch', nil] unless branch
 
           ['branch', branch, (branch == declared.default_branch && branch != control) ? 'default_branch' : 'control_branch']
+        end
+
+        # A ref of a clone and the module's metadata there.
+        #
+        # @!attribute [r] ref
+        #   @return [String] as given
+        # @!attribute [r] name
+        #   @return [String] as the clone resolves it, from {#ref_candidate}
+        # @!attribute [r] sha
+        #   @return [String]
+        # @!attribute [r] metadata
+        #   @return [Driftless::Inputs::ModuleMetadata::Result] the metadata there
+        At = Data.define(:ref, :name, :sha, :metadata)
+
+        # The module's metadata at a ref of its clone. The ref resolves
+        # through {#ref_candidate}: `origin/<ref>` first.
+        #
+        # @return [At]
+        def at_ref(command, repo, entry, ref)
+          clone = ::Driftless::GitClone.new(File.join(repo.dir, entry.path))
+          fatal!("#{command}: #{entry.path} is not a git clone, so has no ref #{ref.inspect}", 3) unless clone.own?
+          name = ref_candidate(clone, ref)
+          fatal!("#{command}: #{entry.path} has no ref #{ref.inspect}", 3) unless name
+
+          sha = clone.resolve(name)
+          text, status = Open3.capture2('git', '-C', clone.dir, 'show', "#{sha}:#{::Driftless::Inputs::ModuleMetadata::FILENAME}", err: File::NULL)
+          fatal!("#{command}: #{entry.path} has no metadata.json at #{ref}", 3) unless status.success?
+
+          metadata = ::Driftless::Inputs::ModuleMetadata.parse(text, path: "#{entry.path}@#{ref}:metadata.json")
+          fatal!("#{command}: #{metadata.error}", 3) if metadata.error
+          At.new(ref: ref, name: name, sha: sha, metadata: metadata)
         end
 
         # Git's own rev syntax: a suffix, a reflog or range operator.

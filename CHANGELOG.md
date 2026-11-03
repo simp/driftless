@@ -53,10 +53,12 @@ It's a new gem to help upgrade the module base of large Puppet/OpenVox  control 
     wins, and is recorded in the branchfile (flag or `modules.branchfile`)
   * `-t`, `--tags-only` shows tags only (and the branch tip with
     `--include-heads`)
-- **`pupgrade module release MODULE [--branch B] [--branchfile FILE] [--fetch]`**:
+- **`pupgrade module releases MODULE[:REF] [--branch B] [--branchfile FILE] [--fetch]`**:
   every release of a module, past and future: each tag naming a version on
-  the branch it follows, oldest first, with its date, the deployed one marked;
-  `--include-heads` adds the branch tip
+  the branch it follows, newest first (`--order oldest` reverses), with its
+  date, the deployed one marked; `--include-heads` adds the branch tip;
+  `:REF` starts the list there, leaving out the releases older than the
+  version at REF
   - a column per constraint, saying whether each release meets it and which
     way it misses: `--with DEP[=VERSION]` (the dependency range against the
     version, deployed by default), `--puppet VERSION`, `--os NAME[=RELEASE]`

@@ -1,5 +1,3 @@
-require 'open3'
-
 require 'pupgrade/cli/base'
 require 'pupgrade/cli/module_command'
 require 'pupgrade/cli/surface'
@@ -48,7 +46,7 @@ module Pupgrade
           fatal!("module info: no module #{name.inspect} on the modulepath or in the Puppetfile", 3) unless entry
 
           @branch = @options[:branch] && given_branch('module info', repo, entry)
-          at = ref && at_ref(repo, entry, ref)
+          at = ref && at_ref('module info', repo, entry, ref)
           out = lines(repo, entry, at)
           out.concat(surface_lines(repo, entry, at)) if @options[:surfaces]
           out.each { |label, value| puts "#{label}:".ljust(15) + value.to_s }
@@ -67,7 +65,7 @@ module Pupgrade
 
         private
 
-        # @param at [At, nil] from {#at_ref}
+        # @param at [Shared::At, nil] from {Shared#at_ref}
         def lines(repo, entry, at)
           declared = entry.declared
           metadata = at ? at.metadata : entry.metadata
@@ -87,37 +85,6 @@ module Pupgrade
           end
           out.concat(candidate_lines(repo, entry))
           out
-        end
-
-        # A ref of the clone, read instead of the deployment.
-        #
-        # @!attribute [r] ref
-        #   @return [String] as given
-        # @!attribute [r] name
-        #   @return [String] as the clone resolves it, from {#ref_candidate}
-        # @!attribute [r] sha
-        #   @return [String]
-        # @!attribute [r] metadata
-        #   @return [Driftless::Inputs::ModuleMetadata::Result] the metadata there
-        At = Data.define(:ref, :name, :sha, :metadata)
-
-        # The module's metadata at a ref of its clone. The ref resolves
-        # through {#ref_candidate}: `origin/<ref>` first.
-        #
-        # @return [At]
-        def at_ref(repo, entry, ref)
-          clone = ::Driftless::GitClone.new(File.join(repo.dir, entry.path))
-          fatal!("module info: #{entry.path} is not a git clone, so has no ref #{ref.inspect}", 3) unless clone.own?
-          name = ref_candidate(clone, ref)
-          fatal!("module info: #{entry.path} has no ref #{ref.inspect}", 3) unless name
-
-          sha = clone.resolve(name)
-          text, status = Open3.capture2('git', '-C', clone.dir, 'show', "#{sha}:#{::Driftless::Inputs::ModuleMetadata::FILENAME}", err: File::NULL)
-          fatal!("module info: #{entry.path} has no metadata.json at #{ref}", 3) unless status.success?
-
-          metadata = ::Driftless::Inputs::ModuleMetadata.parse(text, path: "#{entry.path}@#{ref}:metadata.json")
-          fatal!("module info: #{metadata.error}", 3) if metadata.error
-          At.new(ref: ref, name: name, sha: sha, metadata: metadata)
         end
 
         # One line per surface kind, the names on it sorted, from the

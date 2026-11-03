@@ -13,40 +13,45 @@ require 'pupgrade/surface/timeline'
 module Pupgrade
   module CLI
     class ModuleCommand
-      # `pupgrade module release`
+      # `pupgrade module releases`
       #
       # One module's releases: every tag naming a version on the branch it
-      # follows, past and future, oldest first, with the date of each and
-      # the deployed one marked; on request, whether each meets a
-      # dependency version, a Puppet version, or an operating system, and
-      # how an item of the API surface reads in each.
-      class Release < Base
+      # follows, past and future, newest first, with the date of each and
+      # the deployed one marked, from a ref onward when one is given; on
+      # request, whether each meets a dependency version, a Puppet version,
+      # or an operating system, and how an item of the API surface reads
+      # in each.
+      class Releases < Base
         include Table
         include ModuleCommand::Shared
         include Surface::Shared
 
-        register_command name: 'release', subcommand_of: ModuleCommand
-        positional '<module>'
+        register_command name: 'releases', subcommand_of: ModuleCommand
+        positional '<module>[:<ref>]'
         desc 'List one module\'s releases, past and future: version, tag, and date, the deployed one marked'
 
         COLUMNS = %w[version tag released].freeze
+        ORDERS  = %w[newest oldest].freeze
 
         # How a constraint or item cell is colored by its first word.
         STYLE = { 'ok' => [:green], 'needs' => [:red], 'missing' => [:red], 'absent' => [:red], 'changed:' => [:yellow] }.freeze
 
         def execute(argv)
-          fatal!('module release takes a module', help: true) unless argv.size == 1
-          repo      = control_repo!('module release')
+          fatal!('module releases takes a module, with an optional :REF', help: true) unless argv.size == 1
+          selector, sep, ref = argv.first.partition(':')
+          ref = nil if sep.empty? || ref.empty?
+          repo      = control_repo!('module releases')
           inventory = ::Driftless::ModuleInventory.new(repo.dir)
-          entry     = inventory.find(argv.first)
-          fatal!("module release: no module #{argv.first.inspect} on the modulepath or in the Puppetfile", 3) unless entry
+          entry     = inventory.find(selector)
+          fatal!("module releases: no module #{selector.inspect} on the modulepath or in the Puppetfile", 3) unless entry
 
-          branch     = @options[:branch] && given_branch('module release', repo, entry)
+          branch     = @options[:branch] && given_branch('module releases', repo, entry)
           candidates = ::Pupgrade::Solve::Candidates.new(repo.dir, branchfile: @options[:branchfile], include_heads: @options[:include_heads],
                                                          fetch: @options[:fetch])
           list = candidates.releases(entry, branch: branch)
           candidates.warnings.each { |w| ::Pupgrade.logger.warn(w) }
-          fatal!("module release: #{entry.path}: #{list.reason}", 3) if list.is_a?(::Pupgrade::Solve::Candidates::Unsolvable)
+          fatal!("module releases: #{entry.path}: #{list.reason}", 3) if list.is_a?(::Pupgrade::Solve::Candidates::Unsolvable)
+          list = from(repo, entry, ref, list) if ref
 
           constraints = constraints(inventory)
           clone = ::Driftless::GitClone.new(File.join(repo.dir, entry.path))
@@ -54,10 +59,11 @@ module Pupgrade
           rows = list.map.with_index do |c, i|
             row(clone, c, constraints) + cells.map { |column| column[i] } + [c.current ? paint('(deployed)', :green) : '']
           end
+          rows.reverse! if @options[:order] == 'newest'
           print_table(COLUMNS + constraints.map(&:heading) + items.map(&:heading) + [''], rows)
           name = entry.metadata.name || entry.declared&.name || File.basename(entry.path)
           branch ||= (entry.declared.ref_type == 'branch') ? entry.declared.ref.to_s : branch_for(repo, entry)
-          ::Pupgrade.logger.notice("module release: #{name}: #{list.size} release(s)#{" on #{branch}" if branch}")
+          ::Pupgrade.logger.notice("module releases: #{name}: #{list.size} release(s)#{" from #{ref}" if ref}#{" on #{branch}" if branch}")
           exit 0
         end
 
@@ -68,7 +74,8 @@ module Pupgrade
           o.on('--branch=BRANCHES', Array, 'Follow the first of these branches the clone has; with a branchfile, record it there') { |v| @options[:branch] = v }
           o.on('--branchfile=FILE', 'The branchfile naming the branch the module follows (config: modules.branchfile)') { |v| @options[:branchfile] = v }
           o.on('--fetch', 'Fetch the clone\'s origin first') { @options[:fetch] = true }
-          o.on('--include-heads', 'The tip of the branch as a last row') { @options[:include_heads] = true }
+          o.on('--include-heads', 'The tip of the branch as a row') { @options[:include_heads] = true }
+          o.on('--order=ORDER', ORDERS, 'newest (default) or oldest first') { |v| @options[:order] = v }
           o.separator ''
           o.separator 'Constraints, a column each (comma-separated, repeatable):'
           o.on('--with=DEP[,…]', Array, 'Each release\'s range on DEP against its deployed version, or DEP=VERSION') { |v| accumulate(:with, v) }
@@ -80,6 +87,7 @@ module Pupgrade
           o.on('--cache-dir=DIR', 'Where surface documents are kept (config: surface.cache_dir)') { |v| @options[:cache_dir] = v }
           o.on('--refresh', 'Extract the surfaces again, ignoring the cache') { @options[:refresh] = :all }
           o.separator ''
+          o.separator '<ref> starts the list: releases older than its version are left out.'
           o.separator 'A constraint cell reads ok, needs RANGE (newer or older: which way the version would'
           o.separator 'have to move), missing, none (no such dependency), or undeclared. An item cell is the'
           o.separator 'item\'s signature or type where it first appears, then changed: ..., =, or absent.'
@@ -87,13 +95,24 @@ module Pupgrade
 
         private
 
+        # The releases from the ref onward: those whose version is not
+        # below the metadata version at the ref.
+        #
+        # @return [Array<Solve::Candidates::Candidate>]
+        def from(repo, entry, ref, list)
+          start = ::Pupgrade::ReleaseConstraints.version(at_ref('module releases', repo, entry, ref).metadata.version.to_s)
+          list.select { |c| c.version.nil? || c.version >= start }
+        rescue ArgumentError => e
+          fatal!("module releases: #{entry.path} at #{ref}: #{e.message}", 3)
+        end
+
         # @return [Array<#heading, #check>] from --with, --puppet, and --os
         def constraints(inventory)
           out = Array(@options[:with]).map do |spec|
             name, _, version = spec.partition('=')
             if version.empty?
               version = inventory.find(name)&.metadata&.version
-              fatal!("module release: --with #{name}: not deployed, so no version to hold against; give #{name}=VERSION", 3) unless version
+              fatal!("module releases: --with #{name}: not deployed, so no version to hold against; give #{name}=VERSION", 3) unless version
             end
             ::Pupgrade::ReleaseConstraints::Dependency.new(name, parse_version(version, "--with #{spec}"))
           end
@@ -114,7 +133,7 @@ module Pupgrade
           globs = Array(@options[:items])
           return [[], []] if globs.empty?
 
-          ::Pupgrade.logger.notice("module release: reading the surface of #{entry.path} at #{list.size} release(s)")
+          ::Pupgrade.logger.notice("module releases: reading the surface of #{entry.path} at #{list.size} release(s)")
           reader = targets(fetch: false)
           docs   = list.map do |candidate|
             ref = ref_candidate(clone, candidate.ref) || candidate.ref
@@ -122,16 +141,16 @@ module Pupgrade
           end
           timeline = ::Pupgrade::Surface::Timeline.new(docs)
           items    = timeline.items(globs)
-          ::Pupgrade.logger.warn("module release: no surface item matches #{globs.join(', ')} at any release") if items.empty?
+          ::Pupgrade.logger.warn("module releases: no surface item matches #{globs.join(', ')} at any release") if items.empty?
           [items, items.map { |item| timeline.cells(item).map { |cell| paint(cell, *STYLE.fetch(cell.split.first, [])) } }]
         rescue ::Pupgrade::Surface::Error, ::Pupgrade::Surface::Targets::Error => e
-          fatal!("module release: #{e.message}", 3)
+          fatal!("module releases: #{e.message}", 3)
         end
 
         def parse_version(text, what)
           ::Pupgrade::ReleaseConstraints.version(text)
         rescue ArgumentError => e
-          fatal!("module release: #{what}: #{e.message}", help: true)
+          fatal!("module releases: #{what}: #{e.message}", help: true)
         end
 
         def accumulate(key, values)
@@ -148,6 +167,10 @@ module Pupgrade
             paint(verdict, *STYLE.fetch(verdict.split.first, []))
           end
           [candidate.version.to_s, ref, date] + cells
+        end
+
+        def option_defaults
+          { order: 'newest' }
         end
 
         def config_defaults

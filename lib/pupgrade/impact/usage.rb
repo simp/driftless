@@ -34,6 +34,13 @@ module Pupgrade
           param ? uses.any? { |u| u.label == SET } : !uses.empty?
         end
 
+        # The item as a filter names it: a parameter as `CLASS::PARAM`.
+        #
+        # @return [String]
+        def item
+          param ? "#{name}::#{param}" : name
+        end
+
         # The surface kind, the namespace, and the leaf, split as
         # `module diff` splits an item; a parameter is "param", its class
         # the namespace.

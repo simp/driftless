@@ -65,7 +65,7 @@ module Pupgrade
           o.separator 'Row filters (comma-separated, repeatable; globs are case-insensitive):'
           o.on('--unused', 'Only what nothing uses') { @options[:unused] = true }
           o.on('--surfaces=KINDS', Array, "Only these surfaces (#{SECTIONS.join(', ')})") { |v| accumulate(:surfaces, v) }
-          o.on('--names=GLOBS', Array, 'Only entries whose name matches') { |v| accumulate(:names, v) }
+          o.on('--names=GLOBS', Array, 'Only entries whose name matches (a parameter as CLASS::PARAM)') { |v| accumulate(:names, v) }
           o.separator ''
           o.separator 'A parameter is used when some node sets it. Exits 1 when nothing uses the module.'
         end
@@ -89,7 +89,7 @@ module Pupgrade
         def shown?(usage)
           (!@options[:unused] || !usage.used?) &&
             (Array(@options[:surfaces]).empty? || @options[:surfaces].include?(usage.section)) &&
-            (Array(@options[:names]).empty? || @options[:names].any? { |g| File.fnmatch?(g, usage.name, File::FNM_CASEFOLD) })
+            (Array(@options[:names]).empty? || @options[:names].any? { |g| File.fnmatch?(g, usage.item, File::FNM_CASEFOLD) })
         end
 
         def check_filters!

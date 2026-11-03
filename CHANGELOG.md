@@ -80,7 +80,8 @@ It's a new gem to help upgrade the module base of large Puppet/OpenVox  control 
   the compiled catalogs show it used, and where (nodes, resources, call
   sites); `--params` adds each class parameter with the nodes setting it and
   those leaving its default; `--surfaces` and `--names` filter rows as in
-  `module diff`; exits 1 when nothing uses the module
+  `module diff` (a parameter row as `CLASS::PARAM`); exits 1 when nothing
+  uses the module
 
 - **`pupgrade module update`**` MODULE REF [--dry-run] [--force]`
 

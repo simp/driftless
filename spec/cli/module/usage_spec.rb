@@ -82,6 +82,9 @@ RSpec.describe Pupgrade::CLI::ModuleCommand::Usage do
       ['param apache::version', 'no', 'default: db01.example.com, web01.example.com'],
     ])
     expect(cells(run(['apache', '--params', '--unused']).last).drop(1).map(&:first)).to eq(['param apache::version'])
+    # a parameter row matches --names as CLASS::PARAM
+    expect(cells(run(['apache', '--params', '--names', '*dead*']).last).drop(1).map(&:first)).to eq(['param apache::dead_opt'])
+    expect(cells(run(['apache', '--params', '--names', 'apache::*']).last).drop(1).map(&:first)).to eq(['param apache::dead_opt', 'param apache::legacy_opt', 'param apache::version'])
   end
 
   it 'filters rows with --unused, --surfaces, and --names, and exits 1 when nothing uses the module' do

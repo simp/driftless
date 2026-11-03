@@ -57,10 +57,10 @@ RSpec.describe Pupgrade::CLI::ModuleCommand::Usage do
     expect(cells(out)).to eq([
       %w[item used where],
       ['class stdlib', 'no', ''],
-      ['function legacy_shout', 'yes', 'sites: site-modules/profile/manifests/base.pp:11'],
-      ['function stdlib::run_hostname', 'yes', 'sites: site-modules/profile/manifests/base.pp:13'],
-      ['function stdlib::shout', 'yes', 'sites: site-modules/profile/manifests/base.pp:10'],
-      ['function stdlib::whisper', 'yes', 'sites: site-modules/profile/manifests/base.pp:12'],
+      ['function legacy_shout', 'yes', 'code: site-modules/profile/manifests/base.pp:11'],
+      ['function stdlib::run_hostname', 'yes', 'code: site-modules/profile/manifests/base.pp:13'],
+      ['function stdlib::shout', 'yes', 'code: site-modules/profile/manifests/base.pp:10'],
+      ['function stdlib::whisper', 'yes', 'code: site-modules/profile/manifests/base.pp:12'],
       ['type alias Stdlib::Port', 'yes', 'nodes: db01.example.com, web01.example.com'],
     ])
     _, out = run(['firewall'])

@@ -30,19 +30,31 @@ module Pupgrade
       # What is shared with `module usage`: how a use reads in a table cell.
       module Shared
         # Certnames magenta, a resource's Type[title] in the given style,
-        # and "and N more" in its items' color, dimmed.
+        # a file cyan with its `:line` dimmed, and "and N more" in its
+        # items' color, dimmed.
         #
         # @param use [Pupgrade::Impact::Uses::Use]
         # @param style [Array<Symbol>] the color of a resource's Type[title]
         def use_text(use, style)
           items = use.items.map do |item|
-            name = (item.name && use.label == 'resources') ? paint(item.name, *style) : item.name
+            name = if item.name.nil? then nil
+                   elsif use.label == 'resources' then paint(item.name, *style)
+                   else file_text(item.name)
+                   end
             [name, item.certname && paint(item.certname, :magenta)].compact.join(' on ')
           end
           return "#{use.label}: #{items.join(', ')}" unless use.more.positive?
 
           more = use.items.any?(&:certname) ? %i[magenta dim] : [:dim]
           "#{use.label}: #{items.join(', ')} #{paint("and #{use.more} more", *more)}"
+        end
+
+        # A `path:line` with the path cyan and the line dimmed.
+        def file_text(site)
+          path, sep, line = site.rpartition(':')
+          return paint(site, :cyan) if sep.empty? || line !~ /\A\d+\z/
+
+          "#{paint(path, :cyan)}#{paint(":#{line}", :dim)}"
         end
       end
 

@@ -8,7 +8,7 @@ module Pupgrade
       # One kind of use: its first {NAMED} items, and a count of the rest.
       #
       # @!attribute [r] label
-      #   @return [String] "nodes", "resources", "sites", "hiera", "lookups",
+      #   @return [String] "nodes", "resources", "code", "hiera", "lookups",
       #     or for a class parameter "set" or "default"
       # @!attribute [r] items
       #   @return [Array<Item>] the first {NAMED}
@@ -55,11 +55,11 @@ module Pupgrade
       end
 
       # @param sites [Array<String>, nil] each a file:line
-      # @return [Array<Use>] one "sites" use, or none
+      # @return [Array<Use>] one "code" use, or none
       def sites(sites)
         return [] if sites.nil? || sites.empty?
 
-        [list('sites', sites)]
+        [list('code', sites)]
       end
 
       # @param items [Array<Item, String>] a String is a file:line

@@ -70,24 +70,24 @@ RSpec.describe Pupgrade::CLI::Impact do
       ['puppetlabs-apache', 'class-param-default-changed', 'apache::version', 'nodes: db01.example.com, web01.example.com'],
       ['puppetlabs-firewall', 'type-attribute-changed', 'firewall action',
        'resources: firewall[100 allow ntp 123] on db01.example.com, firewall[100 allow ntp 123] on web01.example.com'],
-      ['puppetlabs-stdlib', 'function-removed', 'legacy_shout', 'sites: site-modules/profile/manifests/base.pp:11'],
-      ['puppetlabs-stdlib', 'function-changed', 'stdlib::shout', 'sites: site-modules/profile/manifests/base.pp:10'],
+      ['puppetlabs-stdlib', 'function-removed', 'legacy_shout', 'code: site-modules/profile/manifests/base.pp:11'],
+      ['puppetlabs-stdlib', 'function-changed', 'stdlib::shout', 'code: site-modules/profile/manifests/base.pp:10'],
       ['puppetlabs-stdlib', 'type-alias-changed', 'Stdlib::Port', 'nodes: db01.example.com, web01.example.com'],
     ])
     expect(cells(out).find { |r| r[2] == 'stdlib::shout' }.last).to eq('changed signatures: (text) -> (text, times)')
   end
 
-  it 'colors the where cell (certnames magenta, a resource in the verb color, the rest counted, dimmed) and the kind' do
+  it 'colors the where cell (certnames magenta, a resource in the verb color, a file cyan, the rest counted, dimmed) and the kind' do
     analysis = Pupgrade::Impact::Analysis
     item     = ->(name, certname) { analysis::Item.new(name: name, certname: certname) }
     uses     = [analysis::Use.new(label: 'resources', items: [item.call('Foo[a]', 'web01')], more: 2),
-                analysis::Use.new(label: 'sites', items: [item.call('x.pp:3', nil)], more: 1)]
+                analysis::Use.new(label: 'code', items: [item.call('x.pp:3', nil)], more: 1)]
     finding  = analysis::Finding.new(module: 'm', kind: 'define-param-removed', subject: 'foo p', uses: uses, detail: 'removed param: p', change: nil)
-    expect(finding.where).to eq('resources: Foo[a] on web01 and 2 more; sites: x.pp:3 and 1 more')
+    expect(finding.where).to eq('resources: Foo[a] on web01 and 2 more; code: x.pp:3 and 1 more')
     color = Pupgrade::Ansi.preference
     Pupgrade::Ansi.preference = true
     expect(described_class.new.send(:where_cell, finding)).to eq(
-      "resources: \e[0;31mFoo[a]\e[0m on \e[0;35mweb01\e[0m \e[0;35m\e[2mand 2 more\e[0m; sites: x.pp:3 \e[2mand 1 more\e[0m",
+      "resources: \e[0;31mFoo[a]\e[0m on \e[0;35mweb01\e[0m \e[0;35m\e[2mand 2 more\e[0m; code: \e[0;36mx.pp\e[0m\e[2m:3\e[0m \e[2mand 1 more\e[0m",
     )
     expect(described_class.new.send(:where_cell, finding.with(uses: nil))).to eq("\e[0;31muse unknown\e[0m")
     kinds = %w[class-param-removed class-param-added-required function-changed class-param-hiera-only]

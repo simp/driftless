@@ -77,8 +77,9 @@ It's a new gem to help upgrade the module base of large Puppet/OpenVox  control 
 
 - **`pupgrade module usage MODULE [--params] [--unused]`**: what the site
   uses of one deployed module: one row per item of its API surface, whether
-  the compiled catalogs show it used, and where (nodes, resources, call
-  sites); `--params` adds each class parameter with the nodes setting it and
+  the compiled catalogs show it used, and where (`nodes:`, `resources:`,
+  `code:` for call sites, each file cyan with its line dimmed); `--params`
+  adds each class parameter with the nodes setting it and
   those leaving its default; `--surfaces` and `--names` filter rows as in
   `module diff` (a parameter row as `CLASS::PARAM`); exits 1 when nothing
   uses the module
@@ -289,7 +290,10 @@ It's a new gem to help upgrade the module base of large Puppet/OpenVox  control 
   * `--summary` gives one row per module; `--gitlog` and `--changelog` add
     each module's commits and CHANGELOG sections for the versions crossed
   * `--modules`, `--impacts`, `--all` filters
-  * `use unknown` and `no catalogs` red, detail verbs colored
+  * `use unknown` and `no catalogs` red, detail verbs colored; in the
+    where column, certnames magenta, a resource in its verb's color, a
+    call site's file (`code:`) or Hiera file (`hiera:`) cyan with its
+    line dimmed
   * exits `1` when any finding has a use
   * config subsystem `impact`: `compile_cache`
 

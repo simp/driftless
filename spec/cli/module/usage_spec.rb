@@ -76,7 +76,7 @@ RSpec.describe Pupgrade::CLI::ModuleCommand::Usage do
     status, out = run(['apache', '--params'])
     expect(status).to eq(0)
     expect(cells(out).drop(1)).to eq([
-      ['class apache', 'yes', 'nodes: db01.example.com, web01.example.com'],
+      ['class apache', 'yes', 'nodes: db01.example.com, web01.example.com; code: site-modules/role/manifests/web.pp:3'],
       ['param apache::dead_opt', 'yes', 'set: db01.example.com, web01.example.com'],
       ['param apache::legacy_opt', 'yes', 'set: db01.example.com, web01.example.com'],
       ['param apache::version', 'no', 'default: db01.example.com, web01.example.com'],

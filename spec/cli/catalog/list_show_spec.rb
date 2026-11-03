@@ -74,7 +74,7 @@ RSpec.describe Pupgrade::CLI::Catalog do
     cache = File.join(@tmp, 'ordered')
     { 'a.example.com' => 'factsets/z/a.json', 'b.example.com' => 'factsets/m/b.json', 'c.example.com' => 'factsets/m/a.json' }.each do |name, factset|
       FileUtils.mkdir_p(File.join(cache, name))
-      File.write(File.join(cache, name, 'probes.json'), JSON.generate('document' => 'probes', 'schema_version' => 2, 'status' => 'ok', 'factset' => factset))
+      File.write(File.join(cache, name, 'compile.json'), JSON.generate('document' => 'compile', 'schema_version' => 3, 'status' => 'ok', 'factset' => factset))
     end
     _, out = run(['list', '--cache-dir', cache])
     expect(cells(out).drop(1).map(&:first)).to eq(%w[c.example.com b.example.com a.example.com])

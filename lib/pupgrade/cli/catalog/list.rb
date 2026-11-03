@@ -12,7 +12,7 @@ module Pupgrade
     class Catalog
       # `pupgrade catalog list`
       #
-      # The compiles the cache holds: one row per node, from the probes
+      # The compiles the cache holds: one row per node, from the compile
       # record and the catalog each compile wrote.
       class List < Base
         include Table
@@ -47,7 +47,7 @@ module Pupgrade
 
         # The node directories, narrowed by --certname.
         def nodes(dir)
-          Dir.children(dir).select { |n| File.file?(File.join(dir, n, 'probes.json')) }.sort
+          Dir.children(dir).select { |n| File.file?(File.join(dir, n, ::Pupgrade::Compile::ProbeRecord::FILENAME)) }.sort
             .select { |n| ::Pupgrade::CertnameGlobs.match?(@options[:certnames], n) }
         end
 
@@ -56,7 +56,7 @@ module Pupgrade
         #
         # @return [Array(Array(String, String), Array<String>)] key, cells
         def row(dir, name)
-          file    = File.join(dir, name, 'probes.json')
+          file    = File.join(dir, name, ::Pupgrade::Compile::ProbeRecord::FILENAME)
           probes  = ::Pupgrade::Compile::ProbeRecord.read(file)
           catalog = File.file?(File.join(dir, name, 'catalog.json')) ? JSON.parse(File.read(File.join(dir, name, 'catalog.json'))) : nil
           status  = (probes['status'] == 'ok') ? paint('ok', :green) : paint(probes['status'].to_s, :red)

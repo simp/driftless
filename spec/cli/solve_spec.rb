@@ -198,8 +198,8 @@ RSpec.describe Pupgrade::CLI::Solve do
   it 'prunes dependency edges to and from modules the evidence shows unused, writes the exclusions the result relies on, and reads them back' do
     evidence = File.join(@tmp, 'catalogs')
     FileUtils.mkdir_p(File.join(evidence, 'web01.example.com'))
-    File.write(File.join(evidence, 'web01.example.com/probes.json'), JSON.generate(
-      'document'  => 'probes', 'schema_version' => 2,
+    File.write(File.join(evidence, 'web01.example.com/compile.json'), JSON.generate(
+      'document'  => 'compile', 'schema_version' => 3,
       'classes'   => { 'redis' => { 'module' => 'redis' }, 'stdlib' => { 'module' => 'stdlib' }, 'yumrepo_core' => { 'module' => 'yumrepo_core' } },
       'functions' => { 'stdlib::shout' => { 'module' => 'stdlib', 'sites' => ['modules/yumrepo_core/manifests/init.pp:3'] } },
     ))

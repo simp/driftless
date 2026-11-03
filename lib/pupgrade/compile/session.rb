@@ -184,7 +184,7 @@ module Pupgrade
         end
         probes = recorder.to_h
         probes['type_aliases'].each { |name, entry| entry['module'] = @index.type_alias(name) }
-        probes.merge!(catalog_summary(catalog)) if catalog
+        probes.merge!(catalog_summary(catalog, recorder)) if catalog
         Result.new(certname: factset.certname, factset: factset, error: error,
                    catalog: catalog && CatalogDocument.build(catalog, version: @version, repo_dir: @repo_dir), probes: probes,
                    seconds: Process.clock_gettime(Process::CLOCK_MONOTONIC) - started)
@@ -303,10 +303,11 @@ module Pupgrade
       end
 
       # Classes, defined types, resource types, and the providers resources
-      # name, each with the module providing it. Providers are not loaded by
-      # a compile (the agent chooses them), so the catalog's `provider`
-      # parameters are what can be known here.
-      def catalog_summary(catalog)
+      # name, each with the module providing it, and a class with the
+      # sites that added it. Providers are not loaded by a compile (the
+      # agent chooses them), so the catalog's `provider` parameters are
+      # what can be known here.
+      def catalog_summary(catalog, recorder)
         types     = Hash.new { |h, k| h[k] = { 'module' => nil, 'resources' => 0 } }
         defines   = Hash.new { |h, k| h[k] = { 'module' => nil, 'resources' => 0 } }
         providers = Hash.new { |h, k| h[k] = { 'module' => nil, 'resources' => 0 } }
@@ -331,7 +332,7 @@ module Pupgrade
         end
         classes = catalog.classes.sort.to_h do |name|
           hostclass = krt.find_hostclass(name.to_s.downcase)
-          [name, { 'module' => hostclass && @index.module_of(hostclass.file) }]
+          [name, { 'module' => hostclass && @index.module_of(hostclass.file), 'sites' => recorder.class_sites(name.to_s.downcase) }]
         end
         { 'classes' => classes, 'defined_types' => defines.sort.to_h, 'types' => types.sort.to_h,
           'providers_named' => providers.sort.to_h }

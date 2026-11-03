@@ -18,8 +18,8 @@ module Pupgrade
       #
       # One catalog per factset, compiled against the deployed environment
       # directory, written with a record of what the compile used:
-      # OUT/<certname>/catalog.json and probes.json, plus error.txt when the
-      # compile failed. Exit 1 when any did.
+      # OUT/<certname>/catalog.json and compile.json, plus error.txt when
+      # the compile failed. Exit 1 when any did.
       class Compile < Base
         include Table
         include CompileOptions
@@ -31,7 +31,7 @@ module Pupgrade
 
         Each factset generates two files (both cached under <certname>/):
           * catalog.json - the full catalog for the factset
-          * probes.json  - analysis of the compile (what code ran, leaks, etc)
+          * compile.json - the compile's record (what code ran, leaks, etc)
 
         The compiler can mock an ENC, server-side executions, and pre-run Puppet code
         DESC
@@ -39,7 +39,7 @@ module Pupgrade
         config_key 'compile.factsets', type: :array, default: [], example: ['spec/factsets'],
                    about: 'Factset files or directories (onceover layout or a plain facts hash), relative to the control repo'
         config_key 'compile.cache_dir', type: :string, default: 'pupgrade/cache/catalogs',
-                   about: 'Cache location for <certname>/{catalog,probes}.json files'
+                   about: 'Cache location for <certname>/{catalog,compile}.json files'
 
         COLUMNS = %w[certname resources classes warnings mocks leaks missing status].freeze
 
@@ -98,7 +98,7 @@ module Pupgrade
 
         def configure_parser(o)
           declare_repo_and_factsets(o)
-          o.on('-o', '--cache-dir=DIR', 'Cache location for <certname>/{catalog,probes}.json files (config: compile.cache_dir)') { |v| @options[:cache_dir] = v }
+          o.on('-o', '--cache-dir=DIR', 'Cache location for <certname>/{catalog,compile}.json files (config: compile.cache_dir)') { |v| @options[:cache_dir] = v }
           o.on('--certname=GLOB[,…]', Array, 'Compile factsets with matching certnames; !GLOB leaves its matches out') { |v| accumulate(:certnames, v) }
           o.on('-f', '--[no-]fail-fast', 'Stop at the first compile that fails') { |v| @options[:fail_fast] = v }
           o.on('--[no-]progress', 'Print a green P or red F per compile as it goes (default: when stdout is a terminal)') { |v| @options[:progress] = v }
@@ -114,7 +114,8 @@ module Pupgrade
         def write(out, result)
           dir = File.join(out, result.certname)
           FileUtils.mkdir_p(dir)
-          File.write(File.join(dir, 'probes.json'), JSON.pretty_generate(probes_document(result)) + "\n")
+          File.write(File.join(dir, ::Pupgrade::Compile::ProbeRecord::FILENAME), JSON.pretty_generate(record(result)) + "\n")
+          FileUtils.rm_f(File.join(dir, ::Pupgrade::Compile::ProbeRecord::OLD_FILENAME))
           if result.catalog
             File.write(File.join(dir, 'catalog.json'), JSON.pretty_generate(result.catalog) + "\n")
           else
@@ -133,7 +134,7 @@ module Pupgrade
           return [] unless File.directory?(out)
 
           current = factsets.map(&:certname)
-          Dir.children(out).select { |n| File.directory?(File.join(out, n)) && File.file?(File.join(out, n, 'probes.json')) && !current.include?(n) }.sort.each do |name|
+          Dir.children(out).select { |n| File.directory?(File.join(out, n)) && File.file?(File.join(out, n, ::Pupgrade::Compile::ProbeRecord::FILENAME)) && !current.include?(n) }.sort.each do |name|
             FileUtils.rm_rf(File.join(out, name))
           end
         end
@@ -142,7 +143,8 @@ module Pupgrade
           %w[classes defined_types functions facts lookups warnings mocks leaks missing].filter_map { |k| "#{probes[k].size} #{k.tr('_', ' ')}" if probes[k].respond_to?(:size) }.join(', ')
         end
 
-        def probes_document(result)
+        # The compile record: the outcome, then the probes' findings.
+        def record(result)
           {
             'document'       => ::Pupgrade::Compile::ProbeRecord::DOCUMENT,
             'schema_version' => ::Pupgrade::Compile::ProbeRecord::SCHEMA_VERSION,

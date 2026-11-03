@@ -86,6 +86,8 @@ It's a new gem to help upgrade the module base of large Puppet/OpenVox  control 
     and `--used-by GLOBS` (any use, or one kind with a `node:`,
     `resource:`, `code:`, or `path:` prefix)
   - `--render-as json|yaml`: the rows as data, every use item listed
+  - a class row's where lists the sites that added the class (`code:`)
+    beside the nodes including it
 
 - **`pupgrade module update`**` MODULE REF [--dry-run] [--force]`
 
@@ -146,7 +148,7 @@ It's a new gem to help upgrade the module base of large Puppet/OpenVox  control 
     - ENC classes from `enc.yaml` and `compiler.rb` are merged; other
       `compiler.rb` rules override their YAML counterparts
     - config keys `compile.enc` + `compile.ruby`, flags `--enc` and `--ruby`
-    - `probes.json` records what each node was given under `enc`
+    - `compile.json` records what each node was given under `enc`
 
   * records usage information per factset, used by `solve`:
     - full Puppet catalog
@@ -156,7 +158,10 @@ It's a new gem to help upgrade the module base of large Puppet/OpenVox  control 
     - in `puppet lookup` format (a plain facts hash).  
     - exported by `driftless export factsets`
   * `OUT/<certname>/catalog.json`: Puppet's catalog data hash
-  * `OUT/<certname>/probes.json`: calls record during compile
+  * `OUT/<certname>/compile.json`: the compile's record (schema 3): its
+    outcome, each class with the sites that added it (`include`, `require`,
+    `contain`, a `class { }` declaration, or `enc`), functions and their
+    call sites, facts, lookups, types, providers, warnings, mocks, leaks
   * `--environment`, `--manifest PATH`, `--code CODE` (in place of the
     manifest), `--prepend CODE|@FILE`, `--var NAME=VALUE`, `--server-fact
     NAME=VALUE`

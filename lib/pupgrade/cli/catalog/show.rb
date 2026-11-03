@@ -33,7 +33,7 @@ module Pupgrade
           path, globs = (argv.size == 2) ? [argv[0], argv[1]] : ['.', argv[0]]
           repo = control_repo!('catalog show')
           dir  = File.expand_path(@options[:cache_dir], repo.dir)
-          file = @options[:probes] ? 'probes.json' : 'catalog.json'
+          file = @options[:probes] ? 'compile.json' : 'catalog.json'
           names = nodes(dir, globs.split(','))
           fatal!("catalog show: no compiled node matches #{globs.inspect} in #{dir}", 3) if names.empty?
 
@@ -57,7 +57,7 @@ module Pupgrade
         def configure_parser(o)
           o.on('-d', '--repo-dir=DIR', 'Path of deployed control repository (Default: `.`)') { |v| @options[:repo_dir] = v }
           o.on('--cache-dir=DIR', 'The compile cache to read (config: compile.cache_dir)') { |v| @options[:cache_dir] = v }
-          o.on('-p', '--probes', 'Show probes.json instead of catalog.json') { @options[:probes] = true }
+          o.on('-p', '--probes', 'Show compile.json, the compile record, instead of catalog.json') { @options[:probes] = true }
           o.on('-k', '--keys', 'Show the keys at the path (or the size of an array) instead of the value') { @options[:keys] = true }
           o.on('--render-as=FORMAT', FORMATS, 'json (default) or yaml') { |v| @options[:format] = v }
         end

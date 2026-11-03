@@ -63,7 +63,10 @@ RSpec.describe Pupgrade::CLI::Catalog::Compile do
       %w[web01.example.com 12 7 1 1 0 0 ok],
     ])
     expect(Dir.children(out).sort).to eq(%w[db01.example.com web01.example.com])
-    expect(Dir.children(File.join(out, 'web01.example.com')).sort).to eq(%w[catalog.json probes.json])
+    expect(Dir.children(File.join(out, 'web01.example.com')).sort).to eq(%w[catalog.json compile.json])
+    File.write(File.join(out, 'web01.example.com', 'probes.json'), '{}')
+    run(['--mocks', 'pupgrade/compiler-mocks.yaml', '--certname', 'web*'])
+    expect(Dir.children(File.join(out, 'web01.example.com')).sort).to eq(%w[catalog.json compile.json])
 
     catalog = read('web01.example.com', 'catalog.json')
     expect(catalog.keys).to eq(%w[catalog_format classes code_id edges environment name resources tags version])
@@ -77,8 +80,8 @@ RSpec.describe Pupgrade::CLI::Catalog::Compile do
     firewall = catalog['resources'].find { |r| r['type'] == 'Firewall' }
     expect(firewall['parameters']).to include('provider' => 'iptables', 'action' => 'accept')
 
-    probes = read('web01.example.com', 'probes.json')
-    expect(probes).to include('document' => 'probes', 'schema_version' => 2, 'certname' => 'web01.example.com', 'status' => 'ok', 'environment' => 'production')
+    probes = read('web01.example.com', 'compile.json')
+    expect(probes).to include('document' => 'compile', 'schema_version' => 3, 'certname' => 'web01.example.com', 'status' => 'ok', 'environment' => 'production')
     expect(probes['functions'].slice('stdlib::shout', 'legacy_shout', 'stdlib::whisper', 'stdlib::run_hostname').transform_values { |f| f['module'] })
       .to eq('stdlib::shout' => 'stdlib', 'legacy_shout' => 'stdlib', 'stdlib::whisper' => 'stdlib', 'stdlib::run_hostname' => 'stdlib')
     expect(probes['functions']['stdlib::shout']).to include('calls' => 1, 'sites' => ['site-modules/profile/manifests/base.pp:10'])
@@ -88,7 +91,7 @@ RSpec.describe Pupgrade::CLI::Catalog::Compile do
     expect(probes['type_aliases'].keys).to eq(['Stdlib::Port'])
     expect(probes['type_aliases']['Stdlib::Port']).to include('module' => 'stdlib', 'sites' => ['site-modules/profile/manifests/base.pp:4'])
     expect(probes['type_aliases']['Stdlib::Port']['uses']).to be_positive
-    expect(read('db01.example.com', 'probes.json')['type_aliases']['Stdlib::Port']).to include('module' => 'stdlib')
+    expect(read('db01.example.com', 'compile.json')['type_aliases']['Stdlib::Port']).to include('module' => 'stdlib')
     expect(probes['lookups']).to include(
       'profile::base::ntp_servers' => { 'found' => true, 'automatic' => 1, 'explicit' => 1 },
       'profile::base::banner'      => { 'found' => true, 'automatic' => 1, 'explicit' => 0 },
@@ -109,12 +112,14 @@ RSpec.describe Pupgrade::CLI::Catalog::Compile do
     expect(probes.values_at('leaks', 'missing')).to eq([[], []])
     expect(probes['mocks']).to eq([{ 'kind' => 'execute', 'command' => 'hostname -f', 'action' => 'mocked',
                                      'location' => 'site-modules/profile/manifests/base.pp:13 via modules/stdlib/lib/puppet/functions/stdlib/run_hostname.rb:4' }])
-    expect(probes['classes']).to include('apache' => { 'module' => 'apache' }, 'profile::base' => { 'module' => 'profile' })
+    expect(probes['classes']).to include('apache' => { 'module' => 'apache', 'sites' => ['site-modules/role/manifests/web.pp:3'] },
+                                         'profile::base' => { 'module' => 'profile', 'sites' => ['site-modules/role/manifests/web.pp:2'] },
+                                         'role::web' => { 'module' => 'role', 'sites' => ['manifests/site.pp:2'] })
     expect(probes['defined_types']).to eq('concat::fragment' => { 'module' => 'concat', 'resources' => 1 })
     expect(probes['types']).to eq('firewall' => { 'module' => 'firewall', 'resources' => 1 }, 'notify' => { 'module' => nil, 'resources' => 1 })
     expect(probes['providers_named']).to eq('firewall/iptables' => { 'module' => 'firewall', 'resources' => 1 })
 
-    db = read('db01.example.com', 'probes.json')
+    db = read('db01.example.com', 'compile.json')
     expect(db['factset']).to end_with('factsets/db01.example.com.json')
     expect(read('db01.example.com', 'catalog.json')['resources'].find { |r| r['type'] == 'Notify' }['parameters']['message']).to start_with('Debian on db01.example.com')
   end
@@ -122,7 +127,7 @@ RSpec.describe Pupgrade::CLI::Catalog::Compile do
   it 'removes node directories no factset names after a full run, not after a filtered one or with --keep-stale' do
     gone = File.join(out, 'gone.example.com')
     FileUtils.mkdir_p(gone)
-    File.write(File.join(gone, 'probes.json'), "{}\n")
+    File.write(File.join(gone, 'compile.json'), "{}\n")
     FileUtils.mkdir_p(File.join(out, 'notes'))
     run(['--mocks', 'pupgrade/compiler-mocks.yaml', '--certname', 'web*'])
     expect(Dir.children(out).sort).to eq(%w[gone.example.com notes web01.example.com])
@@ -147,9 +152,9 @@ RSpec.describe Pupgrade::CLI::Catalog::Compile do
     expect(log.lines.grep(/\Awarning: guard:/).size).to eq(2)
     expect(log).to include('warning: guard: web01.example.com: execute: "hostname -f" is not mocked at')
     expect(log).to include('warning: compile: web01.example.com failed in')
-    expect(Dir.children(File.join(out, 'web01.example.com')).sort).to eq(%w[error.txt probes.json])
+    expect(Dir.children(File.join(out, 'web01.example.com')).sort).to eq(%w[compile.json error.txt])
     expect(File.read(File.join(out, 'web01.example.com/error.txt'))).to include('execute: "hostname -f" is not mocked')
-    probes = read('web01.example.com', 'probes.json')
+    probes = read('web01.example.com', 'compile.json')
     expect(probes['status']).to eq('failed')
     expect(probes['leaks'].first).to include('action' => 'raised')
     expect(probes).not_to have_key('classes')
@@ -184,7 +189,7 @@ RSpec.describe Pupgrade::CLI::Catalog::Compile do
     expect(out_text).to include('web01.example.com')
     catalog = read('web01.example.com', 'catalog.json')
     expect(catalog['resources'].find { |r| r['type'] == 'Notify' }['title']).to eq('example blue dnf')
-    probes = read('web01.example.com', 'probes.json')
+    probes = read('web01.example.com', 'compile.json')
     expect(probes['enc']).to eq('variables' => { 'site' => 'example', 'pkg_manager' => 'dnf', 'tenant' => 'blue' }, 'classes' => [])
     # the Ruby mock declines, so the YAML mock answers hostname
     expect(probes['mocks'].map { |l| l['action'] }).to eq(['mocked'])
@@ -195,7 +200,8 @@ RSpec.describe Pupgrade::CLI::Catalog::Compile do
     expect(catalog['resources'].find { |r| r['type'] == 'Notify' && r['title'] == 'green' }).not_to be_nil
     expect(catalog['resources'].find { |r| r['type'] == 'Notify' && r['title'] != 'green' }['parameters']['message']).to include('ruby.example.com')
     expect(catalog['classes']).to include('stdlib')
-    expect(read('web01.example.com', 'probes.json')['enc']['classes']).to eq(['stdlib'])
+    expect(read('web01.example.com', 'compile.json')['enc']['classes']).to eq(['stdlib'])
+    expect(read('web01.example.com', 'compile.json')['classes']['stdlib']).to eq('module' => 'stdlib', 'sites' => ['enc'])
     # a named file that is not there is warned about, not required
     allow(Driftless).to receive(:logger).and_call_original
     status = nil
@@ -220,7 +226,7 @@ RSpec.describe Pupgrade::CLI::Catalog::Compile do
     expect(status).to eq(0)
     fragment = read('web01.example.com', 'catalog.json')['resources'].find { |r| r['type'] == 'Concat::Fragment' }
     expect(fragment['parameters']['content']).to include('hi to web01.example.com', 'from-the-mock')
-    expect(read('web01.example.com', 'probes.json')['mocks'].map { |m| m.values_at('kind', 'command', 'location') })
+    expect(read('web01.example.com', 'compile.json')['mocks'].map { |m| m.values_at('kind', 'command', 'location') })
       .to include(%w[function stdlib::run_hostname site-modules/profile/manifests/base.pp:13], %w[function stdlib::shout site-modules/profile/manifests/base.pp:10])
 
     status, = run(['--mocks', mocks, '--no-default-mocks', '--certname', 'web*', '--code', 'notify { fmock::outer(): }'])

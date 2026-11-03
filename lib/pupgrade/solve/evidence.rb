@@ -5,7 +5,7 @@ require 'pupgrade/logging'
 
 module Pupgrade
   module Solve
-    # What a `compile` run shows the site using, read from its probe
+    # What a `compile` run shows the site using, read from its compile
     # records: the modules that provided any class, defined type, function,
     # resource type, or provider in any node's compile, and the functions
     # each module's own code called from another module.
@@ -19,19 +19,16 @@ module Pupgrade
       #   to the modules whose functions its code called
       attr_reader :calls
 
-      # @return [Integer] how many probe records were read
+      # @return [Integer] how many compile records were read
       attr_reader :nodes
 
       # @param dir [String] a `compile` output directory
-      # @raise [Error] when it holds no probe records
+      # @raise [Error] when it holds no compile records
       def initialize(dir)
         @used  = Set.new
         @calls = Hash.new { |h, k| h[k] = Set.new }
         @nodes = 0
-        paths = Dir.glob(File.join(File.expand_path(dir), '*', 'probes.json')).sort
-        raise Error, "#{dir}: no <certname>/probes.json under it" if paths.empty?
-
-        paths.each do |p|
+        ::Pupgrade::Compile::ProbeRecord.paths(File.expand_path(dir)).each do |p|
           Pupgrade.logger.debug("evidence: reading #{p}")
           read(::Pupgrade::Compile::ProbeRecord.read(p))
         end

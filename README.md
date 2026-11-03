@@ -212,7 +212,7 @@ they load (`pupgrade catalog compile --show-default-mocks` prints them).
 A function mock covers every call to that function, from manifests and
 templates and from Ruby functions calling it, whatever the arguments.
 
-Every interception is in the node's `probes.json`, and the compile table
+Every interception is in the node's `compile.json`, and the compile table
 counts each list: what was mocked under `mocks`, unmocked commands under
 `leaks`, and fact reads with no value in the factset or the mocks under
 `missing`. A missing fact runs nothing: Puppet gets no value, and the catalog
@@ -257,7 +257,7 @@ A `variable` block returning nil leaves what the rules set; a `mock` or
 `function` block returning nil declines, and the YAML mocks are tried, then
 the function itself. `--var NAME=VALUE`
 sets a variable on every node from the command line. What each node was
-given is in its `probes.json` under `enc`, and `pupgrade lookup --list`
+given is in its `compile.json` under `enc`, and `pupgrade lookup --list`
 shows it for every node at once.
 
 ## The commands
@@ -289,9 +289,10 @@ entries, which completely replace and `mod` entries they override.
 
 `catalog compile` compiles a catalog per factset through Puppet's own
 compiler, in the deployed environment, and records what each compile used:
-functions and their call sites, facts read, lookups made, types, providers,
+classes and where each was added, functions and their call sites, facts
+read, lookups made, types, providers,
 type aliases, warnings, deprecations, and the commands the guard
-intercepted. The catalogs and `probes.json` records land under
+intercepted. The catalogs and `compile.json` records land under
 `pupgrade/cache/catalogs/`, where `catalog list` and `catalog show` read
 them and `catalog diff` compares two runs.
 
@@ -488,7 +489,7 @@ pupgrade solve -o Puppetfile.proposed
 # 3. compile every factset under OpenVox 8; the deprecations and warnings
 #    each compile raised are in its record
 pupgrade catalog compile
-jq '.deprecations, .warnings' pupgrade/cache/catalogs/*/probes.json
+jq '.deprecations, .warnings' pupgrade/cache/catalogs/*/compile.json
 
 # 4. the module moves' impact, then catalogs before and after
 pupgrade impact Puppetfile.proposed --summary
@@ -496,7 +497,7 @@ pupgrade impact Puppetfile.proposed --summary
 
 The facts in the factsets are whatever the exporting nodes reported, so
 facts that moved between Facter versions show up as missing fact reads in
-`probes.json` (`facts`, `legacy_facts`, and `missing`).
+`compile.json` (`facts`, `legacy_facts`, and `missing`).
 
 ### A stubborn dependency
 
@@ -551,7 +552,7 @@ pupgrade catalog compile
 
 # 2. or find them all at once: every command runs for real, and is recorded
 pupgrade catalog compile --on-leak allow
-jq '.leaks[] | select(.action == "allowed")' pupgrade/cache/catalogs/*/probes.json
+jq '.leaks[] | select(.action == "allowed")' pupgrade/cache/catalogs/*/compile.json
 
 # 3. answer each one in pupgrade/compiler-mocks.yaml (see Mocks), then
 pupgrade catalog compile -vv          # each mocked answer logged, with its call site

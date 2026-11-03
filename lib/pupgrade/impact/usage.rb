@@ -77,7 +77,7 @@ module Pupgrade
 
       def uses_of(section, name)
         case section
-        when 'classes'                then nodes(@evidence.including(name))
+        when 'classes'                then nodes(@evidence.including(name)) + sites(@evidence.class_sites(name))
         when 'defined_types', 'types' then resources(@evidence.resources(name))
         when 'functions'              then sites(@evidence.call_sites(name))
         when 'type_aliases'           then nodes(@evidence.using_alias(name))

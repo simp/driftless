@@ -11,9 +11,9 @@ module Pupgrade
     class Leak < StandardError; end
 
     # What one node's compile used, from the hooks in {Probes}:
-    # functions called, facts read, lookups made, providers loaded, warnings
-    # and deprecations logged, and commands or facts that reached the
-    # execution guard. One per compile; {Probes.current} points at it while
+    # classes added and from where, functions called, facts read, lookups
+    # made, providers loaded, warnings and deprecations logged, and
+    # commands or facts that reached the execution guard. One per compile; {Probes.current} points at it while
     # the compile runs.
     class Recorder
       LOGGED_LEVELS = %i[warning err alert emerg crit].freeze
@@ -35,6 +35,7 @@ module Pupgrade
         @prefixes = {}
         @modules  = {}
         @functions = Hash.new { |h, k| h[k] = { 'module' => nil, 'calls' => 0, 'sites' => [] } }
+        @class_sites = Hash.new { |h, k| h[k] = [] }
         @facts     = Hash.new(0)
         @legacy    = Hash.new(0)
         @lookups   = Hash.new { |h, k| h[k] = { 'found' => false, 'automatic' => 0, 'explicit' => 0 } }
@@ -133,7 +134,31 @@ module Pupgrade
         [false, nil]
       end
 
-      # ---- functions and lookups -------------------------------------------
+      # ---- classes, functions, and lookups ----------------------------------
+
+      # The site an ENC's classes are recorded at: they have no Puppet
+      # stack.
+      ENC_SITE = 'enc'.freeze
+
+      # A class the compiler was asked to add, by `include`, `require`,
+      # `contain`, a resource-style declaration, or the ENC, from where:
+      # the Puppet code at the top of the stack, else the ENC.
+      #
+      # @param names [Array<String>] as given to the compiler
+      def classes_added(names)
+        top  = Puppet::Pops::PuppetStack.top_of_stack
+        site = (top.is_a?(Array) && top[0] && top[0] != 'unknown') ? "#{relative(top[0])}:#{top[1]}" : ENC_SITE
+        names.each do |name|
+          sites = @class_sites[name.to_s.delete_prefix('::').downcase]
+          sites << site if sites.size < 20 && !sites.include?(site)
+        end
+      end
+
+      # @param name [String] a class, lowercase
+      # @return [Array<String>] where it was added, first 20
+      def class_sites(name)
+        @class_sites.fetch(name, [])
+      end
 
       # @param func [Puppet::Pops::Functions::Function, nil] what the loader gave
       def function_call(name, func, file, line)
@@ -358,6 +383,7 @@ module Pupgrade
 
           @installed = true
           Puppet::Parser::Scope.prepend(ScopeHooks)
+          Puppet::Parser::Compiler.prepend(ClassHooks)
           Puppet::Pops::Evaluator::AccessOperator.prepend(AccessHooks)
           Puppet::Pops::Lookup::SubLookup.prepend(SubLookupHooks)
           Puppet::Pops::Evaluator::EvaluatorImpl.prepend(CallHooks)
@@ -398,6 +424,16 @@ module Pupgrade
       class LogSink
         def call(msg)
           Probes.current&.log(msg)
+        end
+      end
+
+      # Every way a class reaches the catalog ends here: the `include`,
+      # `require`, and `contain` functions, a `class { 'x': }` declaration,
+      # and the ENC's classes.
+      module ClassHooks
+        def evaluate_classes(classes, scope, lazy_evaluate = true)
+          Probes.current&.classes_added(classes.is_a?(Hash) ? classes.keys : Array(classes))
+          super
         end
       end
 

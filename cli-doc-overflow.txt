@@ -2,7 +2,7 @@
 
 Writes under the catalogs directory:
 - <certname>/catalog.json (Puppet's catalog data, sorted) and
-- probes.json (functions, facts, lookups, providers, warnings, deprecations, leaks) 
+- compile.json (classes and where they were added, functions, facts, lookups, providers, warnings, deprecations, leaks) 
 
 The table counts the how many mocked command and fact executions ran, 
 and how many unmocked command and fact executions "leaked".

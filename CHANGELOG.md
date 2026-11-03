@@ -212,6 +212,8 @@ It's a new gem to help upgrade the module base of large Puppet/OpenVox  control 
   Lists the resources of compiled catalogs, with each resource's source file
   and line. `--full` prints the matches whole, `--params` their parameter names.
   Exits 1 when nothing matches.
+  * certname magenta, type cyan (`Class`, `Stage`, `Node` dim), source file
+    cyan with its line dim
 
 - **`pupgrade catalog show`**` [-p] [-k] [KEYPATH] CERTGLOB[,…]`
 

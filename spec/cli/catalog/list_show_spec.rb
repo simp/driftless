@@ -146,6 +146,11 @@ RSpec.describe Pupgrade::CLI::Catalog do
     expect(cells(out).drop(1).map { |r| r[1] }.uniq).to eq(['Notify'])
     _, out = run(['resources', '--cache-dir', @catalogs, "*ify[#{title[0, 3]}*]", 'web01.example.com'])
     expect(cells(out).drop(1).map { |r| r[0, 3] }).to eq([['web01.example.com', 'Notify', title]])
+    # certname magenta, a type cyan, Class dim, the source file cyan with its line dim
+    _, out = run(['resources', '--cache-dir', @catalogs, '--color', '--width', '0', 'web01.example.com'])
+    lines = out.lines.map(&:chomp)
+    expect(lines.find { |l| l.include?('Notify') }).to match(%r{\A\e\[0;35mweb01\.example\.com\e\[0m +\| \e\[0;36mNotify\e\[0m +\| .+\| \e\[0;36m\S+\.pp\e\[0m\e\[2m:\d+\e\[0m\z})
+    expect(lines.find { |l| l.include?('Class') }).to include("| \e[2mClass\e[0m")
     expect(run(['resources', '--cache-dir', @catalogs, 'file', '/no/such', 'web01.example.com']).first).to eq(1)
     expect(run(['resources', '--cache-dir', @catalogs, 'nobody']).first).to eq(3)
     expect(run(['resources', '--cache-dir', @catalogs, 'a', 'b', 'c', 'd']).first).to eq(2)

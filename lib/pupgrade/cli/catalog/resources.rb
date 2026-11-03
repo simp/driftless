@@ -28,6 +28,9 @@ module Pupgrade
         FORMATS = %w[json yaml].freeze
         COLUMNS = %w[certname type title source].freeze
 
+        # The types that are containers, not resources an agent manages.
+        CONTAINERS = %w[Class Stage Node].freeze
+
         def execute(argv)
           fatal!('catalog resources takes [TYPE [TITLE]] CERTGLOB[,…]', help: true) if argv.empty? || argv.size > 3
           globs = argv.last.split(',')
@@ -47,21 +50,7 @@ module Pupgrade
           elsif @options[:params]
             print_table(%w[certname type title parameters], found.map { |name, r| [name, r['type'], r['title'], (r['parameters'] || {}).keys.sort.join(', ')] })
           else
-            prev_name = ''
-            alt = true
-            print_table(COLUMNS, found.map do |name, r|
-              alt = !alt if prev_name != name
-              prev_name = name
-              rcol = alt ? :cyan : :reset
-              [
-                paint(name, rcol),
-                paint(r['type'], rcol),
-                paint(r['title'], rcol),
-                source(repo, r).split(':', 2).then do |x|
-                  "#{paint(x.first, rcol)}#{paint(":#{x.last}", :dim)}" unless x.empty?
-                end,
-              ]
-            end)
+            print_table(COLUMNS, found.map { |name, r| row(name, r, repo) })
           end
           ::Pupgrade.logger.notice("catalog resources: #{found.size} resource(s) across #{names.size} node(s)")
           exit(found.empty? ? 1 : 0)
@@ -96,11 +85,19 @@ module Pupgrade
           title.nil? || File.fnmatch?(title, resource['title'].to_s)
         end
 
-        def source(repo, resource)
+        # The certname magenta, the type cyan, a container type (Class,
+        # Stage, Node) dim, the title plain, the source file cyan with its
+        # line dim.
+        def row(name, resource, repo)
+          type = resource['type'].to_s
+          [paint(name, :magenta), paint(type, CONTAINERS.include?(type) ? :dim : :cyan), resource['title'].to_s, source_cell(repo, resource)]
+        end
+
+        def source_cell(repo, resource)
           return '' unless resource['file']
 
-          file = resource['file'].to_s.delete_prefix("#{repo.dir}/")
-          resource['line'] ? "#{file}:#{resource['line']}" : file
+          file = paint(resource['file'].to_s.delete_prefix("#{repo.dir}/"), :cyan)
+          resource['line'] ? "#{file}#{paint(":#{resource['line']}", :dim)}" : file
         end
 
         def render(value)

@@ -73,7 +73,10 @@ It's a new gem to help upgrade the module base of large Puppet/OpenVox  control 
   (dependencies, requirements, OS support), the branch it follows, and the
   tagged versions it could move to
   - `--surfaces[=KINDS]`: the names on each API surface, from the module's
-    surface document, at `MODULE:REF` when a ref is given
+    surface document, at `MODULE:REF` when a ref is given; `--surfaces='*'`
+    lists every kind, the empty ones as `(none)`
+  - names on a surface cyan, `(none)` dim, a dependency's or requirement's
+    name cyan
 
 - **`pupgrade module usage MODULE [--params]`**: what the site uses of one
   deployed module: one row per item of its API surface, whether the

@@ -3,6 +3,7 @@ require 'open3'
 require 'pupgrade/cli/base'
 require 'pupgrade/cli/module_command'
 require 'pupgrade/cli/surface'
+require 'pupgrade/cli/table'
 require 'driftless/control_repo'
 require 'driftless/git_clone'
 require 'driftless/module_inventory'
@@ -22,6 +23,7 @@ module Pupgrade
       # versions it could move to, and on request the names on each of its
       # API surfaces.
       class Info < Base
+        include Table
         include ModuleCommand::Shared
         include Surface::Shared
 
@@ -60,7 +62,7 @@ module Pupgrade
           o.on('--branch=BRANCHES', Array, 'Follow the first of these branches the clone has; with a branchfile, record it there') { |v| @options[:branch] = v }
           o.on('--branchfile=FILE', 'The branchfile naming the branch the module follows (config: modules.branchfile)') { |v| @options[:branchfile] = v }
           o.on('--fetch', 'Fetch the clone\'s origin before listing candidates') { @options[:fetch] = true }
-          o.on('--surfaces[=KINDS]', Array, "Also the names on each API surface (#{SECTIONS.join(', ')})") { |v| @options[:surfaces] = v || [] }
+          o.on('--surfaces[=KINDS]', Array, "Also the names on each API surface (#{SECTIONS.join(', ')}; * for every kind, empty ones too)") { |v| @options[:surfaces] = v || [] }
         end
 
         private
@@ -78,8 +80,8 @@ module Pupgrade
           out << ['deployed', entry.found ? "#{entry.deployed} (#{entry.found})" : entry.deployed.to_s]
           out << ['read at', "#{at.ref} (#{at.sha[0, 12]})"] if at
           out << ['version', metadata.version.to_s]
-          out << ['dependencies', metadata.dependencies.map { |n, r| [n, r].compact.join(' ') }.join('; ')] unless metadata.dependencies.empty?
-          out << ['requirements', metadata.requirements.map { |n, r| "#{n} #{r}" }.join('; ')] unless metadata.requirements.empty?
+          out << ['dependencies', metadata.dependencies.map { |n, r| [paint(n, :cyan), r].compact.join(' ') }.join('; ')] unless metadata.dependencies.empty?
+          out << ['requirements', metadata.requirements.map { |n, r| "#{paint(n, :cyan)} #{r}" }.join('; ')] unless metadata.requirements.empty?
           unless metadata.operatingsystem_support.empty?
             out << ['OS support', metadata.operatingsystem_support.map { |os, rel| "#{os} #{Array(rel).join('/')}".strip }.join(', ')]
           end
@@ -120,25 +122,26 @@ module Pupgrade
 
         # One line per surface kind, the names on it sorted, from the
         # module's document at the ref read or as deployed. A kind with
-        # nothing on it is left out unless --surfaces names it.
+        # nothing on it is left out unless --surfaces names it, or is `*`.
         #
         # @return [Array<Array(String, String)>]
         def surface_lines(repo, entry, at)
           reader = targets
           doc, = reader.document(reader.resolve(File.join(repo.dir, entry.path), ref: at&.name))
           kinds = @options[:surfaces]
+          kinds = SECTIONS if kinds == ['*']
           (kinds.empty? ? SECTIONS : kinds).filter_map do |section|
             names = doc.fetch(section, {}).keys.sort
             next if names.empty? && kinds.empty?
 
-            [section.tr('_', ' '), names.empty? ? '(none)' : names.join(', ')]
+            [section.tr('_', ' '), names.empty? ? paint('(none)', :dim) : names.map { |n| paint(n, :cyan) }.join(', ')]
           end
         rescue ::Pupgrade::Surface::Error, ::Pupgrade::Surface::Targets::Error => e
           fatal!("module info: #{e.message}", 3)
         end
 
         def check_surfaces!
-          unknown = Array(@options[:surfaces]) - SECTIONS
+          unknown = Array(@options[:surfaces]) - SECTIONS - ['*']
           fatal!("module info: unknown surface #{unknown.first.inspect} (known: #{SECTIONS.join(', ')})", help: true) if unknown.any?
         end
 

@@ -82,6 +82,12 @@ RSpec.describe Pupgrade::CLI::ModuleCommand::Info do
     expect(info).to include('functions' => 'stdlib::run_hostname, stdlib::shout, stdlib::whisper', 'facts' => '(none)')
     expect(info).not_to have_key('classes')
     expect(run(['stdlib', '--surfaces=bogus']).first).to eq(2)
+    # * is every kind, the empty ones as (none)
+    _, info = run(['stdlib', '--surfaces=*'])
+    expect(info).to include('classes' => 'stdlib', 'facts' => '(none)', 'providers' => '(none)', 'defined types' => '(none)')
+    # names cyan, (none) dim, a requirement's name cyan
+    _, info = run(['stdlib', '--surfaces=classes,facts', '--color'])
+    expect(info).to include('classes' => "\e[0;36mstdlib\e[0m", 'facts' => "\e[2m(none)\e[0m", 'requirements' => "\e[0;36mpuppet\e[0m >= 7.0.0 < 9.0.0")
   end
 
   it 'follows the first --branch the clone has, its tags the candidates, and records it in a branchfile' do

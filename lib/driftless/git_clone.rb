@@ -6,6 +6,11 @@ module Driftless
   # answered with nil when the directory is not a work tree, the ref is
   # unknown, or git is not installed.
   class GitClone
+    # A `git status --porcelain` line for a file under `spec/` that is
+    # deleted: what r10k leaves in every module it deploys, since it
+    # removes `spec/` (`exclude_spec`, its default).
+    R10K_REMOVED_SPEC = %r{\AD\s+spec/}.freeze
+
     attr_reader :dir
 
     # @param dir [String] the work tree
@@ -72,11 +77,14 @@ module Driftless
       output('fetch', '--quiet', '--tags', 'origin', why: 'fetching origin')
     end
 
+    # @param ignore [Regexp, nil] status lines that do not count, such as
+    #   {R10K_REMOVED_SPEC}
     # @return [Boolean, nil] whether the work tree has uncommitted changes;
     #   nil when git cannot say
-    def dirty?
-      out = output('status', '--porcelain', why: 'looking for local changes')
-      out && !out.empty?
+    def dirty?(ignore: nil)
+      out   = output('status', '--porcelain', why: 'looking for local changes')
+      lines = out&.lines&.map(&:chomp)&.reject { |l| l.empty? || (ignore && l.match?(ignore)) }
+      lines && !lines.empty?
     end
 
     # Checks out a commit, detached, the way r10k deploys.

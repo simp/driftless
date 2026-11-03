@@ -79,6 +79,23 @@ RSpec.describe Driftless::GitClone do
     expect(described_class.new(tmp).fetch).to be_nil
   end
 
+  it 'says whether the work tree is dirty, ignoring the lines asked' do
+    repo(tmp)
+    clone = described_class.new(tmp)
+    expect(clone.dirty?).to be false
+    FileUtils.mkdir_p(File.join(tmp, 'spec'))
+    File.write(File.join(tmp, 'spec/a_spec.rb'), "# a\n")
+    File.write(File.join(tmp, 'README'), "r\n")
+    git(tmp, 'add', '.')
+    git(tmp, 'commit', '-q', '-m', 'files')
+    FileUtils.rm_rf(File.join(tmp, 'spec'))
+    expect(clone.dirty?).to be true
+    expect(clone.dirty?(ignore: described_class::R10K_REMOVED_SPEC)).to be false
+    File.write(File.join(tmp, 'README'), "changed\n")
+    expect(clone.dirty?(ignore: described_class::R10K_REMOVED_SPEC)).to be true
+    expect(described_class.new(File.join(tmp, 'nope')).dirty?).to be_nil
+  end
+
   it 'names a tag at HEAD' do
     repo(tmp)
     clone = described_class.new(tmp)

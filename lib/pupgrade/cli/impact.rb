@@ -36,7 +36,7 @@ module Pupgrade
         # @param use [Pupgrade::Impact::Uses::Use]
         # @param style [Array<Symbol>] the color of a resource's Type[title]
         def use_text(use, style)
-          items = use.items.map do |item|
+          items = use.named.map do |item|
             name = if item.name.nil? then nil
                    elsif use.label == 'resources' then paint(item.name, *style)
                    else file_text(item.name)
@@ -45,7 +45,7 @@ module Pupgrade
           end
           return "#{use.label}: #{items.join(', ')}" unless use.more.positive?
 
-          more = use.items.any?(&:certname) ? %i[magenta dim] : [:dim]
+          more = use.named.any?(&:certname) ? %i[magenta dim] : [:dim]
           "#{use.label}: #{items.join(', ')} #{paint("and #{use.more} more", *more)}"
         end
 

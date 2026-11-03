@@ -82,15 +82,25 @@ RSpec.describe Pupgrade::CLI::ModuleCommand::Usage do
       ['param apache::version', 'no', 'default: db01.example.com, web01.example.com'],
     ])
     expect(cells(run(['apache', '--params', '--unused']).last).drop(1).map(&:first)).to eq(['param apache::version'])
-    # a parameter row matches --names as CLASS::PARAM
-    expect(cells(run(['apache', '--params', '--names', '*dead*']).last).drop(1).map(&:first)).to eq(['param apache::dead_opt'])
-    expect(cells(run(['apache', '--params', '--names', 'apache::*']).last).drop(1).map(&:first)).to eq(['param apache::dead_opt', 'param apache::legacy_opt', 'param apache::version'])
+    # a parameter row matches --item as CLASS::PARAM
+    expect(cells(run(['apache', '--params', '--item', '*dead*']).last).drop(1).map(&:first)).to eq(['param apache::dead_opt'])
+    expect(cells(run(['apache', '--params', '--item', 'apache::*']).last).drop(1).map(&:first)).to eq(['param apache::dead_opt', 'param apache::legacy_opt', 'param apache::version'])
   end
 
-  it 'filters rows with --unused, --surfaces, and --names, and exits 1 when nothing uses the module' do
+  it 'filters rows with --used, --unused, --surfaces, --item, --site, and --used-by, and exits 1 when nothing uses the module' do
     expect(cells(run(['stdlib', '--unused']).last).drop(1).map(&:first)).to eq(['class stdlib'])
-    _, out = run(['stdlib', '--surfaces', 'functions', '--names', 'stdlib::*'])
+    expect(cells(run(['stdlib', '--used']).last).drop(1).map(&:first)).not_to include('class stdlib')
+    _, out = run(['stdlib', '--surfaces', 'functions', '--item', 'stdlib::*'])
     expect(cells(out).drop(1).map(&:first)).to eq(['function stdlib::run_hostname', 'function stdlib::shout', 'function stdlib::whisper'])
+    # --site is a call site's file; --used-by any use, or one kind of use by prefix
+    expect(cells(run(['stdlib', '--site', 'site-modules/profile/*']).last).drop(1).map(&:first)).to all(start_with('function '))
+    expect(run(['stdlib', '--site', 'modules/*']).last).to eq("(nothing matches)\n")
+    expect(cells(run(['stdlib', '--used-by', 'code:*/base.pp:11']).last).drop(1).map(&:first)).to eq(['function legacy_shout'])
+    expect(run(['stdlib', '--used-by', 'path:*/base.pp:11']).last).to eq("(nothing matches)\n")
+    expect(cells(run(['stdlib', '--used-by', 'node:db01*']).last).drop(1).map(&:first)).to eq(['type alias Stdlib::Port'])
+    expect(cells(run(['firewall', '--used-by', 'resource:firewall[100*']).last).drop(1).map(&:first)).to eq(['type firewall'])
+    expect(cells(run(['firewall', '--used-by', 'db01.example.com']).last).drop(1).map(&:first)).to eq(['type firewall', 'provider firewall/iptables'])
+    expect(cells(run(['apache', '--params', '--used-by', 'node:web01*']).last).drop(1).map(&:first)).to include('param apache::version')
     status, out = run(['simplib'])
     expect(status).to eq(1)
     expect(cells(out).drop(1).map { |r| r[1] }).to eq(%w[no no])

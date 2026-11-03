@@ -29,6 +29,9 @@ module Pupgrade
         COLUMNS  = %w[item used where].freeze
         SECTIONS = ::Pupgrade::Surface::Diff::SECTIONS
 
+        # What a --used-by glob can be narrowed to, by prefix.
+        USED_BY_KINDS = %w[node resource code path].freeze
+
         def execute(argv)
           fatal!('module usage takes a module', help: true) unless argv.size == 1
           check_filters!
@@ -63,9 +66,11 @@ module Pupgrade
           o.on('--params', 'Also each class parameter: the nodes setting it, and those leaving its default') { @options[:params] = true }
           o.separator ''
           o.separator 'Row filters (comma-separated, repeatable; globs are case-insensitive):'
-          o.on('--unused', 'Only what nothing uses') { @options[:unused] = true }
+          on_un(o, 'used', 'Only what something uses; --unused, what nothing uses') { |v| @options[:used] = v }
           o.on('--surfaces=KINDS', Array, "Only these surfaces (#{SECTIONS.join(', ')})") { |v| accumulate(:surfaces, v) }
-          o.on('--names=GLOBS', Array, 'Only entries whose name matches (a parameter as CLASS::PARAM)') { |v| accumulate(:names, v) }
+          o.on('--item=GLOBS', Array, 'Only surface items with matching names (a parameter as CLASS::PARAM)') { |v| accumulate(:items, v) }
+          o.on('--site=GLOBS', Array, 'Only items used from a code file matching') { |v| accumulate(:sites, v) }
+          o.on('--used-by=GLOBS', Array, 'Only items with a use matching: node:, resource:, code:, or path: narrows the kind') { |v| accumulate(:used_by, v) }
           o.separator ''
           o.separator 'A parameter is used when some node sets it. Exits 1 when nothing uses the module.'
         end
@@ -87,9 +92,40 @@ module Pupgrade
         end
 
         def shown?(usage)
-          (!@options[:unused] || !usage.used?) &&
+          (@options[:used].nil? || @options[:used] == usage.used?) &&
             (Array(@options[:surfaces]).empty? || @options[:surfaces].include?(usage.section)) &&
-            (Array(@options[:names]).empty? || @options[:names].any? { |g| File.fnmatch?(g, usage.item, File::FNM_CASEFOLD) })
+            (Array(@options[:items]).empty? || @options[:items].any? { |g| File.fnmatch?(g, usage.item, File::FNM_CASEFOLD) }) &&
+            (Array(@options[:sites]).empty? || @options[:sites].any? { |g| used_by?(usage, "path:#{g}") }) &&
+            (Array(@options[:used_by]).empty? || @options[:used_by].any? { |g| used_by?(usage, g) })
+        end
+
+        # Whether any use of the item answers the glob: `node:` a certname,
+        # `resource:` a Type[title], `code:` a call site as file:line,
+        # `path:` a call site's file; without a prefix, any of them. The
+        # brackets of a Type[title] are literal, not a character class.
+        def used_by?(usage, glob)
+          kind, sep, pattern = glob.partition(':')
+          unless !sep.empty? && USED_BY_KINDS.include?(kind)
+            kind    = nil
+            pattern = glob
+          end
+          pattern = pattern.gsub(/[\[\]]/) { |c| "\\#{c}" }
+          usage.uses.any? do |use|
+            use.items.any? do |item|
+              texts(use, item).any? { |k, text| (kind.nil? || kind == k) && File.fnmatch?(pattern, text, File::FNM_CASEFOLD) }
+            end
+          end
+        end
+
+        # @return [Array<Array(String, String)>] each kind the item answers
+        #   to, with its text
+        def texts(use, item)
+          out = []
+          out << ['node', item.certname] if item.certname
+          return out if item.name.nil?
+          return out << ['resource', item.name] if use.label == 'resources'
+
+          out << ['code', item.name] << ['path', item.name.sub(/:\d+\z/, '')]
         end
 
         def check_filters!

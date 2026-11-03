@@ -201,6 +201,16 @@ module Pupgrade
       # Subclasses override to add their own options to the parser.
       def configure_parser(_parser); end
 
+      # Declares `--[un]NAME`: one help line for `--NAME`, giving the block
+      # true, and `--unNAME`, giving it false. OptionParser spells such a
+      # pair `--[no-]NAME`; its switch is built, then listed under the
+      # other spelling.
+      def on_un(parser, name, *desc, &block)
+        switch, short, long, negative, = parser.make_switch(["--[no-]#{name}", *desc], block)
+        switch.long.replace(["--[un]#{name}"])
+        parser.top.append(switch, short, long, negative, ["un#{name}"])
+      end
+
       # Hardcoded fallbacks for this command, below anything the config sets.
       def option_defaults
         {}

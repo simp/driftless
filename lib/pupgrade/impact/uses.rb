@@ -5,18 +5,27 @@ module Pupgrade
     # rest. {Analysis} lists the uses of a surface change this way, and
     # {Usage} those of every item of a surface.
     module Uses
-      # One kind of use: its first {NAMED} items, and a count of the rest.
+      # One kind of use: every item of it; shown as the first {NAMED} and
+      # a count of the rest.
       #
       # @!attribute [r] label
       #   @return [String] "nodes", "resources", "code", "hiera", "lookups",
       #     or for a class parameter "set" or "default"
       # @!attribute [r] items
-      #   @return [Array<Item>] the first {NAMED}
-      # @!attribute [r] more
-      #   @return [Integer] how many more there are
-      Use = Data.define(:label, :items, :more) do
+      #   @return [Array<Item>] unique
+      Use = Data.define(:label, :items) do
+        # @return [Array<Item>] the first {NAMED}
+        def named
+          items.first(NAMED)
+        end
+
+        # @return [Integer] how many items follow the named ones
+        def more
+          [items.size - NAMED, 0].max
+        end
+
         def to_s
-          "#{label}: #{items.join(', ')}#{" and #{more} more" if more.positive?}"
+          "#{label}: #{named.join(', ')}#{" and #{more} more" if more.positive?}"
         end
       end
 
@@ -65,8 +74,7 @@ module Pupgrade
       # @param items [Array<Item, String>] a String is a file:line
       # @return [Use]
       def list(label, items)
-        items = items.map { |i| i.is_a?(Item) ? i : Item.new(name: i, certname: nil) }.uniq
-        Use.new(label: label, items: items.first(NAMED), more: [items.size - NAMED, 0].max)
+        Use.new(label: label, items: items.map { |i| i.is_a?(Item) ? i : Item.new(name: i, certname: nil) }.uniq)
       end
     end
   end

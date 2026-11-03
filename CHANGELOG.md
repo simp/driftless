@@ -145,6 +145,11 @@ It's a new gem to help upgrade the module base of large Puppet/OpenVox  control 
     `compile.on_mock` holds standing rules, the flag's coming after);
     Puppet's own warnings log at warning with the certname, one line
     each, deprecations at info
+  * config `compile.ignorable_puppet_compile_messages` (regexes) and
+    `compile.suppress_ignorable_puppet_compile_messages`: with the latter
+    on, a Puppet warning matching is logged at debug instead of warning,
+    so a thousand nodes do not repeat it; the record and the counts keep
+    it
   * `pupgrade/compiler-mocks.yaml` is read by default when present
   * `--setting NAME=VALUE` and `compile.settings` set Puppet settings for
     the compile, such as `strict=error` and `strict_variables=true`

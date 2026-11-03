@@ -104,6 +104,7 @@ module Pupgrade
           code: @options[:code],
           prepend: prepend, enc: enc, server_facts: @options[:server_facts] || {}, settings: @options[:settings] || {},
           mocks: mocks, on_leak: @options[:on_leak], on_mock: @options[:on_mock] || ['debug'],
+          ignorable: @options[:suppress_ignorable] ? @options[:ignorable] : [],
         ).start
       rescue ::Pupgrade::Compile::Session::Error, ::Pupgrade::Compile::Mocks::Error, ::Pupgrade::Compile::Enc::Error, Errno::ENOENT => e
         fatal!("#{command}: #{e.message}", 3)
@@ -161,6 +162,8 @@ module Pupgrade
           vars:          cfg.dig('compile', 'vars'),
           server_facts:  cfg.dig('compile', 'server_facts'),
           settings:      cfg.dig('compile', 'settings'),
+          ignorable:          cfg.dig('compile', 'ignorable_puppet_compile_messages'),
+          suppress_ignorable: cfg.dig('compile', 'suppress_ignorable_puppet_compile_messages'),
         }.compact
       end
     end

@@ -52,6 +52,11 @@ module Pupgrade
                  about: 'Entries of $server_facts to set or override; servername, serverip, and serverversion have defaults'
       config_key 'compile.settings', type: :hash, default: nil, example: { 'strict' => 'error', 'strict_variables' => true },
                  about: 'Puppet settings for the compile, applied after pupgrade\'s own'
+      config_key 'compile.ignorable_puppet_compile_messages', type: :array, default: [], example: ['is deprecated', '\\AUnknown variable'],
+                 about: 'Regexes; a Puppet warning matching one is logged at debug instead of warning when ' \
+                        'suppress_ignorable_puppet_compile_messages is on; the record and the counts keep it'
+      config_key 'compile.suppress_ignorable_puppet_compile_messages', type: :boolean, default: false,
+                 about: 'Whether the warnings ignorable_puppet_compile_messages names are kept off the terminal'
 
       class Error < StandardError; end
 
@@ -103,8 +108,10 @@ module Pupgrade
       #   place of the repo's
       # @param pson [Boolean] whether to load the puppet-pson gem, which
       #   defines the `PSON` Puppet 8 dropped
+      # @param ignorable [Array<String, Regexp>] Puppet warnings to keep off
+      #   the terminal, by regex on the message; recorded all the same
       def initialize(repo_dir:, environment: 'production', manifest: nil, code: nil, prepend: nil, vars: {}, enc: nil, hiera: nil, pson: false,
-                     server_facts: {}, mocks: Mocks.empty, on_leak: 'fail', on_mock: 'debug', settings: {})
+                     server_facts: {}, mocks: Mocks.empty, on_leak: 'fail', on_mock: 'debug', settings: {}, ignorable: [])
         on_leak = ON_LEAK_ALIASES.fetch(on_leak, on_leak)
         raise Error, "on_leak must be one of #{ON_LEAK.join(', ')}, got #{on_leak.inspect}" unless ON_LEAK.include?(on_leak)
         begin
@@ -127,6 +134,9 @@ module Pupgrade
         @on_leak      = on_leak
         @on_mock      = on_mock
         @settings     = (settings || {}).to_h { |k, v| [k.to_s, v] }
+        @ignorable    = Array(ignorable).map { |r| r.is_a?(Regexp) ? r : Regexp.new(r.to_s) }
+      rescue RegexpError => e
+        raise Error, "ignorable message: #{e.message}"
       end
 
       # @return [Array<String>] the environment's modulepath, absolute
@@ -168,7 +178,8 @@ module Pupgrade
       def compile(factset)
         started  = Process.clock_gettime(Process::CLOCK_MONOTONIC)
         resolved = @enc.resolve(factset)
-        recorder = Recorder.new(factset: factset, mocks: @mocks, on_leak: @on_leak, repo_dir: @repo_dir, on_mock: @on_mock.level_for(factset), node: resolved)
+        recorder = Recorder.new(factset: factset, mocks: @mocks, on_leak: @on_leak, repo_dir: @repo_dir, on_mock: @on_mock.level_for(factset), node: resolved,
+                                ignorable: @ignorable)
         catalog  = nil
         error    = nil
         Probes.current = recorder

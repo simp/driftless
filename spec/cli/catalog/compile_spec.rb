@@ -337,6 +337,50 @@ RSpec.describe Pupgrade::CLI::Catalog::Compile do
     expect(log).to include('notice: guard: web01.example.com: execute: "hostname -f": mocked at')
   end
 
+  it 'keeps the warnings the config calls ignorable off the terminal, in the record all the same' do
+    cfg = File.join(@tmp, 'ignorable.yaml')
+    File.write(cfg, "compile:\n  factsets: [factsets]\n  cache_dir: #{out}\n  ignorable_puppet_compile_messages: ['\\Afrom the', 'nothing else']\n  suppress_ignorable_puppet_compile_messages: true\n")
+    allow(Driftless).to receive(:logger).and_call_original
+    code = ['-vv', '-c', cfg, '-d', fixture.dir, '--mocks', 'pupgrade/compiler-mocks.yaml', '--certname', 'web*', '--code', 'notify { "x": } warning("from the manifest") warning("kept")']
+    captured = StringIO.new
+    original = $stdout
+    $stdout  = captured
+    text = nil
+    log = capture_log(level: :debug) do
+      described_class.new.run(code)
+    rescue SystemExit
+      text = captured.string
+    ensure
+      $stdout = original
+    end
+    expect(log).to include('debug: puppet: web01.example.com: from the manifest (ignorable)', 'warning: puppet: web01.example.com: kept')
+    expect(log).not_to include('warning: puppet: web01.example.com: from the manifest')
+    expect(cells(text)[1].values_at(0, 3)).to eq(%w[web01.example.com 2])
+    expect(read('web01.example.com', 'compile.json')['warnings'].map { |w| w['message'] }).to eq(['from the manifest', 'kept'])
+    # off by default: the list alone changes nothing
+    File.write(cfg, "compile:\n  factsets: [factsets]\n  cache_dir: #{out}\n  ignorable_puppet_compile_messages: ['\\Afrom the']\n")
+    $stdout = captured
+    log = capture_log(level: :warning) do
+      described_class.new.run(code)
+    rescue SystemExit
+      nil
+    ensure
+      $stdout = original
+    end
+    expect(log).to include('warning: puppet: web01.example.com: from the manifest')
+    File.write(cfg, "compile:\n  factsets: [factsets]\n  cache_dir: #{out}\n  ignorable_puppet_compile_messages: ['(']\n  suppress_ignorable_puppet_compile_messages: true\n")
+    $stdout = captured
+    status = nil
+    begin
+      described_class.new.run(code)
+    rescue SystemExit => e
+      status = e.status
+    ensure
+      $stdout = original
+    end
+    expect(status).to eq(3)
+  end
+
   it 'counts a fact read with no value under missing, not leaks' do
     factset = JSON.parse(File.read(File.join(fixture.dir, 'factsets/web01.example.com.json')))
     factset['values'].delete('kernel')

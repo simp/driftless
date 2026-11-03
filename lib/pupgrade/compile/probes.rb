@@ -22,15 +22,18 @@ module Pupgrade
       # @param mocks [Mocks] what the guard answers commands with
       # @param on_leak [String] "fail" or "allow" for unmocked commands
       # @param repo_dir [String] call sites are reported relative to it
+      # @param ignorable [Array<Regexp>] Puppet warnings logged at debug
+      #   instead of warning, recorded all the same
       # The levels a mocked answer can be logged at; `silent` logs nothing.
       ON_MOCK = %w[silent trace debug info notice warning].freeze
 
-      def initialize(factset:, mocks:, on_leak:, repo_dir:, on_mock: 'debug', node: nil)
+      def initialize(factset:, mocks:, on_leak:, repo_dir:, on_mock: 'debug', node: nil, ignorable: [])
         @factset  = factset
         @node     = node
         @mocks    = mocks
         @on_leak  = on_leak
         @on_mock  = on_mock.to_s
+        @ignorable = ignorable
         @repo_dir = File.expand_path(repo_dir)
         @prefixes = {}
         @modules  = {}
@@ -217,7 +220,9 @@ module Pupgrade
 
       # Puppet's own log: a warning or worse is logged at warning and
       # recorded; the rest is trace. A deprecation is logged by Puppet as a
-      # warning too, and is left to {#deprecation}, which saw it first.
+      # warning too, and is left to {#deprecation}, which saw it first. A
+      # warning the site calls ignorable is logged at debug, so a thousand
+      # nodes do not repeat it, and recorded like any other.
       def log(msg)
         where = " (#{msg.file && relative(msg.file.to_s)}:#{msg.line})" if msg.file
         unless LOGGED_LEVELS.include?(msg.level) && !deprecation_text?(msg.message)
@@ -226,7 +231,12 @@ module Pupgrade
         end
 
         level = (msg.level == :warning) ? '' : "#{msg.level}: "
-        Pupgrade.logger.warning("puppet: #{@factset.certname}: #{level}#{one_line(msg.message)}#{where}")
+        text  = "puppet: #{@factset.certname}: #{level}#{one_line(msg.message)}#{where}"
+        if @ignorable.any? { |r| r.match?(msg.message.to_s) }
+          Pupgrade.logger.debug("#{text} (ignorable)")
+        else
+          Pupgrade.logger.warning(text)
+        end
         @warnings << { 'level' => msg.level.to_s, 'message' => msg.message.to_s,
                        'file' => msg.file && relative(msg.file.to_s), 'line' => msg.line }.compact
       end

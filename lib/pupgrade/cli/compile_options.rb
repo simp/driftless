@@ -67,10 +67,23 @@ module Pupgrade
         paths = Array(@options[:factsets]).map { |p| File.expand_path(p, repo.dir) }
         all   = ::Pupgrade::Compile::Factset.load_all(paths)
         all   = all.select { |f| ::Pupgrade::CertnameGlobs.match?(@options[:certnames], f.certname) }
+        all   = one_per_certname(command, all)
         fatal!("#{command}: no factsets matched", 3) if all.empty?
         all
       rescue ::Pupgrade::Compile::Factset::Error => e
         fatal!("#{command}: #{e.message}", 3)
+      end
+
+      # One factset per certname: the first by path is kept and the others
+      # named in a warning, since one record is written per certname.
+      def one_per_certname(command, factsets)
+        factsets.group_by(&:certname).flat_map do |certname, list|
+          next list if list.size == 1
+
+          others = list.drop(1).map(&:path).join(', ')
+          ::Pupgrade.logger.warning(::Pupgrade::Ansi.stressed("#{command}: #{certname}: #{list.size} factsets carry this certname; compiling #{list.first.path}, not #{others}"))
+          [list.first]
+        end
       end
 
       # The ENC stand-in from the files named or found.

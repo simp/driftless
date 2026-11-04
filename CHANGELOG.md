@@ -157,6 +157,9 @@ It's a new gem to help upgrade the module base of large Puppet/OpenVox  control 
     regexes see the message as one line; the record and the counts keep it
   * a deprecation whose message spans lines is logged once, on one line;
     before, Puppet's warning of it was logged again
+  * two factset files carrying one certname compile once, the first by
+    path, with a warning naming the other; that warning and the guard's
+    "is not mocked" warning are in reverse video on a color terminal
   * `pupgrade/compiler-mocks.yaml` is read by default when present
   * `--setting NAME=VALUE` and `compile.settings` set Puppet settings for
     the compile, such as `strict=error` and `strict_variables=true`
@@ -353,6 +356,9 @@ It's a new gem to help upgrade the module base of large Puppet/OpenVox  control 
   doing, wherever they sit on the command line.
 - Tables wrap to the terminal width (`--width N` overrides; `0` for none);
   a colored cell keeps its colors across the wrap.
+- `Pupgrade::Ansi` is pupgrade's own (ported from driftless, plus
+  `reverse`); `--[no-]color` and `output.color` still reach the driftless
+  code pupgrade calls
 - `--help` prints the command's desc; subcommands sort by name
 - commands log their stages at notice before slow work; every git trace
   line names its purpose, e.g. `(resolving v9.6.0)`

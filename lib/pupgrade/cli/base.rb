@@ -153,7 +153,7 @@ module Pupgrade
           leaf = true
           parse_own_options!(argv, leaf: true)
         end
-        ::Pupgrade::Ansi.preference = @options[:color]
+        ::Pupgrade::Ansi.preference = ::Driftless::Ansi.preference = @options[:color]
         return dispatch(argv) unless leaf
 
         after_own_parse
@@ -262,7 +262,7 @@ module Pupgrade
         ::Pupgrade::ConfigValidator.new(::Pupgrade.config).validate!
         @options[:log_level] ||= ::Pupgrade.config.dig('logging', 'level')
         apply_log_level
-        ::Pupgrade::Ansi.configured = ::Pupgrade.config.dig('output', 'color')
+        ::Pupgrade::Ansi.configured = ::Driftless::Ansi.configured = ::Pupgrade.config.dig('output', 'color')
       rescue ::Pupgrade::ConfigLoadError, ::Pupgrade::ConfigValidationError => e
         fatal!("config error: #{e.message}")
       end

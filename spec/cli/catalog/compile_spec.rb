@@ -435,6 +435,18 @@ RSpec.describe Pupgrade::CLI::Catalog::Compile do
     FileUtils.rm_rf(File.join(fixture.dir, 'site-modules/depr'))
   end
 
+  it 'compiles a certname once when two factset files carry it, warning which file is read' do
+    dup = File.join(@tmp, 'dup-factsets')
+    FileUtils.mkdir_p(dup)
+    FileUtils.cp(File.join(fixture.dir, 'factsets/web01.example.com.json'), File.join(dup, 'web01-again.json'))
+    allow(Driftless).to receive(:logger).and_call_original
+    status = text = nil
+    log = capture_log(level: :warning) { status, text = run(['--factsets', dup, '--mocks', 'pupgrade/compiler-mocks.yaml', '--certname', 'web*']) }
+    expect(status).to eq(0)
+    expect(cells(text).drop(1).map(&:first)).to eq(['web01.example.com'])
+    expect(log).to include("warning: compile: web01.example.com: 2 factsets carry this certname; compiling #{File.join(fixture.dir, 'factsets/web01.example.com.json')}, not #{File.join(dup, 'web01-again.json')}")
+  end
+
   it 'counts a fact read with no value under missing, not leaks' do
     factset = JSON.parse(File.read(File.join(fixture.dir, 'factsets/web01.example.com.json')))
     factset['values'].delete('kernel')

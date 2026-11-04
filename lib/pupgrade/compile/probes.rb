@@ -313,7 +313,7 @@ module Pupgrade
         end
 
         intercepted(kind, command, 'raised', where)
-        Pupgrade.logger.warning("guard: #{@factset.certname}: #{kind}: #{command.inspect} is not mocked#{" at #{where}" if where}")
+        Pupgrade.logger.warning(Pupgrade::Ansi.stressed("guard: #{@factset.certname}: #{kind}: #{command.inspect} is not mocked#{" at #{where}" if where}"))
         raise Leak, "#{kind}: #{command.inspect} is not mocked (#{where})"
       end
 

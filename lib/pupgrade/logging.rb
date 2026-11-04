@@ -1,6 +1,7 @@
 require 'driftless/logger'
 require 'driftless/ansi'
 
+require 'pupgrade/ansi'
 require 'pupgrade/config_keys'
 
 module Pupgrade
@@ -15,8 +16,7 @@ module Pupgrade
                       'notice (what the command did), warning, error, or fatal'
   end
 
-  # Terminal colour, shared with driftless's Ansi so both libraries honour
-  # one --[no-]color.
+  # Terminal color: the `output.color` key; {Ansi} does the styling.
   module Output
     extend ConfigKeys::DSL
 
@@ -24,8 +24,6 @@ module Pupgrade
                about: 'Colour terminal output: true, false, or unset for auto (on when stdout is a TTY). ' \
                       '--[no-]color overrides; NO_COLOR in the environment wins over this file'
   end
-
-  Ansi = ::Driftless::Ansi
 
   class << self
     def logger

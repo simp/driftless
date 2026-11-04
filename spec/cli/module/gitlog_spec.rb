@@ -168,6 +168,24 @@ RSpec.describe Pupgrade::CLI::ModuleCommand::Gitlog do
     end
   end
 
+  it 'logs what a ref of another repo has beyond the clone with --repo' do
+    Dir.mktmpdir do |dir|
+      control_repo(dir)
+      alt = File.join(dir, 'alt/stdlib')
+      FileUtils.mkdir_p(alt)
+      File.write(File.join(alt, 'metadata.json'), JSON.generate('name' => 'acme-stdlib', 'version' => '3.0.0'))
+      git(alt, 'init', '-q', '-b', 'main')
+      git(alt, 'add', '.')
+      git(alt, 'commit', '-q', '-m', 'alt-three')
+      git(alt, 'tag', 'v3')
+      status, out = run(['--no-config', '-d', dir, 'stdlib:v3', '--repo', alt])
+      expect(status).to eq(0)
+      expect(subjects(out)).to eq(['alt-three'])
+      expect(run(['--no-config', '-d', dir, 'stdlib', '--repo', alt]).first).to eq(2)
+      expect(run(['--no-config', '-d', dir, 'stdlib:v9', '--repo', alt]).first).to eq(3)
+    end
+  end
+
   it 'shows the clone\'s own history without a ref' do
     Dir.mktmpdir do |dir|
       control_repo(dir)

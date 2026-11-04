@@ -37,6 +37,23 @@ RSpec.describe Pupgrade::CLI::ModuleCommand::Update do
     up
   end
 
+  # Another upstream of the module: one commit tagged v3, with the
+  # metadata name given.
+  def alt_upstream(dir, path, name)
+    alt = File.join(dir, path)
+    FileUtils.mkdir_p(alt)
+    File.write(File.join(alt, 'metadata.json'), JSON.generate('name' => name, 'version' => '3.0.0'))
+    git(alt, 'init', '-q', '-b', 'main')
+    git(alt, 'add', '.')
+    git(alt, 'commit', '-q', '-m', 'alt-three')
+    git(alt, 'tag', 'v3')
+    alt
+  end
+
+  def remotes(dir)
+    `git -C #{File.join(dir, 'modules/stdlib')} remote -v`.lines.filter_map { |l| (m = l.match(/\A(\S+)\s+(\S+)\s+\(fetch\)/)) && [m[1], m[2]] }.to_h
+  end
+
   # [exit status, stdout]
   def run(argv)
     out      = StringIO.new
@@ -126,6 +143,52 @@ RSpec.describe Pupgrade::CLI::ModuleCommand::Update do
       expect([status, out]).to match([0, %r{\Amodules/stdlib: v1 -> v2}])
       expect(head(dir).tag_at_head).to eq('v2')
       expect(head(dir).dirty?).to be(false)
+    end
+  end
+
+  it 'moves to a ref of another repo with --repo, by URL, URL,REMOTE, or an existing REMOTE' do
+    Dir.mktmpdir do |dir|
+      control_repo(dir)
+      alt = alt_upstream(dir, 'alt/stdlib', 'acme-stdlib')
+      silence_logger
+      status, out = run(['--no-config', '-d', dir, 'stdlib', 'v3', '--repo', alt])
+      expect([status, out]).to match([0, %r{\Amodules/stdlib: v1 -> v3 \([0-9a-f]{12}\)\n\z}])
+      expect(head(dir).log('--oneline', '-n', '1', 'HEAD')).to match(/ alt-three\z/)
+      added = remotes(dir).find { |n, _| n.start_with?('pupgrade-') }
+      expect(added).to match([/\Apupgrade-[0-9a-f]{8}\z/, alt])
+      # the URL names the remote already there; no second one is added
+      run(['--no-config', '-d', dir, 'stdlib', 'v3', '--repo', alt])
+      expect(remotes(dir).count { |n, _| n.start_with?('pupgrade-') }).to eq(1)
+
+      # URL,REMOTE adds the name, then points it elsewhere with a notice
+      git(File.join(dir, 'modules/stdlib'), 'checkout', '-q', '--detach', 'v1')
+      allow(Driftless).to receive(:logger).and_call_original
+      log = capture_log(level: :notice) { run(['--no-config', '-d', dir, 'stdlib', 'v3', '--repo', "#{alt},acme"]) }
+      expect(remotes(dir)['acme']).to eq(alt)
+      expect(log).to include("remote: #{File.join(dir, 'modules/stdlib')}: added acme at #{alt}")
+      other = alt_upstream(dir, 'alt2/stdlib', 'other-stdlib')
+      log = capture_log(level: :notice) { run(['--no-config', '-d', dir, 'stdlib', 'v3', '--repo', "#{other},acme"]) }
+      expect(remotes(dir)['acme']).to eq(other)
+      expect(log).to include("acme now points at #{other}, not #{alt}")
+      # a remote by name
+      expect(run(['--no-config', '-d', dir, 'stdlib', 'v3', '--repo', 'acme']).first).to eq(0)
+    end
+  end
+
+  it 'refuses a --repo whose ref is missing, is another module, or names an r10k remote' do
+    Dir.mktmpdir do |dir|
+      control_repo(dir)
+      alt   = alt_upstream(dir, 'alt/stdlib', 'acme-stdlib')
+      other = alt_upstream(dir, 'alt/other', 'acme-other')
+      silence_logger
+      expect(run(['--no-config', '-d', dir, 'stdlib', 'v9', '--repo', alt]).first).to eq(3)
+      expect(run(['--no-config', '-d', dir, 'stdlib', 'v3', '--repo', other]).first).to eq(3)
+      expect(run(['--no-config', '-d', dir, 'stdlib', 'v3', '--repo', "#{alt},cache"]).first).to eq(3)
+      expect(run(['--no-config', '-d', dir, 'stdlib', 'v3', '--repo', "#{alt},origin"]).first).to eq(3)
+      expect(run(['--no-config', '-d', dir, 'stdlib', 'v3', '--repo', 'nope']).first).to eq(3)
+      expect(head(dir).tag_at_head).to eq('v1')
+      expect(remotes(dir).keys).to include('origin')
+      expect(remotes(dir)).not_to have_key('cache')
     end
   end
 

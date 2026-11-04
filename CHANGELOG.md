@@ -53,6 +53,8 @@ It's a new gem to help upgrade the module base of large Puppet/OpenVox  control 
     wins, and is recorded in the branchfile (flag or `modules.branchfile`)
   * `-t`, `--tags-only` shows tags only (and the branch tip with
     `--include-heads`)
+  * `--repo URL[,REMOTE]|REMOTE` fetches `REF` from another remote of the
+    clone, as `module update --repo` does
 - **`pupgrade module releases MODULE[:REF] [--branch B] [--branchfile FILE] [--fetch]`**:
   every release of a module, past and future: each tag naming a version on
   the branch it follows, newest first (`--order oldest` reverses), with its
@@ -103,6 +105,11 @@ It's a new gem to help upgrade the module base of large Puppet/OpenVox  control 
   Check out `REF` in the deployed git `MODULE`, in place; `--force` goes
   ahead over uncommitted changes; a deleted `spec/`, which r10k removes
   from every module it deploys, is not one
+  - `--repo URL[,REMOTE]|REMOTE` fetches `REF` from another remote of the
+    clone: one it has by name, one at URL (added as `pupgrade-<hash>` when
+    none has it), or REMOTE added at URL, or pointed there with a notice;
+    `cache` and `origin` are r10k's and are never changed. The metadata at
+    `REF` must name this module (its author may differ)
 - **`pupgrade module diff FROM TO`**
 
   Show what changed between two versions of a module:

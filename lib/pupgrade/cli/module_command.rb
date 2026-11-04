@@ -3,7 +3,10 @@ require 'open3'
 require 'pupgrade/cli/base'
 require 'pupgrade/cli/root'
 require 'driftless/git_clone'
+require 'driftless/inputs/module_metadata'
+require 'pupgrade/clone_remote'
 require 'pupgrade/inputs/branchfile'
+require 'pupgrade/module_name'
 
 module Pupgrade
   module CLI
@@ -21,6 +24,34 @@ module Pupgrade
           o.on('-d', '--repo-dir=DIR',
                'Path to the control repo environment',
                "Default: '.' (if environment.conf and hiera.yaml exist)") { |v| @options[:repo_dir] = v }
+        end
+
+        def declare_repo_remote(o)
+          o.on('--repo=URL[,REMOTE]|REMOTE', 'Run against this remote of the clone: one it has by name, one at URL (added as',
+               'pupgrade-<hash> when none is), or REMOTE added or pointed at URL; <ref> must be there') { |v| @options[:repo] = v }
+        end
+
+        # The ref fetched from the `--repo` remote: the remote resolved and
+        # fetched, and the metadata there checked to be this module (its
+        # name's module part; the author may differ).
+        #
+        # @return [String] the sha
+        def remote_ref!(command, entry, clone, ref)
+          remotes = ::Pupgrade::CloneRemote.new(clone.dir)
+          remote  = remotes.resolve(@options[:repo])
+          sha     = remotes.fetch(remote, ref)
+          text, status = Open3.capture2('git', '-C', clone.dir, 'show', "#{sha}:#{::Driftless::Inputs::ModuleMetadata::FILENAME}", err: File::NULL)
+          fatal!("#{command}: #{remote.name} (#{remote.url}) at #{ref} has no metadata.json; not a Puppet module", 3) unless status.success?
+
+          metadata = ::Driftless::Inputs::ModuleMetadata.parse(text, path: "#{remote.name}@#{ref}:metadata.json")
+          fatal!("#{command}: #{metadata.error}", 3) if metadata.error
+          mine = ::Pupgrade::ModuleName.short(entry.metadata.name || entry.declared&.name || File.basename(entry.path))
+          there = ::Pupgrade::ModuleName.short(metadata.name.to_s)
+          fatal!("#{command}: #{remote.name} at #{ref} is #{metadata.name}, not a #{mine} module", 3) unless there == mine
+          ::Pupgrade.logger.info("#{command}: #{ref} on #{remote.name} is #{metadata.name} #{metadata.version} (#{sha[0, 12]})")
+          sha
+        rescue ::Pupgrade::CloneRemote::Error => e
+          fatal!("#{command}: --repo #{@options[:repo]}: #{e.message}", 3)
         end
 
         # @return [Driftless::ControlRepo]

@@ -9,8 +9,9 @@ module Pupgrade
       # `pupgrade module gitlog`
       #
       # The git log of one deployed module: with a ref or --branch, the
-      # commits it has beyond the clone's HEAD; without either, the branch
-      # a branchfile names for the module, else the clone's history.
+      # commits it has beyond the clone's HEAD, the ref fetched from the
+      # remote `--repo` names when given; without either, the branch a
+      # branchfile names for the module, else the clone's history.
       class Gitlog < Base
         include ModuleCommand::Shared
 
@@ -24,8 +25,10 @@ module Pupgrade
           selector, sep, ref = argv.first.partition(':')
           ref = nil if sep.empty? || ref.empty?
           fatal!('module gitlog: give a ref or --branch, not both', help: true) if ref && @options[:branch]
+          fatal!('module gitlog: --repo needs a :REF to fetch from it', help: true) if @options[:repo] && ref.nil?
           repo = control_repo!('module gitlog')
           entry, clone = git_module!('module gitlog', repo, selector)
+          ref = remote_ref!('module gitlog', entry, clone, ref) if @options[:repo]
           branch = @options[:branch] && pick_branch('module gitlog', clone, @options[:branch])
           ref ||= branch || branch_from_file(repo, entry)
           record_branch('module gitlog', repo, entry, branch) if branch && @options[:branchfile]
@@ -72,6 +75,7 @@ module Pupgrade
           o.on('-t', '--tags-only', 'Show only tagged commits (and the branch tip with --include-heads)') { @options[:tags_only] = true }
           o.on('--include-heads', 'With --tags-only, keep the tip of the ref as well') { @options[:include_heads] = true }
           o.on('--from-start', 'Log <ref> from its first commit, not only what it has beyond HEAD') { @options[:from_start] = true }
+          declare_repo_remote(o)
           o.on('--branchfile=FILE',
                'Without <ref> or --branch, follow the branch FILE names for the module:',
                'YAML of module to branch, or a Puppetfile overlay of mod entries with',

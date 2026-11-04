@@ -43,14 +43,21 @@ RSpec.describe Driftless::NodeSelector do
     expect(selector.select(nodes, reported)).to eq([web_rocky])
   end
 
-  it 'matches environments and collectors exactly' do
+  it 'matches environments and collectors by glob, case-insensitively, a plain name as itself' do
     expect(described_class.new(environments: ['dev']).select(nodes, reported)).to eq([web_ubuntu])
+    expect(described_class.new(environments: ['DEV']).select(nodes, reported)).to eq([web_ubuntu])
+    expect(described_class.new(environments: ['prod*']).select(nodes, reported)).to eq([web_rocky, db_rocky])
+    expect(described_class.new(environments: ['production', 'd?v']).select(nodes, reported)).to eq(nodes)
     expect(described_class.new(collectors: ['site-b']).select(nodes, reported)).to eq([web_ubuntu])
+    expect(described_class.new(collectors: ['site-*']).select(nodes, reported)).to eq([web_ubuntu])
+    expect(described_class.new(collectors: ['co*']).select(nodes, reported)).to eq([web_rocky, db_rocky])
   end
 
-  it 'matches os against os.name or os.family, case-insensitively' do
+  it 'matches os against os.name or os.family by glob, case-insensitively' do
     expect(described_class.new(os: ['redhat']).select(nodes, reported)).to eq([web_rocky, db_rocky])
     expect(described_class.new(os: ['ubuntu']).select(nodes, reported)).to eq([web_ubuntu])
+    expect(described_class.new(os: ['Red*']).select(nodes, reported)).to eq([web_rocky, db_rocky])
+    expect(described_class.new(os: ['*bian']).select(nodes, reported)).to eq([web_ubuntu])
   end
 
   it 'matches roles from the classes report by glob, case-insensitively' do

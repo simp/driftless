@@ -24,6 +24,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Every node-selection flag takes globs, case-insensitive: `--environment`,
+  `--collector`, and `--os` now match like `--certname` and `--role`; a
+  plain name still matches itself
 - A command's `--help` states what the command is for, under the usage line,
   and lists its subcommands in alphabetical order
 - `GitClone` names what each git command is for in its trace line

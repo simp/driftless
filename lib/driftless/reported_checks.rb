@@ -130,6 +130,7 @@ module Driftless
       end
 
       env_set   = Set.new(environments)
+      selected  = Array(respond_to?(:selected_environments) ? selected_environments : nil)
       seen_envs = Set.new
 
       filtered_data = {}
@@ -142,6 +143,8 @@ module Driftless
             true
           elsif env_set.include?(env)
             seen_envs << env
+            true
+          elsif selected.any? { |g| File.fnmatch?(g, env, File::FNM_CASEFOLD) }
             true
           else
             Driftless.logger.debug("  node #{node.certname.inspect} excluded (environment #{env.inspect} not in puppet.environments)")

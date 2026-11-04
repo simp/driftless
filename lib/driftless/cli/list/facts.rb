@@ -27,6 +27,7 @@ module Driftless
           loader = ::Driftless::Inputs::NodeReportLoader.new(
             incoming_dir:       File.expand_path(@options[:incoming_dir]),
             environments:       @options[:environments],
+            selected_environments: @options[:environments_selected],
             proceed_with_subset_of_configured_envs: @options[:proceed_with_subset_of_configured_envs] || false,
           )
           nodes    = loader.load

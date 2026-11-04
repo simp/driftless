@@ -6,7 +6,9 @@ require 'driftless/scan_error'
 module Driftless
   module Inputs
     # Loads the incoming tree for one node report, applying the declared
-    # environment filter when there is one.
+    # environment filter when there is one: the configured environments,
+    # widened by any a selection names, so `--environment staging` reaches
+    # nodes outside `puppet.environments`.
     class NodeReportLoader
       include ReportedChecks
 
@@ -20,16 +22,23 @@ module Driftless
       #   filter; nil until {#load}
       attr_reader :reported
 
+      # @return [Array<String>, nil] see the constructor
+      attr_reader :selected_environments
+
       # @param environments [Array<String>, nil] environments to keep; nil or
       #   empty keeps every node
+      # @param selected_environments [Array<String>, nil] environments a
+      #   selection names (globs, case-insensitive), kept as well; one with
+      #   no reports is not an error, unlike a configured one
       # @param proceed_with_subset_of_configured_envs [Boolean] warn instead of
       #   raising when a configured environment has no reports
       # @param report [String] one of ReportLoader::NODE_REPORTS
-      def initialize(incoming_dir:, report: FACTSETS_REPORT, environments: nil,
+      def initialize(incoming_dir:, report: FACTSETS_REPORT, environments: nil, selected_environments: nil,
                      proceed_with_subset_of_configured_envs: false)
         @incoming_dir       = incoming_dir
         @report             = report
         @environments       = environments
+        @selected_environments = selected_environments
         @proceed_with_subset_of_configured_envs = proceed_with_subset_of_configured_envs
       end
 
@@ -49,7 +58,8 @@ module Driftless
         if environments&.any?
           reported = apply_environment_filter(reported)
           Driftless.logger.debug(
-            "#{label}: #{reported.report(report).size} in environments #{environments.join(', ')}",
+            "#{label}: #{reported.report(report).size} in environments #{environments.join(', ')}" \
+            "#{" plus the selected #{Array(selected_environments).join(', ')}" if Array(selected_environments).any?}",
           )
         end
 

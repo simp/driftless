@@ -56,13 +56,14 @@ module Driftless
         ser = serialization || PROFILES.fetch(profile)[:default_serialization]
         raise Error, "unknown serialization: #{ser.inspect} (known: #{SERIALIZATIONS.join(', ')})" unless SERIALIZATIONS.include?(ser)
 
-        @loader = Inputs::NodeReportLoader.new(
-          incoming_dir: incoming_dir, environments: environments, proceed_with_subset_of_configured_envs: proceed_with_subset_of_configured_envs,
+        @selector      = selector || NodeSelector.new
+        @loader        = Inputs::NodeReportLoader.new(
+          incoming_dir: incoming_dir, environments: environments, selected_environments: @selector.environments,
+          proceed_with_subset_of_configured_envs: proceed_with_subset_of_configured_envs,
         )
         @output_dir    = output_dir
         @profile       = profile
         @serialization = ser
-        @selector      = selector || NodeSelector.new
         @limit         = limit
         @warnings      = []
       end

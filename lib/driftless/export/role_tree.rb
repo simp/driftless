@@ -59,8 +59,9 @@ module Driftless
                      random: Random.new)
         raise Error, "unknown pick: #{pick.inspect} (known: #{PICKS.join(', ')})" unless PICKS.include?(pick)
 
-        @loader = Inputs::NodeReportLoader.new(
-          incoming_dir: incoming_dir, environments: (pick == 'all') ? nil : environments,
+        @selector      = (pick == 'all') ? NodeSelector.new : (selector || NodeSelector.new)
+        @loader        = Inputs::NodeReportLoader.new(
+          incoming_dir: incoming_dir, environments: (pick == 'all') ? nil : environments, selected_environments: @selector.environments,
           proceed_with_subset_of_configured_envs: proceed_with_subset_of_configured_envs,
         )
         @root          = root
@@ -68,7 +69,6 @@ module Driftless
         @pick          = pick
         @prune         = prune
         @ignore_stale  = ignore_stale
-        @selector      = (pick == 'all') ? NodeSelector.new : (selector || NodeSelector.new)
         @random        = random
         @profile       = 'onceover'
         @serialization = 'json'

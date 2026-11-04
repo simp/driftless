@@ -31,6 +31,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `--environment ENV` on `export factsets`, `list nodes`, `list factsets`,
+  and `list facts` reaches nodes outside `puppet.environments`: the
+  selection widens the loader's scope instead of being filtered by it.
+  A selected environment with no reports is not a configuration error
 - `scan --output FMT` is taken as `--format` again. Since the subcommand
   refactor it was read as `--output-file`, so `--output json` wrote a
   text file named `json`

@@ -13,7 +13,7 @@ module Driftless
         parser.separator 'Node selection (any value of a flag; every flag given):'
         parser.on('--role=NAME', Array,
                   'Nodes classified with a role (glob, case-insensitive)') { |v| accumulate(:roles, v) }
-        parser.on('--environment=ENV', Array, 'Nodes in an environment') { |v| accumulate(:environments_selected, v) }
+        parser.on('--environment=ENV', Array, 'Nodes in an environment, inside puppet.environments or not') { |v| accumulate(:environments_selected, v) }
         parser.on('--collector=NAME', Array, 'Nodes reported by a collector') { |v| accumulate(:collectors, v) }
         parser.on('--os=NAME', Array,
                   'Nodes whose os.name or os.family fact matches (case-insensitive)') { |v| accumulate(:os, v) }

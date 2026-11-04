@@ -265,6 +265,25 @@ RSpec.describe Driftless::Export::Factsets do
       end
     end
 
+    it 'keeps the nodes a selection names by environment, outside the configured ones' do
+      Dir.mktmpdir do |tmp|
+        seed_factsets(tmp, records)
+        out = File.join(tmp, 'out')
+        described_class.new(
+          incoming_dir: tmp, output_dir: out, profile: 'onceover', environments: ['production'],
+          selector: Driftless::NodeSelector.new(environments: ['dev']),
+        ).run
+        expect(Dir.children(out)).to eq(%w[dev01.example.com.json])
+        # a selected environment with no reports is not a configuration error
+        FileUtils.rm_rf(out)
+        described_class.new(
+          incoming_dir: tmp, output_dir: out, profile: 'onceover', environments: ['production'],
+          selector: Driftless::NodeSelector.new(environments: ['staging']),
+        ).run
+        expect(File.directory?(out) ? Dir.children(out) : []).to eq([])
+      end
+    end
+
     it 'raises ScanError when a configured environment has no reports' do
       Dir.mktmpdir do |tmp|
         seed_factsets(tmp, records)

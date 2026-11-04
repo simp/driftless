@@ -141,7 +141,7 @@ module Pupgrade
         @pson         = pson
         @code         = code
         @prepend      = prepend
-        @prepend_from = prepend_from ? File.expand_path(prepend_from, @repo_dir).delete_prefix("#{@repo_dir}/") : '--prepend'
+        @prepend_from = prepend_from ? File.expand_path(prepend_from, @repo_dir) : '--prepend'
         @enc          = enc || Enc.new(vars: vars)
         @server_facts = DEFAULT_SERVER_FACTS.merge(server_facts.to_h { |k, v| [k.to_s, v] })
         @mocks        = mocks

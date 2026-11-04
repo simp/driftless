@@ -265,6 +265,26 @@ RSpec.describe Pupgrade::CLI::Catalog::Compile do
     expect(catalog['classes']).to eq(%w[settings])
   end
 
+  it 'records where each class was added: a declaration at its file and line, --prepend and --code by the flag, the manifest keeping its file' do
+    File.write(File.join(fixture.dir, 'pre.pp'), "class { 'timezone': }\n")
+    status, = run(['--mocks', 'pupgrade/compiler-mocks.yaml', '--certname', 'web*', '--prepend', '@pre.pp'])
+    expect(status).to eq(0)
+    classes = read('web01.example.com', 'compile.json')['classes']
+    expect(classes['timezone']['sites']).to eq(['pre.pp:1', 'site-modules/profile/manifests/base.pp:7'])
+    expect(classes['role::web']['sites']).to eq(['manifests/site.pp:2'])
+
+    code = "class { 'role::web': }\ninclude ntp"
+    status, = run(['--mocks', 'pupgrade/compiler-mocks.yaml', '--certname', 'web*', '--prepend', 'include ntp', '--code', code])
+    expect(status).to eq(0)
+    classes = read('web01.example.com', 'compile.json')['classes']
+    expect(classes['role::web']['sites']).to eq(['--code:1'])
+    expect(classes['ntp']['sites']).to eq(['--prepend:1', 'site-modules/profile/manifests/base.pp:6', '--code:2'])
+    # what role::web adds while the declaration evaluates it keeps its own sites
+    expect(classes['apache']['sites']).to eq(['site-modules/role/manifests/web.pp:3'])
+  ensure
+    FileUtils.rm_f(File.join(fixture.dir, 'pre.pp'))
+  end
+
   it 'takes the manifest, the prepended file, the mocks, and the factsets from the config file' do
     File.write(File.join(fixture.dir, 'before.pp'), "notify { 'from before': }\n")
     File.write(File.join(fixture.dir, 'alt.pp'), "notify { 'from alt': }\n")

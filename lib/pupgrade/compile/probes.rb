@@ -43,6 +43,7 @@ module Pupgrade
         @modules  = {}
         @functions = Hash.new { |h, k| h[k] = { 'module' => nil, 'calls' => 0, 'sites' => [] } }
         @class_sites = Hash.new { |h, k| h[k] = [] }
+        @declared_at = nil
         @facts_read = Hash.new(0)
         @legacy    = Hash.new(0)
         @lookups   = Hash.new { |h, k| h[k] = { 'found' => false, 'automatic' => 0, 'explicit' => 0 } }
@@ -157,22 +158,50 @@ module Pupgrade
 
       # ---- classes, functions, and lookups ----------------------------------
 
-      # The site an ENC's classes are recorded at: they have no Puppet
-      # stack.
+      # The site the ENC's classes are recorded at.
       ENC_SITE = 'enc'.freeze
 
-      # A class the compiler was asked to add, by `include`, `require`,
+      # Classes the compiler was asked to add, by `include`, `require`,
       # `contain`, a resource-style declaration, or the ENC, from where:
-      # the Puppet code at the top of the stack, else the ENC.
+      # the site given, else the declaration in progress ({#declaring}),
+      # else the Puppet code at the top of the stack. Code with no file
+      # names no site.
       #
       # @param names [Array<String>] as given to the compiler
-      def classes_added(names)
-        top  = Puppet::Pops::PuppetStack.top_of_stack
-        site = (top.is_a?(Array) && top[0] && top[0] != 'unknown') ? "#{relative(top[0])}:#{top[1]}" : ENC_SITE
+      # @param site [String, nil] where, when the caller knows
+      def classes_added(names, site: nil)
+        top = Puppet::Pops::PuppetStack.top_of_stack
+        site ||= @declared_at || site(top[0], top[1])
+        @declared_at = nil
+        return unless site
+
         names.each do |name|
           sites = @class_sites[name.to_s.delete_prefix('::').downcase]
           sites << site if sites.size < 20 && !sites.include?(site)
         end
+      end
+
+      # Names the site of the class a resource-style declaration adds
+      # while the block runs. The first classes added take it; the ones
+      # the class itself adds, evaluated inside the block, have their own
+      # Puppet stack frames.
+      #
+      # @param site [String, nil]
+      def declaring(site)
+        @declared_at = site
+        yield
+      ensure
+        @declared_at = nil
+      end
+
+      # @param file [String, nil] a file, or `--prepend` or `--code` for
+      #   code pupgrade gave the parser ({Session#sources}); Puppet's
+      #   `unknown` is code with no file
+      # @return [String, nil] "file:line", relative to the repo
+      def site(file, line)
+        return nil if file.nil? || file.to_s.empty? || file == 'unknown'
+
+        "#{relative(file)}:#{line}"
       end
 
       # @param name [String] a class, lowercase
@@ -370,12 +399,6 @@ module Pupgrade
         parts.empty? ? nil : parts.join(' via ')
       end
 
-      def site(file, line)
-        return nil if file.nil? || file.to_s.empty?
-
-        "#{relative(file)}:#{line}"
-      end
-
       def relative(path)
         path.to_s.delete_prefix("#{@repo_dir}/")
       end
@@ -476,6 +499,8 @@ module Pupgrade
           @installed = true
           Puppet::Parser::Scope.prepend(ScopeHooks)
           Puppet::Parser::Compiler.prepend(ClassHooks)
+          Puppet::Pops::Evaluator::Runtime3ResourceSupport.singleton_class.prepend(ResourceHooks)
+          Puppet::Node::Environment.prepend(ImportHooks)
           Puppet::Pops::Evaluator::AccessOperator.prepend(AccessHooks)
           Puppet::Pops::Lookup::SubLookup.prepend(SubLookupHooks)
           Puppet::Pops::Evaluator::EvaluatorImpl.prepend(CallHooks)
@@ -526,6 +551,57 @@ module Pupgrade
         def evaluate_classes(classes, scope, lazy_evaluate = true)
           Probes.current&.classes_added(classes.is_a?(Hash) ? classes.keys : Array(classes))
           super
+        end
+
+        # The ENC's classes, which no Puppet code adds.
+        def evaluate_node_classes
+          classes = @node.classes
+          Probes.current&.classes_added(classes.is_a?(Hash) ? classes.keys : Array(classes), site: Recorder::ENC_SITE)
+          super
+        end
+      end
+
+      # A resource-style declaration, `class { 'x': }`, comes with its file
+      # and line but pushes no Puppet stack frame.
+      module ResourceHooks
+        def create_resources(file, line, scope, virtual, exported, type_name, resource_titles, evaluated_parameters)
+          probes = Probes.current
+          return super unless probes
+
+          probes.declaring(probes.site(file, line)) { super }
+        end
+      end
+
+      # The code pupgrade adds to a compile, and whether the environment's
+      # manifest follows it.
+      #
+      # @!attribute [r] pieces
+      #   @return [Array<Array(String, String)>] a source's name and its
+      #     Puppet code: `--prepend` or the prepended file's path, `--code`
+      # @!attribute [r] then_manifest
+      #   @return [Boolean] false when `--code` stands in for the manifest
+      Sources = Data.define(:pieces, :then_manifest)
+
+      # Parses each piece as its own source, named for where it came from,
+      # and the manifest from its files, in place of one string under
+      # `Puppet[:code]`: sites, warnings, and errors then name the file and
+      # line they are in.
+      module ImportHooks
+        def perform_initial_import
+          sources = Puppet.lookup(:pupgrade_sources) { nil }
+          return super unless sources && Puppet[:code].to_s.empty?
+
+          results = sources.pieces.map do |name, code|
+            parser = Puppet::Parser::ParserFactory.parser
+            parser.file   = name
+            parser.string = code
+            parser.parse
+          end
+          results << super if sources.then_manifest
+          Puppet::Parser::AST::Hostclass.new('', code: Puppet::Parser::ParserFactory.code_merger.concatenate(results))
+        rescue Puppet::Error
+          @known_resource_types.parse_failed = true
+          raise
         end
       end
 

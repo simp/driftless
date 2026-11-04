@@ -113,14 +113,15 @@ module Pupgrade
         mocks.function_blocks = enc.ruby.functions
         prepend = @options[:prepend]
         prepend = "@#{@options[:prepend_file]}" if prepend.nil? && @options[:prepend_file]
+        prepend_from = nil
         if prepend&.start_with?('@')
-          path    = File.expand_path(prepend.delete_prefix('@'), repo.dir)
-          prepend = File.file?(path) ? File.read(path) : missing(command, 'prepend file', path)
+          prepend_from = File.expand_path(prepend.delete_prefix('@'), repo.dir)
+          prepend      = File.file?(prepend_from) ? File.read(prepend_from) : missing(command, 'prepend file', prepend_from)
         end
         ::Pupgrade::Compile::Session.new(
           repo_dir: repo.dir, environment: @options[:environment], manifest: @options[:manifest], hiera: @options[:hiera], pson: @options[:pson],
           code: @options[:code],
-          prepend: prepend, enc: enc, server_facts: @options[:server_facts] || {}, settings: @options[:settings] || {},
+          prepend: prepend, prepend_from: prepend_from, enc: enc, server_facts: @options[:server_facts] || {}, settings: @options[:settings] || {},
           mocks: mocks, on_leak: @options[:on_leak], on_mock: @options[:on_mock] || ['debug'],
           ignorable: @options[:suppress_ignorable] ? @options[:ignorable] : [], ignorable_log: @options.fetch(:ignorable_log, 'debug'),
         ).start

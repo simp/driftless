@@ -196,9 +196,16 @@ It's a new gem to help upgrade the module base of large Puppet/OpenVox  control 
     outcome, each class with the sites that added it (`include`, `require`,
     `contain`, a `class { }` declaration, or `enc`), functions and their
     call sites, facts, lookups, types, providers, warnings, mocks, leaks
+    - `enc` is the ENC's classes alone; a `class { }` declaration is
+      recorded at its file and line (it used to read `enc`, having no
+      Puppet stack frame)
   * `--environment`, `--manifest PATH`, `--code CODE` (in place of the
     manifest), `--prepend CODE|@FILE` (before the manifest, or before
     `--code`), `--var NAME=VALUE`, `--server-fact NAME=VALUE`
+    - `--prepend` and `--code` are parsed as their own sources, so a site,
+      warning, or error in them reads `--prepend:LINE` (the file's path for
+      `@FILE`) or `--code:LINE`, and the manifest's keep its file under
+      `--prepend` (they used to be one string with no file)
   * `compile.environment` may be an interpolation in the ENC's syntax,
     `${facts.agent_specified_environment}`, resolved per node: each node
     compiles in the environment it names, all on the one repo dir; an

@@ -116,7 +116,8 @@ module Pupgrade
         # The nodes with any use of the rows, or the modules whose code adds
         # a class, calls a function, or declares a resource of them: named
         # from the site's path; a site in no module (`manifests/site.pp`)
-        # by its path, the ENC as `enc`.
+        # by its path, code given to the compile as `--prepend` or `--code`,
+        # the ENC as `enc`.
         #
         # @return [Array<String>] sorted, unique
         def listed(rows)

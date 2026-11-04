@@ -23,7 +23,8 @@ module Pupgrade
       #     parameters the catalog sets on it
       # @!attribute [r] class_sites
       #   @return [Hash{String => Array<String>}] class (lowercase) to the
-      #     sites that added it, "file:line" or "enc"
+      #     sites that added it: "file:line", "--prepend:line" or
+      #     "--code:line" for code given to the compile, "enc"
       # @!attribute [r] resources
       #   @return [Array<Hash>] catalog resources: "type" (lowercase),
       #     "title", "parameters", "file" (where declared, relative to the
@@ -68,7 +69,7 @@ module Pupgrade
       end
 
       # @return [Array<String>] where the class was added across nodes,
-      #   unique: "file:line", or "enc"
+      #   unique: "file:line", "--prepend:line", "--code:line", or "enc"
       def class_sites(klass)
         name = klass.downcase
         @nodes.flat_map { |n| n.class_sites.fetch(name, []) }.uniq

@@ -100,6 +100,8 @@ module Pupgrade
       # @param code [String, nil] Puppet code compiled in place of the manifest
       # @param prepend [String, nil] Puppet code evaluated before the
       #   manifest, or before `code`
+      # @param prepend_from [String, nil] the file `prepend` was read from,
+      #   named as the site of what it adds; `--prepend` when none
       # @param enc [Enc] what decides each node's top-scope variables and
       #   classes; `vars:` is the static shorthand for an ENC setting them
       #   on every node
@@ -119,7 +121,7 @@ module Pupgrade
       #   the terminal, by regex on the message; recorded all the same
       # @param ignorable_log [String, nil] the level an ignorable message is
       #   logged at instead; nil for not at all
-      def initialize(repo_dir:, environment: 'production', manifest: nil, code: nil, prepend: nil, vars: {}, enc: nil, hiera: nil, pson: false,
+      def initialize(repo_dir:, environment: 'production', manifest: nil, code: nil, prepend: nil, prepend_from: nil, vars: {}, enc: nil, hiera: nil, pson: false,
                      server_facts: {}, mocks: Mocks.empty, on_leak: 'fail', on_mock: 'debug', settings: {}, ignorable: [], ignorable_log: 'debug')
         on_leak = ON_LEAK_ALIASES.fetch(on_leak, on_leak)
         raise Error, "on_leak must be one of #{ON_LEAK.join(', ')}, got #{on_leak.inspect}" unless ON_LEAK.include?(on_leak)
@@ -139,6 +141,7 @@ module Pupgrade
         @pson         = pson
         @code         = code
         @prepend      = prepend
+        @prepend_from = prepend_from ? File.expand_path(prepend_from, @repo_dir).delete_prefix("#{@repo_dir}/") : '--prepend'
         @enc          = enc || Enc.new(vars: vars)
         @server_facts = DEFAULT_SERVER_FACTS.merge(server_facts.to_h { |k, v| [k.to_s, v] })
         @mocks        = mocks
@@ -205,8 +208,8 @@ module Pupgrade
         Probes.current = recorder
         begin
           env = environment_for(resolved)
-          Puppet.override(environments: @loader, current_environment: env) do
-            Puppet[:code] = code_for(env)
+          Puppet.override(environments: @loader, current_environment: env, pupgrade_sources: sources) do
+            Puppet[:code] = ''
             catalog = Puppet::Parser::Compiler.compile(node_for(factset, resolved, recorder.facts, env))
           end
         rescue Leak, Puppet::Error, StandardError => e
@@ -264,8 +267,8 @@ module Pupgrade
         recorder = Recorder.new(factset: factset, mocks: @mocks, on_leak: @on_leak, repo_dir: @repo_dir, on_mock: @on_mock.level_for(factset), node: resolved)
         Probes.current = recorder
         env = environment_for(resolved)
-        Puppet.override(environments: @loader, current_environment: env) do
-          Puppet[:code] = compile ? code_for(env) : 'undef'
+        Puppet.override(environments: @loader, current_environment: env, pupgrade_sources: compile ? sources : nil) do
+          Puppet[:code] = compile ? '' : 'undef'
           compiler = Puppet::Parser::Compiler.new(node_for(factset, resolved, recorder.facts, env))
           compiler.compile do |catalog|
             yield compiler.topscope, resolved
@@ -331,20 +334,16 @@ module Pupgrade
         (clone.own? && clone.sha) || 0
       end
 
-      # @return [String] what Puppet[:code] is set to: the prepended code,
-      #   then the code replacing the manifest or the manifest's text; or
-      #   nothing, so the manifest is read as it is
-      def code_for(env)
-        return [@prepend, @code].compact.join("\n") if @code
-        return '' unless @prepend
+      # @return [Probes::Sources, nil] the code pupgrade adds, for
+      #   {Probes::ImportHooks}: the prepended code, then the code
+      #   replacing the manifest; nil when the manifest is read as it is
+      def sources
+        pieces = []
+        pieces << [@prepend_from, @prepend] if @prepend
+        pieces << ['--code', @code] if @code
+        return nil if pieces.empty?
 
-        manifest = env.manifest
-        files =
-          if manifest.nil? || manifest == Puppet::Node::Environment::NO_MANIFEST then []
-          elsif File.directory?(manifest) then Dir.glob(File.join(manifest, '**', '*.pp')).sort
-          else [manifest]
-          end
-        ([@prepend] + files.map { |f| File.read(f) }).join("\n")
+        Probes::Sources.new(pieces: pieces, then_manifest: @code.nil?)
       end
 
       # @param resolved [Enc::Node] the variables and classes the ENC

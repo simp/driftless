@@ -72,15 +72,18 @@ module Driftless
 
           o.separator ''
           o.separator 'Onceover role tree (implies --format onceover:json; not with --output-dir):'
-          o.on('--onceover-role-tree[=DIR]',
-               'Maintain DIR/<role::name>/<certname>.json, one factset per role and',
-               "collector, refreshing files already there (default DIR: #{DEFAULT_ROLE_TREE})") do |v|
+          o.on('-O', '--onceover-role-tree[=DIR]',
+               'export factsets under DIR/<role::name>/<certname>.json,',
+               'one factset per role collector (or more, using --pick= and --limit=).',
+               "refreshes factsets already presetnt (default DIR: #{DEFAULT_ROLE_TREE})") do |v|
             @options[:role_tree] = v || DEFAULT_ROLE_TREE
           end
-          o.on('--pick=HOW', ::Driftless::Export::RoleTree::PICKS,
-               'How a collector\'s nodes are chosen for a role: random (default) or first',
-               '(lowest certname), up to --limit; select, every node the selection leaves;',
-               'all, every reported node, the selection and environments aside') { |v| @options[:pick] = v }
+          o.on('--pick=METHOD', ::Driftless::Export::RoleTree::PICKS,
+               'METHOD to choose onceover-role-tree factsets: [random|first|all|select]',
+               '  - random (default) + first Select one (or --limit=) node per role',
+               '  - select Honors Node selection flags (described below)' ,
+               '  - all    Exports EVERY factset known, ignoring all settings'
+          ) { |v| @options[:pick] = v }
           o.on('--prune', 'Delete factsets whose node no longer reports with that role') { @options[:prune] = true }
           o.on('--ignore-stale-factsets', 'Warn about such factsets and proceed instead of stopping') do
             @options[:ignore_stale] = true

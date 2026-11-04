@@ -12,6 +12,23 @@ module Pupgrade
     # Where a project keeps pupgrade's files: its config, mocks, and cache.
     PROJECT_DIR = 'pupgrade'.freeze
 
+    # The merged config: the search chain, or the files `--config` names in
+    # place of it, each layered over the one before (scalars: the later
+    # wins; lists: union), so configs sharing most settings can swap a
+    # factset or cache directory.
+    #
+    # @param config_path [String, Array<String>, nil]
+    # @return [Config]
+    def self.load(config_path: nil, no_config: false)
+      paths = Array(config_path)
+      return super(config_path: paths.first, no_config: no_config) if paths.size <= 1
+
+      loaded = paths.map { |p| super(config_path: p, no_config: no_config) }
+      merged = loaded.map(&:to_h).reduce({}) { |acc, h| deep_merge(acc, h) }
+      ::Driftless.logger.info("config: layered #{paths.join(', ')}")
+      new(merged: merged, sources: loaded.flat_map(&:sources))
+    end
+
     # @return [Array<String>] absolute paths in load order
     def self.search_chain
       [SYSTEM_PATH, user_path, project_path]

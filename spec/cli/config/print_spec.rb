@@ -56,6 +56,33 @@ RSpec.describe Pupgrade::CLI::Config::Print do
     expect(YAML.safe_load(run(['modules']).last).keys).to eq(%w[requirements operatingsystems])
   end
 
+  it 'layers several --config files in order, the later winning on scalars and lists joining' do
+    File.write(File.join(@tmp, 'alt.yaml'), YAML.dump('solve' => { 'order' => 'newest' }, 'modules' => { 'operatingsystems' => { 'Debian' => ['12'] } }))
+    captured = StringIO.new
+    original = $stdout
+    $stdout  = captured
+    begin
+      described_class.new.run(['-c', File.join(@tmp, 'pupgrade.yaml'), '--config', File.join(@tmp, 'alt.yaml')])
+    rescue SystemExit
+      nil
+    ensure
+      $stdout = original
+    end
+    expect(YAML.safe_load(captured.string)).to eq(
+      'modules' => { 'requirements' => { 'puppet' => '>= 8' }, 'operatingsystems' => { 'RedHat' => ['9'], 'Debian' => ['12'] } },
+      'solve'   => { 'order' => 'newest' },
+    )
+    $stdout = captured.tap { |c| c.truncate(0) && c.rewind }
+    begin
+      described_class.new.run(['-c', "#{File.join(@tmp, 'alt.yaml')},#{File.join(@tmp, 'pupgrade.yaml')}", 'solve.order'])
+    rescue SystemExit
+      nil
+    ensure
+      $stdout = original
+    end
+    expect(captured.string).to eq("oldest\n")
+  end
+
   it 'shows declared defaults on request, and a declared key that is unset by its default' do
     _, out = run(['-d', 'solve'])
     expect(YAML.safe_load(out)).to eq('order' => 'oldest', 'include_heads' => false)

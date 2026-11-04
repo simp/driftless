@@ -362,6 +362,10 @@ It's a new gem to help upgrade the module base of large Puppet/OpenVox  control 
   `reverse`); `--[no-]color` and `output.color` still reach the driftless
   code pupgrade calls
 - `--help` prints the command's desc; subcommands sort by name
+- `-c`, `--config FILE[,…]`, repeatable: several files in place of the
+  search chain, each layered over the one before (the later wins on a
+  scalar, lists join), for configs that share most settings and swap a
+  factset or cache directory
 - commands log their stages at notice before slow work; every git trace
   line names its purpose, e.g. `(resolving v9.6.0)`
 - removed the `params` command (moved `params compare` to driftless)

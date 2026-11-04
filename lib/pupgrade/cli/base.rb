@@ -250,7 +250,9 @@ module Pupgrade
       end
 
       def add_config_flags(o)
-        o.on('-c', '--config=FILE', 'Override config with FILE') { |v| @options[:config_path] = v }
+        o.on('-c', '--config=FILE[,…]', Array, 'Read FILE in place of the search chain; several layer in order, the later winning') do |v|
+          @options[:config_path] = Array(@options[:config_path]) + v
+        end
         o.on('--no-config', 'Skip all config files') { @options[:no_config] = true }
       end
 

@@ -60,6 +60,9 @@ RSpec.describe Driftless::CLI::List::Collectors do
       expect(lines[0]).to eq('collector | session | nodes | reports                                       | summary')
       expect(lines[2]).to eq('east      | S2      | 2     | all-active-nodes,classes-for-all-active-nodes | 1 failed')
       expect(lines[3]).to eq('west      | S1      | 1     | all-active-nodes                              | (none)')
+      expect(JSON.parse(run(['--no-config', '-i', incoming, '--output', 'json'])).first).to eq(
+        'collector' => 'east', 'session' => 'S2', 'nodes' => '2', 'reports' => 'all-active-nodes,classes-for-all-active-nodes', 'summary' => '1 failed',
+      )
     end
   end
 

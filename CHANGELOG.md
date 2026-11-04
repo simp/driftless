@@ -17,6 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `GitClone#dirty?(ignore:)` leaves out the status lines matching; the
   constant `R10K_REMOVED_SPEC` names a deleted `spec/` file, what r10k
   leaves in every deployed module
+- Every `list` subcommand takes `--output json|yaml`: the rows as data, one
+  object per row keyed by column, in place of the table
 - `export factsets --onceover-role-tree --pick select|all`: `select` writes
   every node the selection flags leave, per role; `all` every reported
   node, the selection and `puppet.environments` aside; neither counts

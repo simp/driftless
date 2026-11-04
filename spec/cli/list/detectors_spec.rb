@@ -1,4 +1,5 @@
 require 'stringio'
+require 'json'
 
 require 'spec_helper'
 require 'driftless/cli/list/detectors'
@@ -41,5 +42,21 @@ RSpec.describe Driftless::CLI::List::Detectors do
   it 'colorizes when --color forces it on' do
     Driftless::Ansi.preference = true
     expect(raw_output).to include("\e[")
+  end
+
+  it 'prints the detectors as data with --output' do
+    out      = StringIO.new
+    original = $stdout
+    $stdout  = out
+    begin
+      described_class.new.run(['--no-config', '--output', 'json'])
+    rescue SystemExit
+      nil
+    ensure
+      $stdout = original
+    end
+    data = JSON.parse(out.string)
+    expect(data.map { |d| d['detector'] }).to eq(Driftless::Detectors.registry.map(&:key).sort)
+    expect(data.first.keys).to eq(%w[detector about])
   end
 end

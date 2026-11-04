@@ -40,6 +40,7 @@ module Driftless
         protected
 
         def configure_parser(o)
+          declare_output(o)
           o.on('-i', '--incoming-dir=DIR',
                'Path to the incoming PuppetDB reports directory tree',
                'Default: reports.incoming_dir from driftless.yaml') { |v| @options[:incoming_dir] = v }

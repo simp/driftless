@@ -1,5 +1,6 @@
 require 'driftless/cli/base'
 require 'driftless/cli/list'
+require 'driftless/cli/table'
 require 'driftless/detectors'
 require 'driftless/ansi'
 
@@ -11,9 +12,13 @@ module Driftless
         desc 'List all detector keys and their descriptions'
 
         include Ansi
+        include Table
+
+        COLUMNS = %w[detector about].freeze
 
         def execute(_argv)
           registry = ::Driftless::Detectors.registry.sort_by(&:key)
+          exit 0 if print_data?(COLUMNS, registry.map { |k| [k.key, k.about] })
           width = registry.map { |k| k.key.size }.max
           registry.each do |klass|
             title_column = klass.key.ljust(width)
@@ -25,6 +30,12 @@ module Driftless
             puts "#{title_column}   #{about_column}"
           end
           exit 0
+        end
+
+        protected
+
+        def configure_parser(o)
+          declare_output(o)
         end
       end
     end

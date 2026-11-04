@@ -44,6 +44,7 @@ module Driftless
         protected
 
         def configure_parser(o)
+          declare_output(o)
           o.on('-d', '--repo-dir=DIR',
                'Path to the control repo environment',
                "Default: '.' (if environment.conf and hiera.yaml exist)") { |v| @options[:repo_dir] = v }

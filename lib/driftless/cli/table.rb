@@ -1,4 +1,6 @@
 require 'io/console'
+require 'json'
+require 'yaml'
 
 require 'driftless/ansi'
 
@@ -19,11 +21,22 @@ module Driftless
       # Where a wrapped cell prefers to break, in order.
       BREAKS = ['; ', ', ', ' '].freeze
 
-      # Prints a header, a rule, and one line per row.
+      # The formats `--output` takes in place of the table.
+      OUTPUTS = %w[json yaml].freeze
+
+      # Adds `--output=FORMAT`: the rows as json or yaml, one object per
+      # row keyed by column, instead of the table.
+      def declare_output(parser)
+        parser.on('--output=FORMAT', OUTPUTS, 'The rows as json or yaml instead of the table') { |v| @options[:output] = v }
+      end
+
+      # Prints a header, a rule, and one line per row; or, under
+      # `--output`, the rows as data.
       #
       # @param columns [Array<String>] header cells
       # @param rows [Array<Array<String>>] one cell per column
       def print_table(columns, rows)
+        return if print_data?(columns, rows)
         if rows.empty?
           puts '(nothing matches)'
           return
@@ -34,6 +47,19 @@ module Driftless
         puts align(columns, widths)
         puts widths.map { |w| '-' * w }.join('-+-')
         rows.each { |r| wrap_row(r, widths).each { |line| puts align(line, widths) } }
+      end
+
+      # Under `--output`, prints the rows as json or yaml, one object per
+      # row keyed by column, color codes stripped.
+      #
+      # @return [Boolean] whether it printed
+      def print_data?(columns, rows)
+        format = defined?(@options) && @options && @options[:output]
+        return false unless format
+
+        data = rows.map { |r| columns.zip(r.map { |c| visible(c.to_s) }).to_h }
+        puts((format == 'yaml') ? YAML.dump(data) : JSON.pretty_generate(data))
+        true
       end
 
       # The text coloured when stdout takes colour, else as given.

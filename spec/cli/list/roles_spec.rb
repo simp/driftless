@@ -1,6 +1,8 @@
 require 'stringio'
 require 'tmpdir'
 require 'fileutils'
+require 'json'
+require 'yaml'
 
 require 'spec_helper'
 require 'driftless/cli/list/roles'
@@ -49,6 +51,18 @@ RSpec.describe Driftless::CLI::List::Roles do
         'role::db  | site-modules/role/manifests/db.pp',
         'role::web | site-modules/role/manifests/web.pp',
       ])
+    end
+  end
+
+  it 'prints the rows as yaml or json with --output' do
+    Dir.mktmpdir do |dir|
+      control_repo(dir)
+      expect(YAML.safe_load(run(['--no-config', '-d', dir, '--output', 'yaml']))).to eq([
+        { 'role' => 'role::db', 'file' => 'site-modules/role/manifests/db.pp' },
+        { 'role' => 'role::web', 'file' => 'site-modules/role/manifests/web.pp' },
+      ])
+      FileUtils.rm_rf(File.join(dir, 'site-modules/role'))
+      expect(JSON.parse(run(['--no-config', '-d', dir, '--output', 'json']))).to eq([])
     end
   end
 

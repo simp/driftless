@@ -44,6 +44,7 @@ module Driftless
         protected
 
         def configure_parser(o)
+          declare_output(o)
           o.on('-i', '--incoming-dir=DIR',
                'Ingest dir holding factsets-for-all-active-nodes/',
                'Default: reports.incoming_dir from driftless.yaml') { |v| @options[:incoming_dir] = v }

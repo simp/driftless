@@ -110,8 +110,10 @@ module Pupgrade
       #   defines the `PSON` Puppet 8 dropped
       # @param ignorable [Array<String, Regexp>] Puppet warnings to keep off
       #   the terminal, by regex on the message; recorded all the same
+      # @param ignorable_log [String, nil] the level an ignorable message is
+      #   logged at instead; nil for not at all
       def initialize(repo_dir:, environment: 'production', manifest: nil, code: nil, prepend: nil, vars: {}, enc: nil, hiera: nil, pson: false,
-                     server_facts: {}, mocks: Mocks.empty, on_leak: 'fail', on_mock: 'debug', settings: {}, ignorable: [])
+                     server_facts: {}, mocks: Mocks.empty, on_leak: 'fail', on_mock: 'debug', settings: {}, ignorable: [], ignorable_log: 'debug')
         on_leak = ON_LEAK_ALIASES.fetch(on_leak, on_leak)
         raise Error, "on_leak must be one of #{ON_LEAK.join(', ')}, got #{on_leak.inspect}" unless ON_LEAK.include?(on_leak)
         begin
@@ -135,6 +137,7 @@ module Pupgrade
         @on_mock      = on_mock
         @settings     = (settings || {}).to_h { |k, v| [k.to_s, v] }
         @ignorable    = Array(ignorable).map { |r| r.is_a?(Regexp) ? r : Regexp.new(r.to_s) }
+        @ignorable_log = ignorable_log
       rescue RegexpError => e
         raise Error, "ignorable message: #{e.message}"
       end
@@ -179,7 +182,7 @@ module Pupgrade
         started  = Process.clock_gettime(Process::CLOCK_MONOTONIC)
         resolved = @enc.resolve(factset)
         recorder = Recorder.new(factset: factset, mocks: @mocks, on_leak: @on_leak, repo_dir: @repo_dir, on_mock: @on_mock.level_for(factset), node: resolved,
-                                ignorable: @ignorable)
+                                ignorable: @ignorable, ignorable_log: @ignorable_log)
         catalog  = nil
         error    = nil
         Probes.current = recorder

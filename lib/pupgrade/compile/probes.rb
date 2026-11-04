@@ -22,18 +22,20 @@ module Pupgrade
       # @param mocks [Mocks] what the guard answers commands with
       # @param on_leak [String] "fail" or "allow" for unmocked commands
       # @param repo_dir [String] call sites are reported relative to it
-      # @param ignorable [Array<Regexp>] Puppet warnings logged at debug
-      #   instead of warning, recorded all the same
+      # @param ignorable [Array<Regexp>] Puppet warnings logged at
+      #   `ignorable_log` instead of their level, recorded all the same
+      # @param ignorable_log [String, nil] that level; nil for not at all
       # The levels a mocked answer can be logged at; `silent` logs nothing.
       ON_MOCK = %w[silent trace debug info notice warning].freeze
 
-      def initialize(factset:, mocks:, on_leak:, repo_dir:, on_mock: 'debug', node: nil, ignorable: [])
+      def initialize(factset:, mocks:, on_leak:, repo_dir:, on_mock: 'debug', node: nil, ignorable: [], ignorable_log: 'debug')
         @factset  = factset
         @node     = node
         @mocks    = mocks
         @on_leak  = on_leak
         @on_mock  = on_mock.to_s
         @ignorable = ignorable
+        @ignorable_log = ignorable_log
         @repo_dir = File.expand_path(repo_dir)
         @fact_mocks = {}
         @facts      = nil
@@ -283,10 +285,12 @@ module Pupgrade
         @ignorable.any? { |r| r.match?(line) }
       end
 
-      # A line at its level, or at debug marked ignorable, so a thousand
-      # nodes do not repeat it.
+      # A line at its level; an ignorable one at the ignorable level marked
+      # so, or not at all, so a thousand nodes do not repeat it.
       def logged(text, level, ignorable)
-        ignorable ? Pupgrade.logger.debug("#{text} (ignorable)") : Pupgrade.logger.public_send(level, text)
+        return Pupgrade.logger.public_send(level, text) unless ignorable
+
+        Pupgrade.logger.public_send(@ignorable_log, "#{text} (ignorable)") if @ignorable_log
       end
 
       # ---- the execution guard -------------------------------------------------

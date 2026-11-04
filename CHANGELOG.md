@@ -154,7 +154,9 @@ It's a new gem to help upgrade the module base of large Puppet/OpenVox  control 
     `compile.suppress_ignorable_puppet_compile_messages`: with the latter
     on, a Puppet warning or deprecation matching is logged at debug
     instead of its level, so a thousand nodes do not repeat it; the
-    regexes see the message as one line; the record and the counts keep it
+    regexes see the message as one line; the record and the counts keep it;
+    `-Q`, `--suppress-ignorable` turns it on from the command line, `-QQ`
+    keeps the lines off debug as well
   * a deprecation whose message spans lines is logged once, on one line;
     before, Puppet's warning of it was logged again
   * two factset files carrying one certname compile once, the first by

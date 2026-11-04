@@ -358,7 +358,7 @@ RSpec.describe Pupgrade::CLI::Catalog::Compile do
     expect(log).not_to include('warning: puppet: web01.example.com: from the manifest')
     expect(cells(text)[1].values_at(0, 3)).to eq(%w[web01.example.com 2])
     expect(read('web01.example.com', 'compile.json')['warnings'].map { |w| w['message'] }).to eq(['from the manifest', 'kept'])
-    # off by default: the list alone changes nothing
+    # off by default: the list alone changes nothing; -Q turns it on, -QQ drops the line from debug too
     File.write(cfg, "compile:\n  factsets: [factsets]\n  cache_dir: #{out}\n  ignorable_puppet_compile_messages: ['\\Afrom the']\n")
     $stdout = captured
     log = capture_log(level: :warning) do
@@ -369,6 +369,19 @@ RSpec.describe Pupgrade::CLI::Catalog::Compile do
       $stdout = original
     end
     expect(log).to include('warning: puppet: web01.example.com: from the manifest')
+    [['-Q'], ['-QQ']].each do |flags|
+      $stdout = captured
+      log = capture_log(level: :debug) do
+        described_class.new.run(code + flags)
+      rescue SystemExit
+        nil
+      ensure
+        $stdout = original
+      end
+      expect(log).not_to include('warning: puppet: web01.example.com: from the manifest')
+      expect(log.include?('debug: puppet: web01.example.com: from the manifest (ignorable)')).to be(flags == ['-Q'])
+      expect(log).to include('warning: puppet: web01.example.com: kept')
+    end
     File.write(cfg, "compile:\n  factsets: [factsets]\n  cache_dir: #{out}\n  ignorable_puppet_compile_messages: ['(']\n  suppress_ignorable_puppet_compile_messages: true\n")
     $stdout = captured
     status = nil

@@ -247,12 +247,7 @@ module Pupgrade
         end
 
         level = (msg.level == :warning) ? '' : "#{msg.level}: "
-        text  = "puppet: #{@factset.certname}: #{level}#{one_line(msg.message)}#{where}"
-        if @ignorable.any? { |r| r.match?(msg.message.to_s) }
-          Pupgrade.logger.debug("#{text} (ignorable)")
-        else
-          Pupgrade.logger.warning(text)
-        end
+        logged("puppet: #{@factset.certname}: #{level}#{one_line(msg.message)}#{where}", :warning, ignorable?(msg.message))
         @warnings << { 'level' => msg.level.to_s, 'message' => msg.message.to_s,
                        'file' => msg.file && relative(msg.file.to_s), 'line' => msg.line }.compact
       end
@@ -266,14 +261,32 @@ module Pupgrade
         text.to_s.sub(PUPPET_LOCATION, '').gsub(/\s*\n\s*/, ' ').strip
       end
 
-      # Puppet logs a deprecation as its message, a newline, and the location.
+      # Puppet logs a deprecation as its message, a newline, and the
+      # location; the message itself may hold newlines, so the first lines
+      # are compared.
       def deprecation_text?(text)
-        $deprecation_warnings.value?(text.to_s.split("\n").first) # rubocop:disable Style/GlobalVars -- Puppet's own
+        first = text.to_s.split("\n").first
+        $deprecation_warnings.values.any? { |m| m.to_s.split("\n").first == first } # rubocop:disable Style/GlobalVars -- Puppet's own
       end
 
+      # A deprecation, logged at info on one line; one the site calls
+      # ignorable at debug. Recorded whole either way.
       def deprecation(message, file, line)
-        Pupgrade.logger.info("puppet: #{@factset.certname}: deprecation: #{message}#{" (#{relative(file.to_s)}:#{line})" if file}")
+        text = "puppet: #{@factset.certname}: deprecation: #{one_line(message)}#{" (#{relative(file.to_s)}:#{line})" if file}"
+        logged(text, :info, ignorable?(message))
         @deprecations << { 'message' => message.to_s, 'file' => file && relative(file.to_s), 'line' => line }.compact
+      end
+
+      # Whether an ignorable regex matches the message, read as one line.
+      def ignorable?(message)
+        line = one_line(message)
+        @ignorable.any? { |r| r.match?(line) }
+      end
+
+      # A line at its level, or at debug marked ignorable, so a thousand
+      # nodes do not repeat it.
+      def logged(text, level, ignorable)
+        ignorable ? Pupgrade.logger.debug("#{text} (ignorable)") : Pupgrade.logger.public_send(level, text)
       end
 
       # ---- the execution guard -------------------------------------------------

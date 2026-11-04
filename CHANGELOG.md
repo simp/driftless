@@ -152,9 +152,11 @@ It's a new gem to help upgrade the module base of large Puppet/OpenVox  control 
     reported value at notice; a read of either is recorded under `mocks`
   * config `compile.ignorable_puppet_compile_messages` (regexes) and
     `compile.suppress_ignorable_puppet_compile_messages`: with the latter
-    on, a Puppet warning matching is logged at debug instead of warning,
-    so a thousand nodes do not repeat it; the record and the counts keep
-    it
+    on, a Puppet warning or deprecation matching is logged at debug
+    instead of its level, so a thousand nodes do not repeat it; the
+    regexes see the message as one line; the record and the counts keep it
+  * a deprecation whose message spans lines is logged once, on one line;
+    before, Puppet's warning of it was logged again
   * `pupgrade/compiler-mocks.yaml` is read by default when present
   * `--setting NAME=VALUE` and `compile.settings` set Puppet settings for
     the compile, such as `strict=error` and `strict_variables=true`

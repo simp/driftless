@@ -405,6 +405,36 @@ RSpec.describe Pupgrade::CLI::Catalog::Compile do
     expect(cells(text)[1].values_at(0, 4)).to eq(%w[web01.example.com 3])
   end
 
+  it 'logs a multi-line deprecation once, on one line, and keeps an ignorable one off the terminal' do
+    functions = File.join(fixture.dir, 'site-modules/depr/lib/puppet/parser/functions')
+    FileUtils.mkdir_p(functions)
+    File.write(File.join(functions, 'old_way.rb'),
+               "Puppet::Parser::Functions.newfunction(:old_way, type: :rvalue) do |_args|\n  Puppet.deprecation_warning(\"old_way is deprecated,\\n   use new_way. at [\\\"x.pp\\\", 1]\", 'old_way')\n  'x'\nend\n")
+    allow(Driftless).to receive(:logger).and_call_original
+    code = ['-vv', '--mocks', 'pupgrade/compiler-mocks.yaml', '--certname', 'web*', '--code', 'notify { old_way(): }']
+    log = capture_log(level: :debug) { run(code) }
+    expect(log.lines.grep(/old_way is deprecated/)).to eq(["info: puppet: web01.example.com: deprecation: old_way is deprecated, use new_way. at [\"x.pp\", 1]\n"])
+    expect(read('web01.example.com', 'compile.json')['deprecations']).to eq([{ 'message' => "old_way is deprecated,\n   use new_way. at [\"x.pp\", 1]" }])
+    expect(read('web01.example.com', 'compile.json')['warnings']).to eq([])
+
+    cfg = File.join(@tmp, 'ignorable-depr.yaml')
+    File.write(cfg, "compile:\n  factsets: [factsets]\n  cache_dir: #{out}\n  ignorable_puppet_compile_messages: ['deprecated, use new_way']\n  suppress_ignorable_puppet_compile_messages: true\n")
+    captured = StringIO.new
+    original = $stdout
+    $stdout  = captured
+    log = capture_log(level: :debug) do
+      described_class.new.run(['-vv', '-c', cfg, '-d', fixture.dir, '--mocks', 'pupgrade/compiler-mocks.yaml', '--certname', 'web*', '--code', 'notify { old_way(): }'])
+    rescue SystemExit
+      nil
+    ensure
+      $stdout = original
+    end
+    expect(log.lines.grep(/old_way is deprecated/)).to eq(["debug: puppet: web01.example.com: deprecation: old_way is deprecated, use new_way. at [\"x.pp\", 1] (ignorable)\n"])
+    expect(read('web01.example.com', 'compile.json')['deprecations'].size).to eq(1)
+  ensure
+    FileUtils.rm_rf(File.join(fixture.dir, 'site-modules/depr'))
+  end
+
   it 'counts a fact read with no value under missing, not leaks' do
     factset = JSON.parse(File.read(File.join(fixture.dir, 'factsets/web01.example.com.json')))
     factset['values'].delete('kernel')

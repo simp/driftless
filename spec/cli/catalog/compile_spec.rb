@@ -460,6 +460,32 @@ RSpec.describe Pupgrade::CLI::Catalog::Compile do
     expect(log).to include("warning: compile: web01.example.com: 2 factsets carry this certname; compiling #{File.join(fixture.dir, 'factsets/web01.example.com.json')}, not #{File.join(dup, 'web01-again.json')}")
   end
 
+  it 'compiles each node in the environment a fact names, production with a warning when the fact is unset' do
+    dir = File.join(@tmp, 'env-factsets')
+    FileUtils.mkdir_p(dir)
+    # the fixture's factsets dir is always given too, so these are new certnames
+    { 'stg01' => 'staging', 'plain01' => nil, 'bad01' => 'Not-Valid' }.each do |host, env|
+      data = JSON.parse(File.read(File.join(fixture.dir, 'factsets/web01.example.com.json')))
+      data['name'] = "#{host}.example.com"
+      data['trusted']['certname'] = data['name'] if data['trusted'].is_a?(Hash)
+      data['values']['agent_specified_environment'] = env if env
+      File.write(File.join(dir, "#{host}.example.com.json"), JSON.generate(data))
+    end
+    allow(Driftless).to receive(:logger).and_call_original
+    status = text = nil
+    log = capture_log(level: :warning) do
+      status, text = run(['--factsets', dir, '--mocks', 'pupgrade/compiler-mocks.yaml', '--certname', 'stg*,plain*,bad*', '--environment', '${facts.agent_specified_environment}'])
+    end
+    expect(status).to eq(1)
+    rows = cells(text).drop(1).select { |r| r.size > 1 }.to_h { |r| [r[0], r.last] }
+    expect(rows).to eq('stg01.example.com' => 'ok', 'plain01.example.com' => 'ok', 'bad01.example.com' => 'failed')
+    expect(read('stg01.example.com', 'compile.json')['environment']).to eq('staging')
+    expect(read('stg01.example.com', 'catalog.json')['environment']).to eq('staging')
+    expect(read('plain01.example.com', 'compile.json')['environment']).to eq('production')
+    expect(log).to include('warning: compile: plain01.example.com: ${facts.agent_specified_environment} is empty for this node; compiling in production')
+    expect(File.read(File.join(out, 'bad01.example.com/error.txt'))).to include('environment name "Not-Valid" (from ${facts.agent_specified_environment}) must be lowercase')
+  end
+
   it 'counts a fact read with no value under missing, not leaks' do
     factset = JSON.parse(File.read(File.join(fixture.dir, 'factsets/web01.example.com.json')))
     factset['values'].delete('kernel')

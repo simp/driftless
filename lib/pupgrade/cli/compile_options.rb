@@ -25,7 +25,7 @@ module Pupgrade
       def declare_what_to_compile(o, label=nil)
         o.separator ''
         o.separator "#{label||'Compiler options'}:"
-        o.on('--environment=NAME', 'Environment name (config: compile.environment)') { |v| @options[:environment] = v }
+        o.on('--environment=NAME', 'Environment name, or ${facts.PATH} resolved per node (config: compile.environment)') { |v| @options[:environment] = v }
         o.on('--manifest=PATH', 'Override Puppet manifest (config: compile.manifest)') { |v| @options[:manifest] = v }
         o.on('--hiera=FILE', 'Environment-layer hiera.yaml in place of the control repo\'s (config: compile.hiera)') { |v| @options[:hiera] = v }
         o.on('--code=CODE', 'Puppet code to compile in place of the manifest') { |v| @options[:code] = v }

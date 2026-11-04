@@ -192,6 +192,11 @@ It's a new gem to help upgrade the module base of large Puppet/OpenVox  control 
   * `--environment`, `--manifest PATH`, `--code CODE` (in place of the
     manifest), `--prepend CODE|@FILE` (before the manifest, or before
     `--code`), `--var NAME=VALUE`, `--server-fact NAME=VALUE`
+  * `compile.environment` may be an interpolation in the ENC's syntax,
+    `${facts.agent_specified_environment}`, resolved per node: each node
+    compiles in the environment it names, all on the one repo dir; an
+    empty value compiles in `production` with a warning, a name Puppet
+    refuses fails that node
   * Comes with an execution guard/mocking system to stub server-side functions
     (aka execution leaks) and direct calls to Facter's execution helpers
     - mocks are defined in `--mocks FILE`

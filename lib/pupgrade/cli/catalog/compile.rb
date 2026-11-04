@@ -150,7 +150,7 @@ module Pupgrade
             'schema_version' => ::Pupgrade::Compile::ProbeRecord::SCHEMA_VERSION,
             'certname'       => result.certname,
             'factset'        => result.factset.path,
-            'environment'    => @options[:environment],
+            'environment'    => result.environment,
             'status'         => result.ok? ? 'ok' : 'failed',
             'error'          => result.error,
             'seconds'        => result.seconds.round(3),

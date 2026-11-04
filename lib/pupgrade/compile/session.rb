@@ -23,7 +23,8 @@ module Pupgrade
       extend ConfigKeys::DSL
 
       config_key 'compile.environment', type: :string, default: 'production',
-                 about: 'The environment name the catalogs are compiled in; it names the repo dir for Puppet'
+                 about: 'The environment name the catalogs are compiled in, naming the repo dir for Puppet; or an ' \
+                        'interpolation in the ENC\'s syntax resolved per node, `${facts.agent_specified_environment}`'
       config_key 'compile.manifest', type: :string, default: nil, example: 'manifests/site.pp',
                  about: 'A manifest file or directory compiled in place of environment.conf\'s, relative to the control repo'
       config_key 'compile.hiera', type: :string, default: nil, example: 'pupgrade/hiera.yaml',
@@ -80,14 +81,20 @@ module Pupgrade
       #   @return [String, nil] why the compile failed
       # @!attribute [r] seconds
       #   @return [Float]
-      Result = Data.define(:certname, :factset, :catalog, :probes, :error, :seconds) do
+      # @!attribute [r] environment
+      #   @return [String, nil] the environment compiled in; nil when the
+      #     name could not be decided
+      Result = Data.define(:certname, :factset, :catalog, :probes, :error, :seconds, :environment) do
         def ok?
           error.nil?
         end
       end
 
       # @param repo_dir [String] the deployed environment directory
-      # @param environment [String] the environment name
+      # @param environment [String] the environment name, or an
+      #   interpolation in the ENC's syntax (`${facts.a.b}`, `${vars.x}`)
+      #   resolved per node; a node whose value is empty is compiled in
+      #   `production` with a warning
       # @param manifest [String, nil] a manifest file or directory in place of
       #   environment.conf's
       # @param code [String, nil] Puppet code compiled in place of the manifest
@@ -121,7 +128,9 @@ module Pupgrade
         rescue OnMock::Error => e
           raise Error, e.message
         end
-        raise Error, "environment name #{environment.inspect} must be lowercase letters, digits, and underscores" unless environment.match?(/\A[a-z0-9_]+\z/)
+        unless environment.include?('${') || environment.match?(ENVIRONMENT_NAME)
+          raise Error, "environment name #{environment.inspect} must be lowercase letters, digits, and underscores"
+        end
 
         @repo_dir     = File.expand_path(repo_dir)
         @environment  = environment
@@ -142,8 +151,14 @@ module Pupgrade
         raise Error, "ignorable message: #{e.message}"
       end
 
+      # What Puppet takes for an environment name.
+      ENVIRONMENT_NAME = /\A[a-z0-9_]+\z/.freeze
+
       # @return [Array<String>] the environment's modulepath, absolute
       attr_reader :modulepath
+
+      # @return [String] the environment directory
+      attr_reader :repo_dir
 
       # @return [String, Integer] the catalog version: the repo's HEAD sha
       #   when it is a git clone, else 0
@@ -162,15 +177,16 @@ module Pupgrade
         settings!
         conf = Puppet::Settings::EnvironmentConf.load_from(@repo_dir, [])
         @modulepath = conf.modulepath.to_s.split(File::PATH_SEPARATOR).reject(&:empty?)
-        @env     = Puppet::Node::Environment.create(@environment.to_sym, @modulepath, @manifest || conf.manifest, nil)
-        @loader  = Puppet::Environments::StaticDirectory.new(@environment.to_sym, @repo_dir, @env)
+        @manifest ||= conf.manifest
+        @envs    = {}
+        @loader  = Environments.new(self)
         @index   = ModuleIndex.new(@modulepath)
         @version = catalog_version
         Probes.install!
         Probes.attach_log
         EnvHiera.install!
         EnvHiera.path = @hiera
-        Pupgrade.logger.info("compile: environment #{@environment} at #{@repo_dir}; manifest #{@manifest || conf.manifest}; " \
+        Pupgrade.logger.info("compile: environment #{@environment} at #{@repo_dir}; manifest #{@manifest}; " \
                              "hiera #{@hiera || File.join(@repo_dir, 'hiera.yaml')}; #{'PSON loaded; ' if @pson}" \
                              "modulepath #{@modulepath.join(':')}; #{@mocks.commands.size} command and #{@mocks.facts.size} fact mock(s); on leak: #{@on_leak}")
         self
@@ -185,11 +201,13 @@ module Pupgrade
                                 ignorable: @ignorable, ignorable_log: @ignorable_log)
         catalog  = nil
         error    = nil
+        env      = nil
         Probes.current = recorder
         begin
-          Puppet.override(environments: @loader, current_environment: @env) do
-            Puppet[:code] = code_for(@env)
-            catalog = Puppet::Parser::Compiler.compile(node_for(factset, resolved, recorder.facts))
+          env = environment_for(resolved)
+          Puppet.override(environments: @loader, current_environment: env) do
+            Puppet[:code] = code_for(env)
+            catalog = Puppet::Parser::Compiler.compile(node_for(factset, resolved, recorder.facts, env))
           end
         rescue Leak, Puppet::Error, StandardError => e
           error = e.message
@@ -198,10 +216,39 @@ module Pupgrade
         end
         probes = recorder.to_h
         probes['type_aliases'].each { |name, entry| entry['module'] = @index.type_alias(name) }
-        probes.merge!(catalog_summary(catalog, recorder)) if catalog
-        Result.new(certname: factset.certname, factset: factset, error: error,
+        probes.merge!(catalog_summary(catalog, recorder, env)) if catalog
+        Result.new(certname: factset.certname, factset: factset, error: error, environment: env&.name&.to_s,
                    catalog: catalog && CatalogDocument.build(catalog, version: @version, repo_dir: @repo_dir), probes: probes,
                    seconds: Process.clock_gettime(Process::CLOCK_MONOTONIC) - started)
+      end
+
+      # The node's environment: the name configured, or the interpolation
+      # resolved for the node; one Puppet environment per distinct name,
+      # all on the one directory.
+      #
+      # @param resolved [Enc::Node]
+      # @return [Puppet::Node::Environment]
+      # @raise [Error] when the resolved name is not one Puppet takes
+      def environment_for(resolved)
+        name = @environment.include?('${') ? Enc.interpolate(@environment, resolved, 'compile.environment').to_s : @environment
+        if name.empty?
+          Pupgrade.logger.warning("compile: #{resolved.certname}: #{@environment} is empty for this node; compiling in production")
+          name = 'production'
+        end
+        raise Error, "#{resolved.certname}: environment name #{name.inspect} (from #{@environment}) must be lowercase letters, digits, and underscores" unless name.match?(ENVIRONMENT_NAME)
+
+        environment(name)
+      end
+
+      # @return [Puppet::Node::Environment] the one of that name, made on
+      #   first use
+      def environment(name)
+        @envs[name.to_s] ||= Puppet::Node::Environment.create(name.to_sym, @modulepath, @manifest, nil)
+      end
+
+      # @return [Array<Puppet::Node::Environment>] those made so far
+      def environments
+        @envs.values
       end
 
       # The top scope of a compile of the node, for a lookup. The manifest
@@ -216,9 +263,10 @@ module Pupgrade
         resolved = @enc.resolve(factset)
         recorder = Recorder.new(factset: factset, mocks: @mocks, on_leak: @on_leak, repo_dir: @repo_dir, on_mock: @on_mock.level_for(factset), node: resolved)
         Probes.current = recorder
-        Puppet.override(environments: @loader, current_environment: @env) do
-          Puppet[:code] = compile ? code_for(@env) : 'undef'
-          compiler = Puppet::Parser::Compiler.new(node_for(factset, resolved, recorder.facts))
+        env = environment_for(resolved)
+        Puppet.override(environments: @loader, current_environment: env) do
+          Puppet[:code] = compile ? code_for(env) : 'undef'
+          compiler = Puppet::Parser::Compiler.new(node_for(factset, resolved, recorder.facts, env))
           compiler.compile do |catalog|
             yield compiler.topscope, resolved
             catalog
@@ -302,8 +350,9 @@ module Pupgrade
       # @param resolved [Enc::Node] the variables and classes the ENC
       #   stand-in decided for the node
       # @param facts [Hash] the node's facts, mocks merged ({Recorder#facts})
-      def node_for(factset, resolved, facts)
-        node = Puppet::Node.new(factset.certname, environment: @env)
+      # @param env [Puppet::Node::Environment]
+      def node_for(factset, resolved, facts, env)
+        node = Puppet::Node.new(factset.certname, environment: env)
         node.fact_merge(Puppet::Node::Facts.new(factset.certname, deep_dup(facts)))
         node.trusted_data = trusted_for(factset)
         node.add_server_facts(@server_facts.merge('serverversion' => Puppet.version))
@@ -323,11 +372,11 @@ module Pupgrade
       # sites that added it. Providers are not loaded by a compile (the
       # agent chooses them), so the catalog's `provider` parameters are
       # what can be known here.
-      def catalog_summary(catalog, recorder)
+      def catalog_summary(catalog, recorder, env)
         types     = Hash.new { |h, k| h[k] = { 'module' => nil, 'resources' => 0 } }
         defines   = Hash.new { |h, k| h[k] = { 'module' => nil, 'resources' => 0 } }
         providers = Hash.new { |h, k| h[k] = { 'module' => nil, 'resources' => 0 } }
-        krt = @env.known_resource_types
+        krt = env.known_resource_types
         catalog.resources.each do |r|
           next if %w[Class Stage Node].include?(r.type.to_s)
 
@@ -359,6 +408,27 @@ module Pupgrade
         when Hash  then obj.to_h { |k, v| [k, deep_dup(v)] }
         when Array then obj.map { |v| deep_dup(v) }
         else obj
+        end
+      end
+
+      # Puppet's view of the environments: every name a node resolves to,
+      # each on the session's one directory, made as asked for.
+      class Environments < Puppet::Environments::Static
+        def initialize(session)
+          super()
+          @session = session
+        end
+
+        def list
+          @session.environments
+        end
+
+        def get(name)
+          @session.environment(name.to_s)
+        end
+
+        def get_conf(_name)
+          Puppet::Settings::EnvironmentConf.load_from(@session.repo_dir, [])
         end
       end
 

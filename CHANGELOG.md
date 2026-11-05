@@ -64,7 +64,8 @@ It's a new gem to help upgrade the module base of large Puppet/OpenVox  control 
   - `--repo URL[,REMOTE]|REMOTE` lists another remote's releases instead,
     under the remote rules of `module update --repo`: its tags and branches
     are fetched into `refs/pupgrade/REMOTE/`, never among the clone's own
-    tags; `:REF` resolves there; the metadata there must name this module
+    tags; `:REF`, `--branch`, and the branchfile's branch resolve there; the
+    metadata there must name this module
   - a column per constraint, saying whether each release meets it and which
     way it misses: `--with DEP[=VERSION]` (the dependency range against the
     version, deployed by default), `--puppet VERSION`, `--os NAME[=RELEASE]`

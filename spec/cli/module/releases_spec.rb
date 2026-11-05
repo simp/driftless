@@ -96,7 +96,15 @@ RSpec.describe Pupgrade::CLI::ModuleCommand::Releases do
     # URL,REMOTE adds the name; REMOTE alone reuses it; --fetch and --branch alongside
     expect(run(['stdlib', '--repo', "#{alt},acme", '--fetch']).first).to eq(0)
     expect(cells(run(['stdlib', '--repo', 'acme', '--include-heads', '--branch', 'main']).last)[1].values_at(0, 1)).to eq(%w[9.7.0 main])
-    # another module's repo
+    # a branch only the remote has: --branch and the branchfile read the remote's heads under --repo
+    git(alt, 'branch', 'fix', 'v9.4.0')
+    expect(cells(run(['stdlib', '--repo', 'acme', '--branch', 'nope,fix', '--include-heads']).last).drop(1).map { |r| r[1] }).to eq(%w[fix v9.4.0 v9.0.0 v8.6.0])
+    expect(run(['stdlib', '--branch', 'fix']).first).to eq(3)
+    expect(run(['stdlib', '--repo', 'acme', '--branch', 'nope']).first).to eq(3)
+    branchfile = File.join(File.dirname(fixture.dir), 'fork.yaml')
+    File.write(branchfile, "puppetlabs-stdlib: fix\n")
+    expect(cells(run(['stdlib', '--repo', 'acme', '--branchfile', branchfile]).last).drop(1).map(&:first)).to eq(%w[9.4.0 9.0.0 8.6.0])
+    # another module's repo: refused, and the remote added for the run removed again with its refs
     other = File.join(@tmp, 'other')
     FileUtils.mkdir_p(other)
     File.write(File.join(other, 'metadata.json'), '{"name":"acme-other","version":"3.0.0"}')

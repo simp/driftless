@@ -92,24 +92,33 @@ module Pupgrade
         end
 
         # The first of the branches the clone knows, either origin/<branch>
-        # or the name given.
+        # or the name given; under a `--repo` remote, the first the remote
+        # has, among the heads fetched into its namespace.
         #
+        # @param remote [CloneRemote::Remote, nil]
+        # @param space [String, nil] the remote's namespace (`CloneRemote#fetch_refs`)
         # @return [String]
-        def pick_branch(command, clone, branches)
-          found = branches.find { |b| clone.resolve("origin/#{b}") || clone.resolve(b) }
-          fatal!("#{command}: none of #{branches.join(', ')} is a branch the clone knows (try --fetch)", 3) unless found
-          found
+        def pick_branch(command, clone, branches, remote: nil, space: nil)
+          found = if space
+                    branches.find { |b| clone.resolve("#{space}/heads/#{b}") }
+                  else
+                    branches.find { |b| clone.resolve("origin/#{b}") || clone.resolve(b) }
+                  end
+          return found if found
+
+          fatal!("#{command}: none of #{branches.join(', ')} is a branch #{remote.name} (#{remote.url}) has", 3) if remote
+          fatal!("#{command}: none of #{branches.join(', ')} is a branch the clone knows (try --fetch)", 3)
         end
 
-        # The first --branch the clone knows, recorded in the branchfile
-        # when there is one.
+        # The first --branch the clone (or the `--repo` remote) knows,
+        # recorded in the branchfile when there is one.
         #
         # @return [String]
-        def given_branch(command, repo, entry)
+        def given_branch(command, repo, entry, remote: nil, space: nil)
           clone = ::Driftless::GitClone.new(File.join(repo.dir, entry.path))
           fatal!("#{command}: #{entry.path} is not a git clone, so follows no branch", 3) unless clone.own?
 
-          branch = pick_branch(command, clone, @options[:branch])
+          branch = pick_branch(command, clone, @options[:branch], remote: remote, space: space)
           record_branch(command, repo, entry, branch) if @options[:branchfile]
           branch
         end

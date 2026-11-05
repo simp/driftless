@@ -47,8 +47,8 @@ module Pupgrade
           entry     = inventory.find(selector)
           fatal!("module releases: no module #{selector.inspect} on the modulepath or in the Puppetfile", 3) unless entry
 
-          branch = @options[:branch] && given_branch('module releases', repo, entry)
           remote, space = remote_refs(entry, repo) if @options[:repo]
+          branch = @options[:branch] && given_branch('module releases', repo, entry, remote: remote, space: space)
           candidates = ::Pupgrade::Solve::Candidates.new(repo.dir, branchfile: @options[:branchfile], include_heads: @options[:include_heads],
                                                          fetch: @options[:fetch], remote: space)
           list = candidates.releases(entry, branch: branch)

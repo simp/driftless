@@ -54,7 +54,7 @@ module Pupgrade
           list = candidates.releases(entry, branch: branch)
           candidates.warnings.each { |w| ::Pupgrade.logger.warn(w) }
           fatal!("module releases: #{entry.path}: #{list.reason}", 3) if list.is_a?(::Pupgrade::Solve::Candidates::Unsolvable)
-          this_module!(entry, remote, list) if remote
+          this_module!(repo, entry, remote, list) if remote
           list = from(repo, entry, remote ? remote_ref!('module releases', entry, ::Driftless::GitClone.new(File.join(repo.dir, entry.path)), ref) : ref, list) if ref
 
           constraints = constraints(inventory)
@@ -117,14 +117,16 @@ module Pupgrade
         end
 
         # Stops unless the remote's releases are this module's, by the
-        # metadata at its newest one (the author may differ).
-        def this_module!(entry, remote, list)
+        # metadata at its newest one (the author may differ); a remote this
+        # run added is removed again first.
+        def this_module!(repo, entry, remote, list)
           there = list.last&.metadata&.name.to_s
           return if there.empty?
 
           mine = ::Pupgrade::ModuleName.short(entry.metadata.name || entry.declared&.name || File.basename(entry.path))
           return if ::Pupgrade::ModuleName.short(there) == mine
 
+          ::Pupgrade::CloneRemote.new(File.join(repo.dir, entry.path)).discard(remote)
           fatal!("module releases: #{remote.name} (#{remote.url}) is #{there}, not a #{mine} module", 3)
         end
 

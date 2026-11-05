@@ -33,7 +33,8 @@ module Pupgrade
 
         # The ref fetched from the `--repo` remote: the remote resolved and
         # fetched, and the metadata there checked to be this module (its
-        # name's module part; the author may differ).
+        # name's module part; the author may differ). A remote this run
+        # added is removed again when the check fails.
         #
         # @return [String] the sha
         def remote_ref!(command, entry, clone, ref)
@@ -41,13 +42,22 @@ module Pupgrade
           remote  = remotes.resolve(@options[:repo])
           sha     = remotes.fetch(remote, ref)
           text, status = Open3.capture2('git', '-C', clone.dir, 'show', "#{sha}:#{::Driftless::Inputs::ModuleMetadata::FILENAME}", err: File::NULL)
-          fatal!("#{command}: #{remote.name} (#{remote.url}) at #{ref} has no metadata.json; not a Puppet module", 3) unless status.success?
+          unless status.success?
+            remotes.discard(remote)
+            fatal!("#{command}: #{remote.name} (#{remote.url}) at #{ref} has no metadata.json; not a Puppet module", 3)
+          end
 
           metadata = ::Driftless::Inputs::ModuleMetadata.parse(text, path: "#{remote.name}@#{ref}:metadata.json")
-          fatal!("#{command}: #{metadata.error}", 3) if metadata.error
+          if metadata.error
+            remotes.discard(remote)
+            fatal!("#{command}: #{metadata.error}", 3)
+          end
           mine = ::Pupgrade::ModuleName.short(entry.metadata.name || entry.declared&.name || File.basename(entry.path))
           there = ::Pupgrade::ModuleName.short(metadata.name.to_s)
-          fatal!("#{command}: #{remote.name} at #{ref} is #{metadata.name}, not a #{mine} module", 3) unless there == mine
+          unless there == mine
+            remotes.discard(remote)
+            fatal!("#{command}: #{remote.name} at #{ref} is #{metadata.name}, not a #{mine} module", 3)
+          end
           ::Pupgrade.logger.info("#{command}: #{ref} on #{remote.name} is #{metadata.name} #{metadata.version} (#{sha[0, 12]})")
           sha
         rescue ::Pupgrade::CloneRemote::Error => e

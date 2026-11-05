@@ -175,7 +175,7 @@ RSpec.describe Pupgrade::CLI::ModuleCommand::Update do
     end
   end
 
-  it 'refuses a --repo whose ref is missing, is another module, or names an r10k remote' do
+  it 'refuses a --repo whose ref is missing, is another module, or names an r10k remote, leaving no remote behind' do
     Dir.mktmpdir do |dir|
       control_repo(dir)
       alt   = alt_upstream(dir, 'alt/stdlib', 'acme-stdlib')
@@ -189,6 +189,8 @@ RSpec.describe Pupgrade::CLI::ModuleCommand::Update do
       expect(head(dir).tag_at_head).to eq('v1')
       expect(remotes(dir).keys).to include('origin')
       expect(remotes(dir)).not_to have_key('cache')
+      # the remotes added for the failed runs are removed again
+      expect(remotes(dir).keys.grep(/\Apupgrade-/)).to be_empty
     end
   end
 

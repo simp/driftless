@@ -106,6 +106,11 @@ RSpec.describe Pupgrade::CLI::ModuleCommand::Releases do
     git(other, 'tag', 'v3.0.0')
     expect(run(['stdlib', '--repo', other]).first).to eq(3)
     expect(`git -C #{clone} tag`.split).not_to include('v3.0.0')
+    expect(`git -C #{clone} remote -v`).not_to include(other)
+    expect(`git -C #{clone} for-each-ref refs/pupgrade`).not_to include('v3.0.0')
+    # a URL that cannot be fetched likewise; the remotes the clone had stay
+    expect(run(['stdlib', '--repo', File.join(File.dirname(fixture.dir), 'nothere')]).first).to eq(3)
+    expect(`git -C #{clone} remote -v`).to include("acme\t#{alt}").and(include("\t#{alt} ").and(satisfy { |v| !v.include?('nothere') }))
   end
 
   it 'follows --branch or the branchfile, with the tip as a last row on request' do

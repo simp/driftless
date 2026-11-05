@@ -113,7 +113,10 @@ It's a new gem to help upgrade the module base of large Puppet/OpenVox  control 
     clone: one it has by name, one at URL (added as `pupgrade-<hash>` when
     none has it), or REMOTE added at URL, or pointed there with a notice;
     `cache` and `origin` are r10k's and are never changed. The metadata at
-    `REF` must name this module (its author may differ)
+    `REF` must name this module (its author may differ). A remote added
+    for the run is removed again, with its refs, when its fetch fails or
+    its metadata is another module's, so a mistyped URL leaves nothing
+    behind; `module gitlog --repo` and `module releases --repo` do the same
 - **`pupgrade module diff FROM TO`**
 
   Show what changed between two versions of a module:

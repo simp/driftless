@@ -32,12 +32,12 @@ module Pupgrade
       desc 'Pick a version for every module along its tags, and write the proposed Puppetfile'
 
       config_key 'solve.order', type: :string, default: 'newest',
-                 about: 'newest: move every module as far as its constraints allow; nearest: the fitting ' \
-                        'version nearest the current one, driven by --bump'
+                 about: 'newest: move every module as far as constraints allow; ' \
+                 'nearest: move modules to nearest fit (override with --bump)'
       config_key 'solve.include_heads', type: :boolean, default: false,
-                 about: 'Whether the tip of a tag-pinned module\'s tracking branch (modules.branchfile) is a candidate'
-      config_key 'solve.compile_cache', type: :string, default: nil, example: 'pupgrade/cache/catalogs-alt',
-                 about: 'A `compile` cache to read instead of compile.cache_dir: evidence of what the site uses, for --prune-unused'
+                 about: 'Include untagged branch tips as candidates (modules.branchfile)'
+      config_key 'solve.compile_cache', type: :string, default: nil, example: '# pupgrade/cache/catalogs-all',
+                  about: 'evidence of what the site uses, for --prune-unused (if unset: compile.cache_dir)'
 
       COLUMNS = %w[module current chosen candidates note].freeze
 

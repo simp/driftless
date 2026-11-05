@@ -66,8 +66,8 @@ module Pupgrade
       positional '<puppetfile>'
       desc 'What a proposed Puppetfile would change for the site: surface changes mapped to their uses'
 
-      config_key 'impact.compile_cache', type: :string, default: nil, example: 'pupgrade/cache/catalogs-alt',
-                 about: 'A `compile` cache to read instead of compile.cache_dir: evidence of what each node uses'
+      config_key 'impact.compile_cache', type: :string, default: nil, example: '# pupgrade/cache/catalogs-all',
+                 about: 'evidence of what each node uses (if unset: compile.cache_dir)'
 
       COLUMNS         = %w[module impact subject where detail].freeze
       SUMMARY_COLUMNS = %w[module from to commits findings used].freeze

@@ -47,8 +47,10 @@ It's a new gem to help upgrade the module base of large Puppet/OpenVox  control 
   * Given a tracking `--branch` or `--branchfile`, shows what is further along
     the tracking branch, beyond the current checkout/`REF`; `--from-start`
     logs `REF` from its first commit instead
-  * A rev expression (`HEAD~3`, `main@{2.weeks.ago}`) goes to git as written;
-    a plain name is tried as `origin/<name>` first
+  * A rev expression (`HEAD~3`, `main@{2.weeks.ago}`) goes to git as written,
+    and so does `HEAD`, the clone's checkout; any other plain name is tried
+    as `origin/<name>` first (`module info`, `releases`, and `update` read
+    `MODULE:REF` the same way)
   * `--branch` takes a comma-separated list; the first branch the clone has
     wins, and is recorded in the branchfile (flag or `modules.branchfile`)
   * `-t`, `--tags-only` shows tags only (and the branch tip with

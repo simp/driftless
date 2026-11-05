@@ -63,6 +63,8 @@ RSpec.describe Pupgrade::CLI::ModuleCommand::Info do
     expect(info['read at']).to match(/\Av9\.6\.0 \([0-9a-f]{12}\)\z/)
     expect(info['clone']).to start_with('tag v8.6.0')
     expect(run(['stdlib']).last).not_to have_key('read at')
+    # :HEAD is the clone's checkout, not origin/HEAD
+    expect(run(['stdlib:HEAD']).last).to include('version' => '8.6.0')
     expect(run(['stdlib:v99.0.0']).first).to eq(3)
     expect(run(['facts:v1.0.0']).first).to eq(3)
   end

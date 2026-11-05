@@ -206,12 +206,14 @@ module Pupgrade
 
         # The ref as git should see it: a rev expression (`HEAD~2`,
         # `main@{2.weeks.ago}`) as given, since prefixing it would change its
-        # meaning; a plain name as `origin/<name>` when the clone has that,
-        # since a deployed clone's own branches are stale, else as given.
+        # meaning, and `HEAD` as given, since it means the clone's checkout,
+        # not `origin/HEAD`; any other plain name as `origin/<name>` when the
+        # clone has that, since a deployed clone's own branches are stale,
+        # else as given.
         #
         # @return [String, nil] nil when the clone resolves neither
         def ref_candidate(clone, ref)
-          names = ref.match?(REV_EXPRESSION) ? [ref] : ["origin/#{ref}", ref]
+          names = (ref == 'HEAD' || ref.match?(REV_EXPRESSION)) ? [ref] : ["origin/#{ref}", ref]
           names.find { |r| clone.resolve(r) }
         end
       end

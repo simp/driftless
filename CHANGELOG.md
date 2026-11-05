@@ -174,7 +174,9 @@ It's a new gem to help upgrade the module base of large Puppet/OpenVox  control 
     reported value at notice with both values (`overriding the factset's
     "RedHat" with "Debian"`), one equal to it at the `--on-mock` level
     (`identical to the factset's "RedHat"`); a read of either is
-    recorded under `mocks`
+    recorded under `mocks`; a `fact('os.family') { |node| … }` block in
+    the Ruby file answers a fact per node from the factset as read,
+    before the YAML mocks, nil declining
   * config `compile.ignorable_puppet_compile_messages` (regexes) and
     `compile.suppress_ignorable_puppet_compile_messages`: with the latter
     `debug`, a Puppet warning or deprecation matching is logged at debug

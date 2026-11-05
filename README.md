@@ -251,11 +251,15 @@ variable(:tenant) { |node| node['site'] == 'b' ? 'blue' : 'green' }
 classes  { |node| ['profile::el'] if node.fact('os.family') == 'RedHat' }
 mock(/\Arpm -q (\S+)\z/) { |node, m| "#{m[1]}-1.0-1.el9\n" }   # a mock answer, too
 function('puppetdb_query') { |node, query| [] if node.certname.start_with?('db') }
+fact('os.selinux.enabled') { |node| false if node.fact('os.family') == 'Debian' }
 ```
 
 A `variable` block returning nil leaves what the rules set; a `mock` or
 `function` block returning nil declines, and the YAML mocks are tried, then
-the function itself. `--var NAME=VALUE`
+the function itself. A `fact` block answers a fact per node from the
+factset as read (no mock applied yet), and its answer is merged over the
+node's facts as a `facts:` mock is, before the YAML mocks; nil declines,
+and a YAML mock at a path a block answered is passed over. `--var NAME=VALUE`
 sets a variable on every node from the command line. What each node was
 given is in its `compile.json` under `enc`, and `pupgrade lookup --list`
 shows it for every node at once.

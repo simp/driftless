@@ -63,8 +63,9 @@ module Pupgrade
       # ---- facts -----------------------------------------------------------
 
       # The node's facts as the compile sees them: the factset's, with the
-      # `facts:` mocks merged over them, each `${...}` resolved for the
-      # node. A mock the factset lacks fills it in, logged at the
+      # Ruby `fact` blocks' answers and then the `facts:` mocks merged over
+      # them, each `${...}` resolved for the node; a YAML mock at a path a
+      # block answered is passed over. A mock the factset lacks fills it in, logged at the
       # `--on-mock` level; one the factset has overrides it, logged at
       # notice with both values, or at the `--on-mock` level when the two
       # are the same. Either is recorded under `mocks` when the compile
@@ -74,6 +75,7 @@ module Pupgrade
       def facts
         @facts ||= begin
           facts = deep_dup(@factset.values)
+          merge_fact_blocks(facts)
           merge_mocks(facts, @mocks.facts, nil)
           facts
         end
@@ -425,14 +427,34 @@ module Pupgrade
         end
       end
 
+      # The Ruby `fact` blocks asked with the factset's facts as read, each
+      # answer merged at its path as a `facts:` mock is.
+      def merge_fact_blocks(base)
+        return if @mocks.fact_blocks.empty?
+
+        node = @node || Enc::Node.new(certname: @factset.certname, facts: @factset.values,
+                                      trusted: @factset.trusted.is_a?(Hash) ? @factset.trusted : {}, vars: {}, classes: [])
+        @mocks.fact_blocks.each do |path, block|
+          value = block.call(node)
+          next if value.nil?
+
+          merge_mocks(base, path.split('.').reverse.reduce(value) { |acc, k| { k => acc } }, nil, interpolate: false)
+        end
+      end
+
       # The `facts:` mocks merged over the factset's facts, leaf by leaf, the
       # paths applied kept in @fact_mocks with the action to record.
-      def merge_mocks(base, mocks, prefix)
+      def merge_mocks(base, mocks, prefix, interpolate: true)
         mocks.each do |key, value|
           path  = [prefix, key.to_s].compact.join('.')
-          value = Enc.interpolate(value, @node, 'mock') if @node && value.is_a?(String)
+          if @fact_mocks.key?(path)
+            Pupgrade.logger.debug("guard: #{@factset.certname}: fact #{path}: answered by a fact block; the facts: mock is passed over")
+            next
+          end
+
+          value = Enc.interpolate(value, @node, 'mock') if interpolate && @node && value.is_a?(String)
           if value.is_a?(Hash) && base[key.to_s].is_a?(Hash)
-            merge_mocks(base[key.to_s], value, path)
+            merge_mocks(base[key.to_s], value, path, interpolate: interpolate)
             next
           end
           if base.key?(key.to_s) && base[key.to_s] == value

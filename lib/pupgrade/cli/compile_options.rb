@@ -111,6 +111,7 @@ module Pupgrade
         enc = build_enc(repo)
         mocks.blocks = enc.ruby.mocks
         mocks.function_blocks = enc.ruby.functions
+        mocks.fact_blocks = enc.ruby.facts
         prepend = @options[:prepend]
         prepend = "@#{@options[:prepend_file]}" if prepend.nil? && @options[:prepend_file]
         prepend_from = nil

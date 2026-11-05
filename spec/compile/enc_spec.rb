@@ -65,6 +65,7 @@ RSpec.describe Pupgrade::Compile::Enc do
       variable(:untouched) { |_node| nil }
       classes { |node| ['profile::el'] if node.fact('os.family') == 'RedHat' }
       mock(/\\Arpm -q (\\S+)\\z/) { |node, m| node.fact('os.family') == 'RedHat' ? "\#{m[1]}-1.0\\n" : nil }
+      fact('os.selinux.enabled') { |node| false if node.fact('os.family') == 'RedHat' }
     RUBY
     enc  = described_class.load(yaml, ruby)
     node = enc.resolve(factset('pup1.g.example.tld', 'os' => { 'family' => 'RedHat' }))
@@ -76,6 +77,9 @@ RSpec.describe Pupgrade::Compile::Enc do
     other = enc.resolve(factset('web01.example.com', 'os' => { 'family' => 'Debian' }))
     expect(other.vars).to eq('site' => '')
     expect(block.call(other, pattern.match('rpm -q bash'))).to be_nil
+    path, fact = enc.ruby.facts.first
+    expect([path, fact.call(node), fact.call(other)]).to eq(['os.selinux.enabled', false, nil])
+    expect { described_class::Rules.new.fact('x') }.to raise_error(described_class::Error, /needs a block/)
   end
 
   it 'refuses files that do not read as rules' do

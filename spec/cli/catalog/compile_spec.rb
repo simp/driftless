@@ -483,6 +483,17 @@ RSpec.describe Pupgrade::CLI::Catalog::Compile do
     expect(record['facts']).to include('operatingsystem' => 1, 'kernel' => 1, 'os.extra' => 1, 'os.family' => 1)
     expect(record['legacy_facts']).to include('operatingsystem' => 1)
     expect(cells(text)[1].values_at(0, 4)).to eq(%w[web01.example.com 4])
+    # a Ruby fact block answers first, from the facts as read; nil declines; the YAML mock at its path is passed over
+    rb = File.join(@tmp, 'fact-blocks.rb')
+    File.write(rb, "fact('kernel') { |node| 'FromRuby' if node.fact('kernel') == 'Linux' }\nfact('os.extra') { |_node| nil }\nfact('os.added') { |node| node.certname }\n")
+    log = capture_log(level: :debug) do
+      status, = run(['-vv', '--mocks', mocks, '--ruby', rb, '--certname', 'web*', '--code', 'notify { "${facts[\'kernel\']} ${facts[\'os\'][\'extra\']} ${facts[\'os\'][\'added\']}": }'])
+    end
+    expect(status).to eq(0)
+    expect(read('web01.example.com', 'catalog.json')['resources'].map { |r| r['title'] }).to include('FromRuby yes web01.example.com')
+    expect(log).to include('notice: guard: web01.example.com: fact kernel: mocked, overriding the factset\'s "Linux" with "FromRuby"',
+                           'debug: guard: web01.example.com: fact kernel: answered by a fact block; the facts: mock is passed over',
+                           'debug: guard: web01.example.com: fact os.added: mocked', '3 fact block(s)')
     # -Q quiets the mocked answers too, an override still noticed; --on-mock asks for them back
     log = capture_log(level: :debug) { run(['-vv', '--mocks', mocks, '--certname', 'web*', '-Q', '--code', 'notify { "x": }']) }
     expect(log).to include('notice: guard: web01.example.com: fact kernel: mocked, overriding')

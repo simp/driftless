@@ -119,6 +119,10 @@ module Pupgrade
       #   blocks, asked before the `functions` entries
       attr_accessor :function_blocks
 
+      # @return [Array<Array(String, Proc)>] the Ruby file's `fact` blocks,
+      #   merged over a node's facts before the `facts:` entries
+      attr_accessor :fact_blocks
+
       # @param data [Hash] the parsed mock file
       def initialize(data, path:, defaults: true)
         @path     = path
@@ -127,6 +131,7 @@ module Pupgrade
         @functions = Array(data['functions']).map { |f| function(f) }
         @blocks    = []
         @function_blocks = []
+        @fact_blocks = []
         return unless defaults
 
         shipped = YAML.safe_load(File.read(DEFAULTS_FILE)) || {}

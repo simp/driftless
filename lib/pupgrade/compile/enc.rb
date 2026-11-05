@@ -34,9 +34,12 @@ module Pupgrade
     #     variable(:tenant) { |node| node.certname =~ /\.b\./ ? 'blue' : 'green' }
     #     classes { |node| ['profile::el'] if node.fact('os.family') == 'RedHat' }
     #     mock(/\Arpm -q (\S+)\z/) { |node, m| "#{m[1]}-1.0-1.el9\n" }
+    #     fact('os.selinux.enabled') { |node| false if node.fact('os.family') == 'Debian' }
     #
     # A `variable` block returning nil leaves what the rules set; a `mock`
-    # block returning nil declines, and the YAML mocks are tried.
+    # block returning nil declines, and the YAML mocks are tried; a `fact`
+    # block sees the factset's facts as read and answers before the YAML
+    # `facts:` mocks, nil declining.
     class Enc
       class Error < StandardError; end
 
@@ -68,13 +71,14 @@ module Pupgrade
 
       # The Ruby file's definitions.
       class Rules
-        attr_reader :variables, :class_blocks, :mocks, :functions
+        attr_reader :variables, :class_blocks, :mocks, :functions, :facts
 
         def initialize
           @variables    = []
           @class_blocks = []
           @mocks        = []
           @functions    = []
+          @facts        = []
         end
 
         # @param name [String, Symbol]
@@ -116,6 +120,17 @@ module Pupgrade
           @functions << [name.to_s.delete_prefix('::'), block]
         end
 
+        # @param path [String, Symbol] the fact, dotted for a path into a
+        #   structured one ("os.family")
+        # @yieldparam node [Node] the factset's facts as read, no mock applied
+        # @yieldreturn [Object, nil] the fact's value for this node, merged
+        #   over the factset's as a `facts:` mock is; nil to decline
+        def fact(path, &block)
+          raise Error, "fact #{path.inspect} needs a block" unless block
+
+          @facts << [path.to_s, block]
+        end
+
         # @param path [String]
         # @return [Rules]
         def self.load(path)
@@ -142,7 +157,7 @@ module Pupgrade
         rules = yaml_path ? read_rules(yaml_path) : []
         ruby  = ruby_path ? Rules.load(ruby_path) : Rules.new
         Pupgrade.logger.info("enc: #{rules.size} rule(s) from #{yaml_path || 'nowhere'}; #{ruby.variables.size} variable, " \
-                             "#{ruby.class_blocks.size} classes, #{ruby.mocks.size} mock block(s) from #{ruby_path || 'nowhere'}")
+                             "#{ruby.class_blocks.size} classes, #{ruby.mocks.size} mock, #{ruby.facts.size} fact block(s) from #{ruby_path || 'nowhere'}")
         new(rules: rules, ruby: ruby, vars: vars)
       end
 

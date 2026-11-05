@@ -169,7 +169,10 @@ It's a new gem to help upgrade the module base of large Puppet/OpenVox  control 
     Puppet code reading `$facts['x']` or `$x` sees them as `Facter.value`
     does; `${facts.os.name}` and the like resolve per node; a mock the
     factset lacks is logged at the `--on-mock` level, one overriding a
-    reported value at notice; a read of either is recorded under `mocks`
+    reported value at notice with both values (`overriding the factset's
+    "RedHat" with "Debian"`), one equal to it at the `--on-mock` level
+    (`identical to the factset's "RedHat"`); a read of either is
+    recorded under `mocks`
   * config `compile.ignorable_puppet_compile_messages` (regexes) and
     `compile.suppress_ignorable_puppet_compile_messages`: with the latter
     on, a Puppet warning or deprecation matching is logged at debug

@@ -66,7 +66,9 @@ module Pupgrade
       # `facts:` mocks merged over them, each `${...}` resolved for the
       # node. A mock the factset lacks fills it in, logged at the
       # `--on-mock` level; one the factset has overrides it, logged at
-      # notice. Either is recorded under `mocks` when the compile reads it.
+      # notice with both values, or at the `--on-mock` level when the two
+      # are the same. Either is recorded under `mocks` when the compile
+      # reads it.
       #
       # @return [Hash]
       def facts
@@ -433,9 +435,13 @@ module Pupgrade
             merge_mocks(base[key.to_s], value, path)
             next
           end
-          if base.key?(key.to_s)
+          if base.key?(key.to_s) && base[key.to_s] == value
+            @fact_mocks[path] = 'mocked (same as factset)'
+            log_mock("guard: #{@factset.certname}: fact #{path}: mocked, identical to the factset's #{value.inspect}")
+          elsif base.key?(key.to_s)
             @fact_mocks[path] = 'mocked (overrides factset)'
-            Pupgrade.logger.notice("guard: #{@factset.certname}: fact #{path}: mocked, overriding the factset's #{base[key.to_s].inspect}")
+            Pupgrade.logger.notice("guard: #{@factset.certname}: fact #{path}: mocked, overriding the factset's #{base[key.to_s].inspect} " \
+                                   "with #{Pupgrade::Ansi.stressed(value.inspect)}")
           else
             @fact_mocks[path] = 'mocked'
             log_mock("guard: #{@factset.certname}: fact #{path}: mocked")

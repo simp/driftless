@@ -189,9 +189,13 @@ module Pupgrade
         Probes.attach_log
         EnvHiera.install!
         EnvHiera.path = @hiera
-        Pupgrade.logger.info("compile: environment #{@environment} at #{@repo_dir}; manifest #{@manifest}; " \
-                             "hiera #{@hiera || File.join(@repo_dir, 'hiera.yaml')}; #{'PSON loaded; ' if @pson}" \
-                             "modulepath #{@modulepath.join(':')}; #{@mocks.commands.size} command and #{@mocks.facts.size} fact mock(s); on leak: #{@on_leak}")
+        Pupgrade.logger.info "compile:  | environment:  '#{@environment}' at #{@repo_dir}/"
+        Pupgrade.logger.info 'compile:  | PSON:         loaded' if @pson
+        Pupgrade.logger.info "compile:  | mocks:        #{@mocks.commands.size} commands and #{@mocks.facts.size} facts; on leak: #{@on_leak}"
+        Pupgrade.logger.info "compile:  | hiera:        #{@hiera || File.join(@repo_dir, 'hiera.yaml')}"
+        Pupgrade.logger.info "compile:  | manifest:     #{@manifest}"
+        Pupgrade.logger.info "compile:  | modulepath:   #{@modulepath.map{ |x| "\n#{' '*16}| - #{x}"}.join}"
+        Pupgrade.logger.debug "compile: | prepend_from: '#{@prepend_from}'" if File.exist?(File.expand_path(@prepend_from.to_s, @repo_dir))
         self
       end
 

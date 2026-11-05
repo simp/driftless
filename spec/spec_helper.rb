@@ -1,3 +1,7 @@
+# The specs match log and table text, so no terminal may tint it: NO_COLOR
+# turns the auto preference off whatever stderr is; `--color` still wins.
+ENV['NO_COLOR'] = '1'
+
 require 'rspec'
 require 'rspec/its'
 require 'pupgrade'

@@ -37,6 +37,10 @@ RSpec.describe Pupgrade::CLI::ModuleCommand::Releases do
     output.lines.map(&:rstrip).reject { |l| l.start_with?('--') }.map { |l| l.split('|', -1).map(&:strip) }
   end
 
+  def git(dir, *args)
+    system('git', '-C', dir, '-c', 'user.name=t', '-c', 'user.email=t@example.com', *args, exception: true)
+  end
+
   before(:each) { silence_logger }
 
   it 'lists every tagged release newest first with its date, the deployed one marked; --order oldest reverses' do
@@ -65,6 +69,43 @@ RSpec.describe Pupgrade::CLI::ModuleCommand::Releases do
     expect(cells(run(['stdlib:v9.4.0', '--order', 'oldest']).last).drop(1).map(&:first)).to eq(%w[9.4.0 9.6.0])
     expect(cells(run(['stdlib:v9.6.0', '--include-heads', '--branch', 'main']).last).drop(1).map { |r| r[1] }).to eq(%w[main v9.6.0])
     expect(run(['stdlib:v99.0.0']).first).to eq(3)
+  end
+
+  it 'lists another remote\'s releases with --repo, its tags kept out of the clone\'s; :REF resolves there; another module is refused' do
+    clone = File.join(fixture.dir, 'modules/stdlib')
+    alt   = File.join(@tmp, 'alt-stdlib')
+    git(fixture.dir, 'clone', '-q', clone, alt)
+    git(alt, 'checkout', '-q', '-B', 'main', 'v9.6.0')
+    File.write(File.join(alt, 'metadata.json'), File.read(File.join(alt, 'metadata.json')).sub(/"version": "[^"]*"/, '"version": "9.7.0"'))
+    git(alt, 'commit', '-q', '-am', 'v9.7.0')
+    git(alt, 'tag', 'v9.7.0')
+    git(alt, 'tag', 'not-a-version')
+
+    status, out = run(['stdlib', '--repo', alt])
+    expect(status).to eq(0)
+    expect(cells(out).drop(1).map { |r| r.values_at(0, 1, 3) }).to eq([
+      ['9.7.0', 'v9.7.0', ''], ['9.6.0', 'v9.6.0', ''], ['9.4.0', 'v9.4.0', ''], ['9.0.0', 'v9.0.0', ''], ['8.6.0', 'v8.6.0', '(deployed)'],
+    ])
+    # the remote's refs sit in a namespace of their own, not among the clone's tags
+    expect(`git -C #{clone} tag`.split).not_to include('v9.7.0', 'not-a-version')
+    expect(`git -C #{clone} for-each-ref refs/pupgrade`).to include('/tags/v9.7.0', '/heads/main')
+    expect(cells(run(['stdlib']).last).drop(1).map(&:first)).to eq(%w[9.6.0 9.4.0 9.0.0 8.6.0])
+    # :REF resolves on the remote; the clone alone has no such ref
+    expect(cells(run(['stdlib:v9.7.0', '--repo', alt]).last).drop(1).map(&:first)).to eq(%w[9.7.0])
+    expect(run(['stdlib:v9.7.0']).first).to eq(3)
+    # URL,REMOTE adds the name; REMOTE alone reuses it; --fetch and --branch alongside
+    expect(run(['stdlib', '--repo', "#{alt},acme", '--fetch']).first).to eq(0)
+    expect(cells(run(['stdlib', '--repo', 'acme', '--include-heads', '--branch', 'main']).last)[1].values_at(0, 1)).to eq(%w[9.7.0 main])
+    # another module's repo
+    other = File.join(@tmp, 'other')
+    FileUtils.mkdir_p(other)
+    File.write(File.join(other, 'metadata.json'), '{"name":"acme-other","version":"3.0.0"}')
+    git(other, 'init', '-q', '-b', 'main')
+    git(other, 'add', '.')
+    git(other, 'commit', '-q', '-m', 'one')
+    git(other, 'tag', 'v3.0.0')
+    expect(run(['stdlib', '--repo', other]).first).to eq(3)
+    expect(`git -C #{clone} tag`.split).not_to include('v3.0.0')
   end
 
   it 'follows --branch or the branchfile, with the tip as a last row on request' do

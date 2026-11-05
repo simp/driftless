@@ -56,9 +56,28 @@ module Pupgrade
     # @return [String] the sha it names
     # @raise [Error] when the remote has no such ref
     def fetch(remote, ref)
-      git('fetch', '--quiet', remote.name, ref, why: "fetching #{ref} from #{remote.name}") or
+      git('fetch', '--quiet', '--no-tags', remote.name, ref, why: "fetching #{ref} from #{remote.name}") or
         raise Error, "#{remote.name} (#{remote.url}) has no ref #{ref.inspect}"
       git('rev-parse', 'FETCH_HEAD^{commit}', why: 'the commit fetched') or raise Error, "#{ref} fetched from #{remote.name} is not a commit"
+    end
+
+    # Fetches every tag and branch of the remote into a namespace of its
+    # own, `refs/pupgrade/NAME/{tags,heads}/`, pruned to what the remote
+    # has now. Tags are global in git: fetched as tags, another repo's
+    # would stay in the clone's `refs/tags` for good.
+    #
+    # @return [String] the namespace, `refs/pupgrade/NAME`
+    # @raise [Error] when the fetch fails
+    def fetch_refs(remote)
+      space = namespace(remote)
+      git('fetch', '--quiet', '--prune', '--no-tags', remote.name, "+refs/tags/*:#{space}/tags/*", "+refs/heads/*:#{space}/heads/*",
+          why: "fetching the refs of #{remote.name}") or raise Error, "fetching #{remote.name} (#{remote.url}) failed"
+      space
+    end
+
+    # @return [String] where {#fetch_refs} puts the remote's refs
+    def namespace(remote)
+      "refs/pupgrade/#{remote.name}"
     end
 
     # @return [Hash{String => String}] name to fetch URL

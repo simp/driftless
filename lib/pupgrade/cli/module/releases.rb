@@ -2,6 +2,7 @@ require 'pupgrade/cli/base'
 require 'pupgrade/cli/module_command'
 require 'pupgrade/cli/surface'
 require 'pupgrade/cli/table'
+require 'pupgrade/clone_remote'
 require 'driftless/git_clone'
 require 'driftless/module_inventory'
 require 'pupgrade/release_constraints'
@@ -20,7 +21,8 @@ module Pupgrade
       # the deployed one marked, from a ref onward when one is given; on
       # request, whether each meets a dependency version, a Puppet version,
       # or an operating system, and how an item of the API surface reads
-      # in each.
+      # in each. `--repo` reads another remote of the clone instead, its
+      # refs fetched into a namespace of their own.
       class Releases < Base
         include Table
         include ModuleCommand::Shared
@@ -45,13 +47,15 @@ module Pupgrade
           entry     = inventory.find(selector)
           fatal!("module releases: no module #{selector.inspect} on the modulepath or in the Puppetfile", 3) unless entry
 
-          branch     = @options[:branch] && given_branch('module releases', repo, entry)
+          branch = @options[:branch] && given_branch('module releases', repo, entry)
+          remote, space = remote_refs(entry, repo) if @options[:repo]
           candidates = ::Pupgrade::Solve::Candidates.new(repo.dir, branchfile: @options[:branchfile], include_heads: @options[:include_heads],
-                                                         fetch: @options[:fetch])
+                                                         fetch: @options[:fetch], remote: space)
           list = candidates.releases(entry, branch: branch)
           candidates.warnings.each { |w| ::Pupgrade.logger.warn(w) }
           fatal!("module releases: #{entry.path}: #{list.reason}", 3) if list.is_a?(::Pupgrade::Solve::Candidates::Unsolvable)
-          list = from(repo, entry, ref, list) if ref
+          this_module!(entry, remote, list) if remote
+          list = from(repo, entry, remote ? remote_ref!('module releases', entry, ::Driftless::GitClone.new(File.join(repo.dir, entry.path)), ref) : ref, list) if ref
 
           constraints = constraints(inventory)
           clone = ::Driftless::GitClone.new(File.join(repo.dir, entry.path))
@@ -63,7 +67,8 @@ module Pupgrade
           print_table(COLUMNS + constraints.map(&:heading) + items.map(&:heading) + [''], rows)
           name = entry.metadata.name || entry.declared&.name || File.basename(entry.path)
           branch ||= (entry.declared.ref_type == 'branch') ? entry.declared.ref.to_s : branch_for(repo, entry)
-          ::Pupgrade.logger.notice("module releases: #{name}: #{list.size} release(s)#{" from #{ref}" if ref}#{" on #{branch}" if branch}")
+          ::Pupgrade.logger.notice("module releases: #{name}: #{list.size} release(s)#{" from #{ref}" if ref}#{" on #{branch}" if branch}" \
+                                   "#{" at #{remote.name} (#{remote.url})" if remote}")
           exit 0
         end
 
@@ -71,6 +76,7 @@ module Pupgrade
 
         def configure_parser(o)
           declare_repo_option(o)
+          declare_repo_remote(o)
           o.on('--branch=BRANCHES', Array, 'Follow the first of these branches the clone has; with a branchfile, record it there') { |v| @options[:branch] = v }
           o.on('--branchfile=FILE', 'The branchfile naming the branch the module follows (config: modules.branchfile)') { |v| @options[:branchfile] = v }
           o.on('--fetch', 'Fetch the clone\'s origin first') { @options[:fetch] = true }
@@ -94,6 +100,33 @@ module Pupgrade
         end
 
         private
+
+        # The `--repo` remote resolved and its refs fetched into their
+        # namespace.
+        #
+        # @return [Array(CloneRemote::Remote, String)] the remote and the namespace
+        def remote_refs(entry, repo)
+          clone = ::Driftless::GitClone.new(File.join(repo.dir, entry.path))
+          fatal!("module releases: #{entry.path} is not a git clone", 3) unless clone.own?
+
+          remotes = ::Pupgrade::CloneRemote.new(clone.dir)
+          remote  = remotes.resolve(@options[:repo])
+          [remote, remotes.fetch_refs(remote)]
+        rescue ::Pupgrade::CloneRemote::Error => e
+          fatal!("module releases: --repo #{@options[:repo]}: #{e.message}", 3)
+        end
+
+        # Stops unless the remote's releases are this module's, by the
+        # metadata at its newest one (the author may differ).
+        def this_module!(entry, remote, list)
+          there = list.last&.metadata&.name.to_s
+          return if there.empty?
+
+          mine = ::Pupgrade::ModuleName.short(entry.metadata.name || entry.declared&.name || File.basename(entry.path))
+          return if ::Pupgrade::ModuleName.short(there) == mine
+
+          fatal!("module releases: #{remote.name} (#{remote.url}) is #{there}, not a #{mine} module", 3)
+        end
 
         # The releases from the ref onward: those whose version is not
         # below the metadata version at the ref.
@@ -136,7 +169,7 @@ module Pupgrade
           ::Pupgrade.logger.notice("module releases: reading the surface of #{entry.path} at #{list.size} release(s)")
           reader = targets(fetch: false)
           docs   = list.map do |candidate|
-            ref = ref_candidate(clone, candidate.ref) || candidate.ref
+            ref = ref_candidate(clone, candidate.rev) || candidate.rev
             reader.document(reader.resolve(File.join(repo.dir, entry.path), ref: ref)).first
           end
           timeline = ::Pupgrade::Surface::Timeline.new(docs)
@@ -161,7 +194,7 @@ module Pupgrade
         # a declaration; a constraint met green, missed red.
         def row(clone, candidate, constraints)
           ref   = paint(candidate.ref, (candidate.ref_type == 'tag') ? :cyan : :magenta)
-          date  = clone.log('-1', '--format=%cs', "#{candidate.ref}^{commit}") || ''
+          date  = clone.log('-1', '--format=%cs', "#{candidate.rev}^{commit}") || ''
           cells = constraints.map do |c|
             verdict = c.check(candidate.metadata)
             paint(verdict, *STYLE.fetch(verdict.split.first, []))

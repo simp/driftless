@@ -25,7 +25,14 @@ module Pupgrade
       #   @return [Driftless::Inputs::ModuleMetadata::Result]
       # @!attribute [r] current
       #   @return [Boolean] the version deployed now
-      Candidate = Data.define(:ref, :ref_type, :version, :metadata, :current) do
+      # @!attribute [r] rev
+      #   @return [String] what git resolves for it in the clone: the ref
+      #     itself, or its full name under another remote's namespace
+      Candidate = Data.define(:ref, :ref_type, :version, :metadata, :current, :rev) do
+        def initialize(ref:, ref_type:, version:, metadata:, current:, rev: nil)
+          super(ref: ref, ref_type: ref_type, version: version, metadata: metadata, current: current, rev: rev || ref)
+        end
+
         def to_s
           current ? "#{ref} (current)" : ref
         end
@@ -43,11 +50,16 @@ module Pupgrade
       #   branches, relative to the repo
       # @param include_heads [Boolean] whether a tracking branch's tip is a
       #   candidate for a tag-pinned module
-      # @param fetch [Boolean] whether to fetch each clone's origin first
-      def initialize(repo_dir, branchfile: nil, include_heads: false, fetch: false)
+      # @param fetch [Boolean] whether to fetch each clone's origin first;
+      #   nothing under `remote`, whose refs the caller has fetched
+      # @param remote [String, nil] the namespace another remote's refs were
+      #   fetched into (`CloneRemote#fetch_refs`): its tags and branches
+      #   are read in place of the clone's own
+      def initialize(repo_dir, branchfile: nil, include_heads: false, fetch: false, remote: nil)
         @repo_dir      = File.expand_path(repo_dir)
         @include_heads = include_heads
-        @fetch         = fetch
+        @fetch         = fetch && remote.nil?
+        @remote        = remote
         @branches      = branchfile ? Inputs::Branchfile.load(File.expand_path(branchfile, @repo_dir)) : nil
         @warnings      = []
       end
@@ -99,7 +111,7 @@ module Pupgrade
         declared = entry.declared
         branch ||= (declared.ref_type == 'branch') ? declared.ref.to_s : tracking_branch(entry)
         head = git(dir, 'rev-parse', 'HEAD', why: 'sha at HEAD')
-        list = tags_on(dir, branch, entry).map { |c| c.with(current: git(dir, 'rev-parse', "#{c.ref}^{commit}", why: "sha of #{c.ref}") == head) }
+        list = tags_on(dir, branch, entry).map { |c| c.with(current: git(dir, 'rev-parse', "#{c.rev}^{commit}", why: "sha of #{c.rev}") == head) }
         if @include_heads && branch && (tip = tip_of(dir, branch, entry))
           list << tip.with(current: at_head?(dir, branch))
         end
@@ -138,27 +150,28 @@ module Pupgrade
       end
 
       # Tags naming a version, oldest first: on the branch when one is
-      # known, else any tag of the clone; only those past a version when
-      # one is given.
+      # known, else any tag of the clone (or of the remote's namespace);
+      # only those past a version when one is given.
       #
       # @return [Array<Candidate>] none current
       def tags_on(dir, branch, entry, past: nil)
-        args = ['tag', '--list']
+        args = @remote ? ['for-each-ref', '--format=%(refname)', "#{@remote}/tags"] : ['tag', '--list']
         args.push('--merged', ref_in_clone(dir, branch)) if branch && ref_in_clone(dir, branch)
         out = git(dir, *args, why: 'listing tags')
         return [] unless out
 
-        out.split("\n").filter_map { |tag|
+        out.split("\n").filter_map { |rev|
+          tag     = @remote ? rev.delete_prefix("#{@remote}/tags/") : rev
           version = parse(tag[TAG_VERSION])
           if version.nil? || (past && version <= past)
             Pupgrade.logger.debug("candidates: #{entry.path}: tag #{tag} skipped: #{version.nil? ? 'not a version' : "not past #{past}"}")
             next
           end
 
-          metadata = metadata_at(dir, tag, entry)
+          metadata = metadata_at(dir, rev, entry)
           next unless metadata
 
-          Candidate.new(ref: tag, ref_type: 'tag', version: version, metadata: metadata, current: false)
+          Candidate.new(ref: tag, ref_type: 'tag', version: version, metadata: metadata, current: false, rev: rev)
         }.sort_by(&:version)
       end
 
@@ -169,7 +182,7 @@ module Pupgrade
         metadata = metadata_at(dir, ref, entry)
         return nil unless metadata
 
-        Candidate.new(ref: branch, ref_type: 'branch', version: parse(metadata.version), metadata: metadata, current: false)
+        Candidate.new(ref: branch, ref_type: 'branch', version: parse(metadata.version), metadata: metadata, current: false, rev: ref)
       end
 
       # Whether the clone's HEAD is the branch's tip already.
@@ -178,9 +191,11 @@ module Pupgrade
         ref && git(dir, 'rev-parse', ref, why: "sha of #{ref}") == git(dir, 'rev-parse', 'HEAD', why: 'sha at HEAD')
       end
 
-      # The branch as the clone knows it: its remote-tracking ref first.
+      # The branch as the clone knows it: its remote-tracking ref first; or
+      # as the remote's namespace has it.
       def ref_in_clone(dir, branch)
-        ["origin/#{branch}", branch].find { |r| git(dir, 'rev-parse', '--verify', '--quiet', "#{r}^{commit}", why: "resolving #{r}") }
+        names = @remote ? ["#{@remote}/heads/#{branch}"] : ["origin/#{branch}", branch]
+        names.find { |r| git(dir, 'rev-parse', '--verify', '--quiet', "#{r}^{commit}", why: "resolving #{r}") }
       end
 
       def metadata_at(dir, ref, entry)

@@ -150,7 +150,9 @@ It's a new gem to help upgrade the module base of large Puppet/OpenVox  control 
   Puppet's compiler (like onceover, but much faster without rspec-puppet)
 
   * prints a green P or red F per factset as it goes (disable with
-    `--no-progress`)
+    `--no-progress`); at info, a line before each node's compile counts
+    it off (`compile: [  3/24] web01.example.com`), so the warnings of
+    that compile fall under it
   * `--fail-fast` stops at the first failure
   * `--show-default-mocks` prints the shipped mocks
   * in the post-compile summary table:

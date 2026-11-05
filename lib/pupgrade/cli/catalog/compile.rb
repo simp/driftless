@@ -62,8 +62,10 @@ module Pupgrade
           rows     = []
           failures = []
           progress = @options[:progress].nil? ? $stdout.tty? : @options[:progress]
+          width = factsets.size.to_s.size
           begin
-            factsets.each do |factset|
+            factsets.each_with_index do |factset, i|
+              ::Pupgrade.logger.info("compile: [#{(i + 1).to_s.rjust(width)}/#{factsets.size}] #{factset.certname}")
               result = session.compile(factset)
               write(out, result)
               rows << row(result)

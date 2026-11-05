@@ -460,6 +460,8 @@ RSpec.describe Pupgrade::CLI::Catalog::Compile do
                            'debug: guard: web01.example.com: fact operatingsystem: mocked', 'debug: guard: web01.example.com: fact os.extra: mocked',
                            'debug: guard: web01.example.com: fact os.family: mocked, identical to the factset\'s "RedHat"')
     expect(log).to include('4 commands and 4 facts')
+    # a count before each node's compile, at info
+    expect(log).to include('info: compile: [1/1] web01.example.com')
     record = read('web01.example.com', 'compile.json')
     expect(record['mocks'].map { |m| m.values_at('kind', 'command', 'action') }).to contain_exactly(
       ['fact', 'operatingsystem', 'mocked'], ['fact', 'kernel', 'mocked (overrides factset)'], ['fact', 'os.extra', 'mocked'],

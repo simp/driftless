@@ -36,8 +36,8 @@ module Pupgrade
         o.on('--server-fact=NAME=VALUE[,…]', 'Set $server_facts (config: compile.server_facts)') { |v| pair(:server_facts, v) }
         o.on('--setting=NAME=VALUE', 'Set a Puppet setting, e.g. strict=error (config: compile.settings)') { |v| pair(:settings, v) }
         o.on('--[no-]pson', 'Load the puppet-pson gem, for code written before Puppet 8 that calls PSON (config: compile.pson)') { |v| @options[:pson] = v }
-        o.on('-Q', '--suppress-ignorable', 'Keep the ignorable Puppet messages off the terminal; -QQ off debug too',
-             '(config: compile.suppress_ignorable_puppet_compile_messages)') do
+        o.on('-Q', '--suppress-ignorable', 'Keep the ignorable Puppet messages off the terminal, and the mocked answers unless --on-mock',
+             'asks for them; -QQ off debug too (config: compile.suppress_ignorable_puppet_compile_messages)') do
           @options[:suppress_ignorable] = true
           @options[:ignorable_log] = @options.key?(:ignorable_log) ? nil : 'debug'
         end
@@ -122,7 +122,7 @@ module Pupgrade
           repo_dir: repo.dir, environment: @options[:environment], manifest: @options[:manifest], hiera: @options[:hiera], pson: @options[:pson],
           code: @options[:code],
           prepend: prepend, prepend_from: prepend_from, enc: enc, server_facts: @options[:server_facts] || {}, settings: @options[:settings] || {},
-          mocks: mocks, on_leak: @options[:on_leak], on_mock: @options[:on_mock] || ['debug'],
+          mocks: mocks, on_leak: @options[:on_leak], on_mock: @options[:on_mock] || [@options[:suppress_ignorable] ? 'silent' : 'debug'],
           ignorable: @options[:suppress_ignorable] ? @options[:ignorable] : [], ignorable_log: @options.fetch(:ignorable_log, 'debug'),
         ).start
       rescue ::Pupgrade::Compile::Session::Error, ::Pupgrade::Compile::Mocks::Error, ::Pupgrade::Compile::Enc::Error, Errno::ENOENT => e

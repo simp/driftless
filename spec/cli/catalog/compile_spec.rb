@@ -470,6 +470,12 @@ RSpec.describe Pupgrade::CLI::Catalog::Compile do
     expect(record['facts']).to include('operatingsystem' => 1, 'kernel' => 1, 'os.extra' => 1, 'os.family' => 1)
     expect(record['legacy_facts']).to include('operatingsystem' => 1)
     expect(cells(text)[1].values_at(0, 4)).to eq(%w[web01.example.com 4])
+    # -Q quiets the mocked answers too, an override still noticed; --on-mock asks for them back
+    log = capture_log(level: :debug) { run(['-vv', '--mocks', mocks, '--certname', 'web*', '-Q', '--code', 'notify { "x": }']) }
+    expect(log).to include('notice: guard: web01.example.com: fact kernel: mocked, overriding')
+    expect(log).not_to include('fact operatingsystem: mocked', 'fact os.family: mocked')
+    log = capture_log(level: :debug) { run(['-vv', '--mocks', mocks, '--certname', 'web*', '-Q', '--on-mock', 'debug', '--code', 'notify { "x": }']) }
+    expect(log).to include('debug: guard: web01.example.com: fact operatingsystem: mocked')
   end
 
   it 'logs a multi-line deprecation once, on one line, and keeps an ignorable one off the terminal' do

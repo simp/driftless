@@ -181,7 +181,9 @@ It's a new gem to help upgrade the module base of large Puppet/OpenVox  control 
     instead of its level, so a thousand nodes do not repeat it; the
     regexes see the message as one line; the record and the counts keep it;
     `-Q`, `--suppress-ignorable` turns it on from the command line, `-QQ`
-    keeps the lines off debug as well
+    keeps the lines off debug as well; `-Q` also makes `silent` the
+    default `--on-mock` level, so the mocked answers go too unless
+    `--on-mock` or `compile.on_mock` asks for them
   * a deprecation whose message spans lines is logged once, on one line;
     before, Puppet's warning of it was logged again
   * two factset files carrying one certname compile once, the first by

@@ -61,6 +61,9 @@ It's a new gem to help upgrade the module base of large Puppet/OpenVox  control 
   date, the deployed one marked; `--include-heads` adds the branch tip;
   `:REF` starts the list there, leaving out the releases older than the
   version at REF
+  - when no row is the clone's commit, a notice says where the clone is:
+    `deployed at main (sha), 1 commit past v2.0.0`, or `2 commits before
+    v9.4.0` when every row is ahead of it, or `on none of these releases`
   - `--repo URL[,REMOTE]|REMOTE` lists another remote's releases instead,
     under the remote rules of `module update --repo`: its tags and branches
     are fetched into `refs/pupgrade/REMOTE/`, never among the clone's own

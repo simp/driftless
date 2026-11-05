@@ -55,9 +55,15 @@ RSpec.describe Pupgrade::CLI::ModuleCommand::Releases do
     ])
     expect(cells(run(['stdlib', '--order', 'oldest']).last).drop(1).map(&:first)).to eq(%w[8.6.0 9.0.0 9.4.0 9.6.0])
     expect(run(['stdlib', '--order', 'latest']).first).to eq(2)
-    # a branch-pinned module sits past its last tag: no tag is deployed, the tip is
-    expect(cells(run(['baseline']).last).drop(1)).to eq([['0.1.0', 'v0.1.0', '2024-03-28', '']])
-    expect(cells(run(['baseline', '--include-heads']).last)[1]).to eq(['0.1.0', 'main', '2024-03-29', '(deployed)'])
+    # a branch-pinned module sits past its last tag: no tag is deployed, the tip is; a notice says where the clone is
+    allow(Driftless).to receive(:logger).and_call_original
+    out = nil
+    log = capture_log(level: :notice) { _, out = run(['baseline']) }
+    expect(cells(out).drop(1)).to eq([['0.1.0', 'v0.1.0', '2024-03-28', '']])
+    expect(log).to match(/notice: module releases: acme-baseline: deployed at main \([0-9a-f]{12}\), 1 commit past v0.1.0$/)
+    log = capture_log(level: :notice) { _, out = run(['baseline', '--include-heads']) }
+    expect(cells(out)[1]).to eq(['0.1.0', 'main', '2024-03-29', '(deployed)'])
+    expect(log).not_to include('deployed at')
     # `module release` still reaches it, as a prefix
     expect(Pupgrade::CLI::ModuleCommand.find_subcommand('release')).to eq(described_class)
   end
@@ -67,6 +73,10 @@ RSpec.describe Pupgrade::CLI::ModuleCommand::Releases do
     expect(status).to eq(0)
     expect(cells(out).drop(1).map(&:first)).to eq(%w[9.6.0 9.4.0 9.0.0])
     expect(cells(run(['stdlib:v9.4.0', '--order', 'oldest']).last).drop(1).map(&:first)).to eq(%w[9.4.0 9.6.0])
+    # the deployed release is older than REF, so nothing is marked and a notice says where the clone is
+    allow(Driftless).to receive(:logger).and_call_original
+    log = capture_log(level: :notice) { run(['stdlib:v9.4.0']) }
+    expect(log).to match(/notice: module releases: puppetlabs-stdlib: deployed at v8.6.0 \([0-9a-f]{12}\), 2 commits before v9.4.0$/)
     expect(cells(run(['stdlib:v9.6.0', '--include-heads', '--branch', 'main']).last).drop(1).map { |r| r[1] }).to eq(%w[main v9.6.0])
     expect(run(['stdlib:v99.0.0']).first).to eq(3)
   end

@@ -69,6 +69,7 @@ module Pupgrade
           branch ||= (entry.declared.ref_type == 'branch') ? entry.declared.ref.to_s : branch_for(repo, entry)
           ::Pupgrade.logger.notice("module releases: #{name}: #{list.size} release(s)#{" from #{ref}" if ref}#{" on #{branch}" if branch}" \
                                    "#{" at #{remote.name} (#{remote.url})" if remote}")
+          ::Pupgrade.logger.notice("module releases: #{name}: #{deployed_at(clone, list)}") if list.any? && list.none?(&:current)
           exit 0
         end
 
@@ -128,6 +129,34 @@ module Pupgrade
 
           ::Pupgrade::CloneRemote.new(File.join(repo.dir, entry.path)).discard(remote)
           fatal!("module releases: #{remote.name} (#{remote.url}) is #{there}, not a #{mine} module", 3)
+        end
+
+        # Where the clone is when no listed release is at its HEAD: its tag
+        # or branch there and its sha, and how far past the newest listed
+        # release behind it, or before the oldest ahead of it, it sits.
+        #
+        # @return [String] `deployed at main (sha), 1 commit past v2.0.0`
+        def deployed_at(clone, list)
+          sha  = clone.sha.to_s
+          name = clone.tag_at_head || clone.branch_at_head
+          where = name ? "#{name} (#{sha[0, 12]})" : sha[0, 12]
+          if (behind = list.reverse.find { |c| ancestor?(clone, c.rev, 'HEAD') })
+            "deployed at #{where}, #{commits(clone, "#{behind.rev}..HEAD")} past #{behind.ref}"
+          elsif (ahead = list.find { |c| ancestor?(clone, 'HEAD', c.rev) })
+            "deployed at #{where}, #{commits(clone, "HEAD..#{ahead.rev}")} before #{ahead.ref}"
+          else
+            "deployed at #{where}, on none of these releases"
+          end
+        end
+
+        def ancestor?(clone, rev, of)
+          system('git', '-C', clone.dir, 'merge-base', '--is-ancestor', rev, of, out: File::NULL, err: File::NULL)
+        end
+
+        # @return [String] `1 commit`, `2 commits`
+        def commits(clone, range)
+          n = clone.log('--format=%H', range).to_s.split("\n").size
+          "#{n} commit#{'s' unless n == 1}"
         end
 
         # The releases from the ref onward: those whose version is not

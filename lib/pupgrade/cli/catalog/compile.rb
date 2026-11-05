@@ -46,8 +46,7 @@ module Pupgrade
         config_key 'compile.enc', type: :string, default: nil, example: DEFAULT_ENC_FILE,
                    about: 'Rules deciding each node\'s top-scope variables and classes'
         config_key 'compile.ruby', type: :string, default: nil, example: DEFAULT_RUBY_FILE,
-                   about: 'Ruby blocks deciding variables, classes, and mock answers per node, loaded after the rules, ' \
-                          "relative to the control repo; #{DEFAULT_RUBY_FILE} when it exists"
+                   about: 'Ruby code to mock facts, functions, top-scope vars and ENC settings per-node'
 
         def execute(argv)
           reject_extra_args!(argv)
@@ -98,8 +97,8 @@ module Pupgrade
 
         def configure_parser(o)
           declare_repo_and_factsets(o)
-          o.on('-o', '--cache-dir=DIR', 'Cache location for <certname>/{catalog,compile}.json files (config: compile.cache_dir)') { |v| @options[:cache_dir] = v }
-          o.on('--certname=GLOB[,…]', Array, 'Compile factsets with matching certnames; !GLOB leaves its matches out') { |v| accumulate(:certnames, v) }
+          o.on('-o', '--cache-dir=DIR', 'Cache for <certname>/{catalog,compile}.json files (config: compile.cache_dir)') { |v| @options[:cache_dir] = v }
+          o.on('--certname=GLOB[,…]', Array, 'Compile factsets with matching certnames; !GLOB negates') { |v| accumulate(:certnames, v) }
           o.on('-f', '--[no-]fail-fast', 'Stop at the first compile that fails') { |v| @options[:fail_fast] = v }
           o.on('--[no-]progress', 'Print a green P or red F per compile as it goes (default: when stdout is a terminal)') { |v| @options[:progress] = v }
           o.on('--keep-stale', 'Keep <certname>/ directories of nodes the factsets no longer name') { @options[:keep_stale] = true }

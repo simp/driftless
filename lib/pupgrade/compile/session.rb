@@ -23,29 +23,25 @@ module Pupgrade
       extend ConfigKeys::DSL
 
       config_key 'compile.environment', type: :string, default: 'production',
-                 about: 'The environment name the catalogs are compiled in, naming the repo dir for Puppet; or an ' \
-                        'interpolation in the ENC\'s syntax resolved per node, `${facts.agent_specified_environment}`'
+          about: "The environment name the catalogs are compiled in.\n" \
+                 'Can interpolate w/enc.yaml syntax, ex: ${facts.agent_specified_environment}'
       config_key 'compile.manifest', type: :string, default: nil, example: 'manifests/site.pp',
-                 about: 'A manifest file or directory compiled in place of environment.conf\'s, relative to the control repo'
+                 about: 'A manifest file/directory to compile instead of environment.conf\'s'
       config_key 'compile.hiera', type: :string, default: nil, example: 'pupgrade/hiera.yaml',
-                 about: 'The environment layer\'s hiera.yaml, read in place of the control repo\'s, relative to it; ' \
-                        'its datadir is relative to its own directory'
+                 about: 'Overrides repo\'s hiera.yaml; its datadir will be relative to its own location'
       config_key 'compile.pson', type: :boolean, default: false,
-                 about: 'Whether to load the puppet-pson gem, so code written before Puppet 8 that calls PSON compiles'
+                 about: 'Loads optional gem `puppet-pson`, to enable compiling some (pre-Puppet 8) code'
       config_key 'compile.prepend_file', type: :string, default: nil, example: 'pupgrade/pre-manifest.pp',
-                 about: 'A file of Puppet code evaluated before the manifest (what onceover\'s before: block holds), ' \
-                        'relative to the control repo'
+                 about: "Puppet manifest, evaluated before compling control repo manifests,\n" \
+                 "Analagous to rspec-puppet's :pre_condition + onceover's spec/pre_condition/"
       config_key 'compile.mocks', type: :string, default: nil, example: 'pupgrade/compiler-mocks.yaml',
-                 about: 'A mock file answering commands and facts module code asks for during a compile, ' \
-                        'relative to the control repo'
+                 about: 'File of command and Facter responses to mock while compiling'
       config_key 'compile.default_mocks', type: :boolean, default: true,
-                 about: 'Whether pupgrade\'s own mocks for the probes package providers make while loading ' \
-                        'apply after the mock file'
+                 about: 'Whether pupgrade applies its built-in mocks for common issues'
       config_key 'compile.on_leak', type: :string, default: 'fail',
-                 about: 'What happens to an unmocked command: fail (stop that node\'s compile) ' \
-                        'or allow (run it, and record it)'
+                 about: "Handle unmocked executions: 'fail' compile, or 'allow' to run/record"
       config_key 'compile.on_mock', type: :array, default: nil, example: ['silent', 'certname=web01*:info'],
-                 about: 'Rules for logging mocked execs, in --on-mock\'s form: LEVEL, or FILTER:LEVEL for the nodes ' \
+                 about: "Rules to decide mocked execs' log levels using --on-mock\'s LEVEL|FILTER:LEVEL for the nodes " \
                         'the filter matches; the flag\'s rules come after these'
       config_key 'compile.vars', type: :hash, default: nil, example: { 'role' => 'web' },
                  about: 'Top-scope variables set on every node before the manifest'
@@ -53,11 +49,12 @@ module Pupgrade
                  about: 'Entries of $server_facts to set or override; servername, serverip, and serverversion have defaults'
       config_key 'compile.settings', type: :hash, default: nil, example: { 'strict' => 'error', 'strict_variables' => true },
                  about: 'Puppet settings for the compile, applied after pupgrade\'s own'
-      config_key 'compile.ignorable_puppet_compile_messages', type: :array, default: [], example: ['is deprecated', '\\AUnknown variable'],
-                 about: 'Regexes; a Puppet warning matching one is logged at debug instead of warning when ' \
-                        'suppress_ignorable_puppet_compile_messages is on; the record and the counts keep it'
+      config_key 'compile.ignorable_puppet_compile_messages', type: :array, default: [],
+                 example: ['is deprecated', '\\AUnknown variable'],
+                 about: 'Regexes matching Puppet compile messages to redirect as debug; ' \
+                        'completely removed from terminal output when compiling with `-QQ`'
       config_key 'compile.suppress_ignorable_puppet_compile_messages', type: :boolean, default: false,
-                 about: 'Whether the warnings ignorable_puppet_compile_messages names are kept off the terminal'
+                 about: 'Suppress the ignorable message from terminal output (logs files always include them)'
 
       class Error < StandardError; end
 

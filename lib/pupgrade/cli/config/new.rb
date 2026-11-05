@@ -173,18 +173,9 @@ module Pupgrade
           @given ||= {}
           lines = ['## pupgrade configuration file',
                    '## ' + ('-' * 77),
-                   "## Generated at #{Time.now} by `pupgrade config new`",
-                   '##',
-                   if @given.empty?
-                     '## Every key starts commented out, showing its default or an example value.'
-                   else
-                     '## Keys start commented out unless given as <subsystem.key>=<value> arguments.'
-                   end,
-                   '##',
-                   '## Config file search order:',
-                   *::Pupgrade::Config.search_chain.map { |p| "##   #{p}" },
-                   '## `--config PATH` replaces that chain; `--no-config` skips it.',
-                   '## Paths in this file are relative to the control repo (--repo-dir).',
+                   '## - All local paths are relative to the control repo (--repo-dir)',
+                   '## - Commented-out keys show default or example values',
+                   "## - (This files was orignally generated at #{Time.now} by `pupgrade config new`)",
                    '## ' + ('-' * 77)]
           subsystems.each { |name| lines.concat(subsystem_section(name)) }
           lines.concat([comment(0, '')])

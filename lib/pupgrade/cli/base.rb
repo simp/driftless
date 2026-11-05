@@ -146,6 +146,7 @@ module Pupgrade
       # else makes this a leaf run, and the rest of the arguments are parsed
       # as its own.
       def run(argv)
+        @options[:command_line] ||= argv.dup
         argv = argv.dup
         leaf = self.class.subcommands.empty?
         parse_own_options!(argv, leaf: leaf)
@@ -165,7 +166,23 @@ module Pupgrade
       # line already set.
       def after_own_parse
         load_config! unless self.class.skip_config_load?
+        attach_log_file
         apply_config_defaults
+      end
+
+      # The log file from the flag or `logging.file`, at `logging.file_level`,
+      # attached once the config is read so what the config decides is in
+      # it; the lines logged before it opens are the terminal's alone.
+      def attach_log_file
+        path = @options[:log_file] || (::Pupgrade.config.dig('logging', 'file') unless self.class.skip_config_load?)
+        return unless path
+
+        level = (::Pupgrade.config.dig('logging', 'file_level') unless self.class.skip_config_load?) || 'debug'
+        ::Pupgrade::Logging.attach_file(path, level: level, command_line: @options.fetch(:command_line, []))
+      rescue ArgumentError
+        fatal!("config error: logging.file_level: #{level.inspect} is not a level")
+      rescue SystemCallError => e
+        fatal!("log file #{path}: #{e.message}")
       end
 
       def print_help(io = $stdout)
@@ -241,6 +258,7 @@ module Pupgrade
             apply_log_level
           end
           o.on('--[no-]color',    'Colorize terminal output (default: auto — on when stdout is a TTY)') { |v| @options[:color] = v }
+          o.on('--log-file=FILE', 'Append the log to FILE as well, uncolored, at logging.file_level (config: logging.file)') { |v| @options[:log_file] = v }
           o.on('--width=N', Integer, %q[Wrap tables to N columns (default: the terminal's width; 0 for no limit)]) { |v| @options[:width] = v }
           o.on('-h', '--help',    'Show this help') do
             puts o

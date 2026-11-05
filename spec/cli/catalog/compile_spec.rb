@@ -298,7 +298,11 @@ RSpec.describe Pupgrade::CLI::Catalog::Compile do
         cache_dir: #{out}
         vars:
           role: db
+      logging:
+        file: #{File.join(@tmp, 'cfg.log')}
+        file_level: notice
     YAML
+    allow(Driftless).to receive(:logger).and_call_original
     captured = StringIO.new
     original = $stdout
     $stdout  = captured
@@ -313,6 +317,32 @@ RSpec.describe Pupgrade::CLI::Catalog::Compile do
     expect(status).to eq(0)
     titles = read('web01.example.com', 'catalog.json')['resources'].select { |r| r['type'] == 'Notify' }.map { |r| r['title'] }
     expect(titles).to eq(['from alt', 'from before'])
+    # logging.file at logging.file_level, whatever the terminal shows
+    log = File.read(File.join(@tmp, 'cfg.log'))
+    expect(log).to include('notice: compile: 1 compiled, 0 failed')
+    expect(log).not_to include('info: ')
+  end
+
+  it 'appends the log to --log-file, each run under a header, debug lines and no escape codes, whatever the terminal gets' do
+    allow(Driftless).to receive(:logger).and_call_original
+    path = File.join(@tmp, 'log', 'run.log')
+    # a missing --ruby file is warned about, and a warning's label is colored
+    args = ['--log-file', path, '--certname', 'web*', '--color', '--mocks', 'pupgrade/compiler-mocks.yaml', '--ruby', File.join(@tmp, 'nope.rb')]
+    terminal = capture_log(level: :notice) { expect(run(args).first).to eq(0) }
+    expect(terminal).to include("\e[", 'warning:', 'compile: 1 compiled')
+    expect(terminal).not_to include('debug: ')
+    log = File.read(path)
+    expect(log.lines.first).to start_with('--- pupgrade --no-config ').and include('--log-file ', ' at 20')
+    expect(log).to include('warning: compile: ruby ', 'notice: compile: 1 compiled, 0 failed', 'debug: ')
+    expect(log).not_to include("\e[")
+
+    capture_log(level: :notice) { run(['--log-file', path, '--certname', 'web*', '--mocks', 'pupgrade/compiler-mocks.yaml']) }
+    expect(File.read(path).scan(/^--- pupgrade /).size).to eq(2)
+
+    # a file that cannot be opened stops the command before it runs
+    File.write(File.join(@tmp, 'not-a-dir'), '')
+    log = capture_log(level: :fatal) { expect(run(['--log-file', File.join(@tmp, 'not-a-dir', 'x.log')]).first).to eq(2) }
+    expect(log).to include('FATAL: log file ')
   end
 
   it 'applies Puppet settings from the flag and the config, and refuses one Puppet does not know' do

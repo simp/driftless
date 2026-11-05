@@ -664,6 +664,11 @@ purpose. `-q` keeps errors only. `--[no-]color` overrides the terminal
 detection, `--width N` wraps tables to a width, and `logging.level` in the
 config takes the same names as Puppet's levels.
 
+`--log-file FILE` (config `logging.file`) appends the log to a file as well,
+uncolored, each run under a header line naming the command and the time.
+The file has its own level, `logging.file_level`, debug by default, so the
+terminal can stay quiet while the file keeps every decision.
+
 ## Developing pupgrade
 
 ```shell

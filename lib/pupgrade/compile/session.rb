@@ -51,10 +51,11 @@ module Pupgrade
                  about: 'Puppet settings for the compile, applied after pupgrade\'s own'
       config_key 'compile.ignorable_puppet_compile_messages', type: :array, default: [],
                  example: ['is deprecated', '\\AUnknown variable'],
-                 about: 'Regexes matching Puppet compile messages to redirect as debug; ' \
-                        'completely removed from terminal output when compiling with `-QQ`'
-      config_key 'compile.suppress_ignorable_puppet_compile_messages', type: :boolean, default: false,
-                 about: 'Suppress the ignorable message from terminal output (logs files always include them)'
+                 about: 'Regexes matching Puppet compile messages that -Q, -QQ, or the key below keep off the terminal; ' \
+                        'the record keeps them all the same'
+      config_key 'compile.suppress_ignorable_puppet_compile_messages', type: :string, default: false,
+                 about: 'Keep the ignorable messages out of the log: true drops them as -QQ does, debug logs them at debug ' \
+                        'marked (ignorable) as -Q does, false leaves them at their level'
 
       class Error < StandardError; end
 

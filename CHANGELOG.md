@@ -177,8 +177,9 @@ It's a new gem to help upgrade the module base of large Puppet/OpenVox  control 
     recorded under `mocks`
   * config `compile.ignorable_puppet_compile_messages` (regexes) and
     `compile.suppress_ignorable_puppet_compile_messages`: with the latter
-    on, a Puppet warning or deprecation matching is logged at debug
-    instead of its level, so a thousand nodes do not repeat it; the
+    `debug`, a Puppet warning or deprecation matching is logged at debug
+    instead of its level, so a thousand nodes do not repeat it; with it
+    `true`, the message is dropped from the log as under `-QQ`; the
     regexes see the message as one line; the record and the counts keep it;
     `-Q`, `--suppress-ignorable` turns it on from the command line, `-QQ`
     keeps the lines off debug as well; `-Q` also makes `silent` the

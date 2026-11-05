@@ -37,7 +37,7 @@ module Pupgrade
         o.on('--setting=NAME=VALUE', 'Set a Puppet setting, e.g. strict=error (config: compile.settings)') { |v| pair(:settings, v) }
         o.on('--[no-]pson', 'Load the puppet-pson gem, for code written before Puppet 8 that calls PSON (config: compile.pson)') { |v| @options[:pson] = v }
         o.on('-Q', '--suppress-ignorable', 'Keep the ignorable Puppet messages off the terminal, and the mocked answers unless --on-mock',
-             'asks for them; -QQ off debug too (config: compile.suppress_ignorable_puppet_compile_messages)') do
+             'asks for them; -QQ drops the ignorable messages from debug too (config: compile.suppress_ignorable_puppet_compile_messages)') do
           @options[:suppress_ignorable] = true
           @options[:ignorable_log] = @options.key?(:ignorable_log) ? nil : 'debug'
         end
@@ -122,11 +122,26 @@ module Pupgrade
           repo_dir: repo.dir, environment: @options[:environment], manifest: @options[:manifest], hiera: @options[:hiera], pson: @options[:pson],
           code: @options[:code],
           prepend: prepend, prepend_from: prepend_from, enc: enc, server_facts: @options[:server_facts] || {}, settings: @options[:settings] || {},
-          mocks: mocks, on_leak: @options[:on_leak], on_mock: @options[:on_mock] || [@options[:suppress_ignorable] ? 'silent' : 'debug'],
-          ignorable: @options[:suppress_ignorable] ? @options[:ignorable] : [], ignorable_log: @options.fetch(:ignorable_log, 'debug'),
+          mocks: mocks, on_leak: @options[:on_leak], on_mock: @options[:on_mock] || [suppress_ignorable? ? 'silent' : 'debug'],
+          ignorable: suppress_ignorable? ? @options[:ignorable] : [], ignorable_log: ignorable_log,
         ).start
       rescue ::Pupgrade::Compile::Session::Error, ::Pupgrade::Compile::Mocks::Error, ::Pupgrade::Compile::Enc::Error, Errno::ENOENT => e
         fatal!("#{command}: #{e.message}", 3)
+      end
+
+      # Whether the ignorable Puppet messages are kept off the terminal:
+      # -Q, or the config key set to true or debug.
+      def suppress_ignorable?
+        value = @options[:suppress_ignorable]
+        value == true || %w[true debug].include?(value.to_s)
+      end
+
+      # The level an ignorable message is logged at: debug under -Q or the
+      # key's `debug`; nil, not at all, under -QQ or the key's `true`.
+      def ignorable_log
+        return @options[:ignorable_log] if @options.key?(:ignorable_log)
+
+        (@options[:suppress_ignorable].to_s == 'debug') ? 'debug' : nil
       end
 
       # The file an option names, relative to the repo, else the default

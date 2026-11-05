@@ -390,7 +390,7 @@ RSpec.describe Pupgrade::CLI::Catalog::Compile do
 
   it 'keeps the warnings the config calls ignorable off the terminal, in the record all the same' do
     cfg = File.join(@tmp, 'ignorable.yaml')
-    File.write(cfg, "compile:\n  factsets: [factsets]\n  cache_dir: #{out}\n  ignorable_puppet_compile_messages: ['\\Afrom the', 'nothing else']\n  suppress_ignorable_puppet_compile_messages: true\n")
+    File.write(cfg, "compile:\n  factsets: [factsets]\n  cache_dir: #{out}\n  ignorable_puppet_compile_messages: ['\\Afrom the', 'nothing else']\n  suppress_ignorable_puppet_compile_messages: debug\n")
     allow(Driftless).to receive(:logger).and_call_original
     code = ['-vv', '-c', cfg, '-d', fixture.dir, '--mocks', 'pupgrade/compiler-mocks.yaml', '--certname', 'web*', '--code', 'notify { "x": } warning("from the manifest") warning("kept")']
     captured = StringIO.new
@@ -419,6 +419,19 @@ RSpec.describe Pupgrade::CLI::Catalog::Compile do
       $stdout = original
     end
     expect(log).to include('warning: puppet: web01.example.com: from the manifest')
+    # the key's true is -QQ: gone from the log
+    File.write(cfg, "compile:\n  factsets: [factsets]\n  cache_dir: #{out}\n  ignorable_puppet_compile_messages: ['\\Afrom the']\n  suppress_ignorable_puppet_compile_messages: true\n")
+    $stdout = captured
+    log = capture_log(level: :debug) do
+      described_class.new.run(code)
+    rescue SystemExit
+      nil
+    ensure
+      $stdout = original
+    end
+    expect(log).not_to include('from the manifest')
+    expect(log).to include('warning: puppet: web01.example.com: kept')
+    File.write(cfg, "compile:\n  factsets: [factsets]\n  cache_dir: #{out}\n  ignorable_puppet_compile_messages: ['\\Afrom the']\n")
     [['-Q'], ['-QQ']].each do |flags|
       $stdout = captured
       log = capture_log(level: :debug) do
@@ -491,7 +504,7 @@ RSpec.describe Pupgrade::CLI::Catalog::Compile do
     expect(read('web01.example.com', 'compile.json')['warnings']).to eq([])
 
     cfg = File.join(@tmp, 'ignorable-depr.yaml')
-    File.write(cfg, "compile:\n  factsets: [factsets]\n  cache_dir: #{out}\n  ignorable_puppet_compile_messages: ['deprecated, use new_way']\n  suppress_ignorable_puppet_compile_messages: true\n")
+    File.write(cfg, "compile:\n  factsets: [factsets]\n  cache_dir: #{out}\n  ignorable_puppet_compile_messages: ['deprecated, use new_way']\n  suppress_ignorable_puppet_compile_messages: debug\n")
     captured = StringIO.new
     original = $stdout
     $stdout  = captured

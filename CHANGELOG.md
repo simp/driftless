@@ -149,6 +149,11 @@ It's a new gem to help upgrade the module base of large Puppet/OpenVox  control 
   compiles one catalog per factset, deployed environment directory using
   Puppet's compiler (like onceover, but much faster without rspec-puppet)
 
+  * the files read when present live under `pupgrade/compiler/`:
+    `mocks.yaml`, `enc.yaml`, `mocks.rb`, and `before.pp`, the last a
+    default for `compile.prepend_file`; the former places,
+    `pupgrade/compiler-mocks.yaml`, `pupgrade/enc.yaml`, and
+    `pupgrade/compiler.rb`, are still read, with a warning naming the new
   * prints a green P or red F per factset as it goes (disable with
     `--no-progress`); at info, a line before each node's compile counts
     it off (`compile: [  3/24] web01.example.com`), so the warnings of

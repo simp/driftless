@@ -37,7 +37,7 @@ RSpec.describe Pupgrade::CLI::ModuleCommand::List do
   def compile(dir)
     original = $stdout
     $stdout  = StringIO.new
-    Pupgrade::CLI::Catalog::Compile.new.run(['--no-config', '-d', fixture.dir, '--factsets', 'factsets', '-o', dir, '--mocks', 'pupgrade/compiler-mocks.yaml'])
+    Pupgrade::CLI::Catalog::Compile.new.run(['--no-config', '-d', fixture.dir, '--factsets', 'factsets', '-o', dir, '--mocks', 'pupgrade/compiler/mocks.yaml'])
   rescue SystemExit
     nil
   ensure

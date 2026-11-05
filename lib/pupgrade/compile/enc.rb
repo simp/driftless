@@ -8,7 +8,7 @@ module Pupgrade
     # variables and classes, derived per node from the certname and facts.
     # Two files, both optional:
     #
-    # `pupgrade/enc.yaml`, rules applied in order, later assignments
+    # `pupgrade/compiler/enc.yaml`, rules applied in order, later assignments
     # overriding earlier ones:
     #
     #     rules:
@@ -28,7 +28,7 @@ module Pupgrade
     # and `${vars.name}` (a variable set so far), each with an optional
     # `[/regexp/, n]` taking a capture group.
     #
-    # `pupgrade/compiler.rb`, plain Ruby loaded after the rules for what
+    # `pupgrade/compiler/mocks.rb`, plain Ruby loaded after the rules for what
     # they cannot say, each block given the node as resolved so far:
     #
     #     variable(:tenant) { |node| node.certname =~ /\.b\./ ? 'blue' : 'green' }

@@ -12,10 +12,14 @@ module Pupgrade
     # the code to compile, the ENC stand-in, and the execution guard, and
     # the session they build from them.
     module CompileOptions
-      # The files read when the config names none and they exist.
-      DEFAULT_MOCKS_FILE = 'pupgrade/compiler-mocks.yaml'.freeze
-      DEFAULT_ENC_FILE   = 'pupgrade/enc.yaml'.freeze
-      DEFAULT_RUBY_FILE  = 'pupgrade/compiler.rb'.freeze
+      # The files read when the config names none and they exist, and the
+      # places they were read from before, still read with a warning.
+      DEFAULT_MOCKS_FILE   = 'pupgrade/compiler/mocks.yaml'.freeze
+      DEFAULT_ENC_FILE     = 'pupgrade/compiler/enc.yaml'.freeze
+      DEFAULT_RUBY_FILE    = 'pupgrade/compiler/mocks.rb'.freeze
+      DEFAULT_PREPEND_FILE = 'pupgrade/compiler/before.pp'.freeze
+      FORMER_DEFAULTS = { DEFAULT_MOCKS_FILE => 'pupgrade/compiler-mocks.yaml', DEFAULT_ENC_FILE => 'pupgrade/enc.yaml',
+                          DEFAULT_RUBY_FILE => 'pupgrade/compiler.rb' }.freeze
 
       def declare_repo_and_factsets(o)
         o.on('-d', '--repo-dir=DIR', 'Path of deployed control repostory (Default: `.`)') { |v| @options[:repo_dir] = v }
@@ -29,7 +33,8 @@ module Pupgrade
         o.on('--manifest=PATH', 'Override Puppet manifest (config: compile.manifest)') { |v| @options[:manifest] = v }
         o.on('--hiera=FILE', 'Environment-layer hiera.yaml in place of the control repo\'s (config: compile.hiera)') { |v| @options[:hiera] = v }
         o.on('--code=CODE', 'Puppet code to compile in place of the manifest') { |v| @options[:code] = v }
-        o.on('--prepend=CODE', 'Puppet code evaluated before the manifest or --code; @FILE reads it from a file (config: compile.prepend_file)') { |v| @options[:prepend] = v }
+        o.on('--prepend=CODE', 'Puppet code evaluated before the manifest or --code; @FILE reads it from a file',
+             "(config: compile.prepend_file; default: #{DEFAULT_PREPEND_FILE})") { |v| @options[:prepend] = v }
         o.on('--var=NAME=VALUE[,…]', 'Set top-scope variable (for every node) (config: compile.vars)') { |v| pair(:vars, v) }
         o.on('--enc=FILE', "Rules for per-node variables and classes (config: compile.enc; default: #{DEFAULT_ENC_FILE}") { |v| @options[:enc] = v }
         o.on('--ruby=FILE', "Rules for per-node ENC variables + classes, exec guard mocks (config: compile.ruby; default: #{DEFAULT_RUBY_FILE}") { |v| @options[:ruby] = v }
@@ -114,6 +119,7 @@ module Pupgrade
         mocks.fact_blocks = enc.ruby.facts
         prepend = @options[:prepend]
         prepend = "@#{@options[:prepend_file]}" if prepend.nil? && @options[:prepend_file]
+        prepend = "@#{DEFAULT_PREPEND_FILE}" if prepend.nil? && File.file?(File.join(repo.dir, DEFAULT_PREPEND_FILE))
         prepend_from = nil
         if prepend&.start_with?('@')
           prepend_from = File.expand_path(prepend.delete_prefix('@'), repo.dir)
@@ -146,16 +152,23 @@ module Pupgrade
       end
 
       # The file an option names, relative to the repo, else the default
-      # when it is there. A named file that is not there is warned about
-      # and done without: a config may name every file before the site has
-      # written them.
+      # when it is there, else the place it was read from before, with a
+      # warning naming where it belongs. A named file that is not there is
+      # warned about and done without: a config may name every file before
+      # the site has written them.
       #
       # @return [String, nil] absolute
       def file_option(repo, key, default)
         return (File.file?(path = File.expand_path(@options[key], repo.dir)) ? path : missing(command_name, key, path)) if @options[key]
 
         path = File.join(repo.dir, default)
-        File.file?(path) ? path : nil
+        return path if File.file?(path)
+
+        former = FORMER_DEFAULTS[default]
+        return nil unless former && File.file?(path = File.join(repo.dir, former))
+
+        ::Pupgrade.logger.warning("#{command_name}: #{former} is read from its old place; move it to #{default}")
+        path
       end
 
       def missing(command, what, path)

@@ -55,7 +55,7 @@ RSpec.describe Pupgrade::CLI::Catalog::Compile do
   before(:each) { silence_logger }
 
   it 'compiles every factset with the mocks, in both layouts, and writes catalog and probes per node' do
-    status, text = run(['--mocks', 'pupgrade/compiler-mocks.yaml'])
+    status, text = run(['--mocks', 'pupgrade/compiler/mocks.yaml'])
     expect(status).to eq(0)
     expect(cells(text)).to eq([
       %w[certname resources classes warnings mocks leaks missing status],
@@ -65,7 +65,7 @@ RSpec.describe Pupgrade::CLI::Catalog::Compile do
     expect(Dir.children(out).sort).to eq(%w[db01.example.com web01.example.com])
     expect(Dir.children(File.join(out, 'web01.example.com')).sort).to eq(%w[catalog.json compile.json])
     File.write(File.join(out, 'web01.example.com', 'probes.json'), '{}')
-    run(['--mocks', 'pupgrade/compiler-mocks.yaml', '--certname', 'web*'])
+    run(['--mocks', 'pupgrade/compiler/mocks.yaml', '--certname', 'web*'])
     expect(Dir.children(File.join(out, 'web01.example.com')).sort).to eq(%w[catalog.json compile.json])
 
     catalog = read('web01.example.com', 'catalog.json')
@@ -102,10 +102,10 @@ RSpec.describe Pupgrade::CLI::Catalog::Compile do
     expect(probes['warnings']).to eq([]) # the deprecation is not counted twice
     # Puppet's own warnings reach the log as warnings, deprecations as info
     allow(Driftless).to receive(:logger).and_call_original
-    log = capture_log(level: :info) { run(['-v', '--mocks', 'pupgrade/compiler-mocks.yaml', '--certname', 'web01*']) }
+    log = capture_log(level: :info) { run(['-v', '--mocks', 'pupgrade/compiler/mocks.yaml', '--certname', 'web01*']) }
     expect(log).to include('info: puppet: web01.example.com: deprecation: legacy_shout is deprecated; use stdlib::shout')
     expect(log).not_to include('warning: puppet:')
-    code = ['-v', '--mocks', 'pupgrade/compiler-mocks.yaml', '--certname', 'web01*', '--code', 'notify { "x": } warning("from the manifest")']
+    code = ['-v', '--mocks', 'pupgrade/compiler/mocks.yaml', '--certname', 'web01*', '--code', 'notify { "x": } warning("from the manifest")']
     log = capture_log(level: :warning) { run(code) }
     expect(log).to include('warning: puppet: web01.example.com: from the manifest')
     expect(log).not_to include('file & line not available')
@@ -129,11 +129,11 @@ RSpec.describe Pupgrade::CLI::Catalog::Compile do
     FileUtils.mkdir_p(gone)
     File.write(File.join(gone, 'compile.json'), "{}\n")
     FileUtils.mkdir_p(File.join(out, 'notes'))
-    run(['--mocks', 'pupgrade/compiler-mocks.yaml', '--certname', 'web*'])
+    run(['--mocks', 'pupgrade/compiler/mocks.yaml', '--certname', 'web*'])
     expect(Dir.children(out).sort).to eq(%w[gone.example.com notes web01.example.com])
-    run(['--mocks', 'pupgrade/compiler-mocks.yaml', '--keep-stale'])
+    run(['--mocks', 'pupgrade/compiler/mocks.yaml', '--keep-stale'])
     expect(Dir.children(out).sort).to eq(%w[db01.example.com gone.example.com notes web01.example.com])
-    run(['--mocks', 'pupgrade/compiler-mocks.yaml'])
+    run(['--mocks', 'pupgrade/compiler/mocks.yaml'])
     expect(Dir.children(out).sort).to eq(%w[db01.example.com notes web01.example.com])
   end
 
@@ -241,7 +241,7 @@ RSpec.describe Pupgrade::CLI::Catalog::Compile do
     FileUtils.mkdir_p(functions)
     File.write(File.join(functions, 'pson_name.rb'),
                "module Puppet::Parser::Functions\n  newfunction(:pson_name, type: :rvalue) { |args| PSON.load(args[0])['name'] }\nend\n")
-    code = ['--mocks', 'pupgrade/compiler-mocks.yaml', '--certname', 'web*', '--code', %q(notify { pson_name('{"name":"from pson"}'): })]
+    code = ['--mocks', 'pupgrade/compiler/mocks.yaml', '--certname', 'web*', '--code', %q(notify { pson_name('{"name":"from pson"}'): })]
     # without it first: once loaded, PSON stays for the process
     expect(run(code).first).to eq(1) unless defined?(::PSON)
     expect(File.read(File.join(out, 'web01.example.com/error.txt'))).to include('uninitialized constant Puppet::Parser::Functions::PSON') unless defined?(::PSON)
@@ -252,13 +252,13 @@ RSpec.describe Pupgrade::CLI::Catalog::Compile do
   end
 
   it 'compiles code in place of the manifest, with top-scope variables and a certname filter, --prepend before it' do
-    status, text = run(['--mocks', 'pupgrade/compiler-mocks.yaml', '--certname', 'web*', '--code', 'notify { "hello ${role}": }', '--var', 'role=db'])
+    status, text = run(['--mocks', 'pupgrade/compiler/mocks.yaml', '--certname', 'web*', '--code', 'notify { "hello ${role}": }', '--var', 'role=db'])
     expect(status).to eq(0)
     expect(cells(text).drop(1).map(&:first)).to eq(['web01.example.com'])
     catalog = read('web01.example.com', 'catalog.json')
     expect(catalog['resources'].map { |r| r['title'] }).to include('hello db')
     expect(catalog['classes']).to eq(%w[settings])
-    status, = run(['--mocks', 'pupgrade/compiler-mocks.yaml', '--certname', 'web*', '--prepend', '$greeting = "hi"', '--code', 'notify { "${greeting} ${role}": }', '--var', 'role=db'])
+    status, = run(['--mocks', 'pupgrade/compiler/mocks.yaml', '--certname', 'web*', '--prepend', '$greeting = "hi"', '--code', 'notify { "${greeting} ${role}": }', '--var', 'role=db'])
     expect(status).to eq(0)
     catalog = read('web01.example.com', 'catalog.json')
     expect(catalog['resources'].map { |r| r['title'] }).to include('hi db')
@@ -267,14 +267,14 @@ RSpec.describe Pupgrade::CLI::Catalog::Compile do
 
   it 'records where each class was added: a declaration at its file and line, --prepend and --code by the flag, the manifest keeping its file' do
     File.write(File.join(fixture.dir, 'pre.pp'), "class { 'timezone': }\n")
-    status, = run(['--mocks', 'pupgrade/compiler-mocks.yaml', '--certname', 'web*', '--prepend', '@pre.pp'])
+    status, = run(['--mocks', 'pupgrade/compiler/mocks.yaml', '--certname', 'web*', '--prepend', '@pre.pp'])
     expect(status).to eq(0)
     classes = read('web01.example.com', 'compile.json')['classes']
     expect(classes['timezone']['sites']).to eq(['pre.pp:1', 'site-modules/profile/manifests/base.pp:7'])
     expect(classes['role::web']['sites']).to eq(['manifests/site.pp:2'])
 
     code = "class { 'role::web': }\ninclude ntp"
-    status, = run(['--mocks', 'pupgrade/compiler-mocks.yaml', '--certname', 'web*', '--prepend', 'include ntp', '--code', code])
+    status, = run(['--mocks', 'pupgrade/compiler/mocks.yaml', '--certname', 'web*', '--prepend', 'include ntp', '--code', code])
     expect(status).to eq(0)
     classes = read('web01.example.com', 'compile.json')['classes']
     expect(classes['role::web']['sites']).to eq(['--code:1'])
@@ -294,7 +294,7 @@ RSpec.describe Pupgrade::CLI::Catalog::Compile do
         factsets: [factsets]
         manifest: alt.pp
         prepend_file: before.pp
-        mocks: pupgrade/compiler-mocks.yaml
+        mocks: pupgrade/compiler/mocks.yaml
         cache_dir: #{out}
         vars:
           role: db
@@ -327,7 +327,7 @@ RSpec.describe Pupgrade::CLI::Catalog::Compile do
     allow(Driftless).to receive(:logger).and_call_original
     path = File.join(@tmp, 'log', 'run.log')
     # a missing --ruby file is warned about, and a warning's label is colored
-    args = ['--log-file', path, '--certname', 'web*', '--color', '--mocks', 'pupgrade/compiler-mocks.yaml', '--ruby', File.join(@tmp, 'nope.rb')]
+    args = ['--log-file', path, '--certname', 'web*', '--color', '--mocks', 'pupgrade/compiler/mocks.yaml', '--ruby', File.join(@tmp, 'nope.rb')]
     terminal = capture_log(level: :notice) { expect(run(args).first).to eq(0) }
     expect(terminal).to include("\e[", 'warning:', 'compile: 1 compiled')
     expect(terminal).not_to include('debug: ')
@@ -336,7 +336,7 @@ RSpec.describe Pupgrade::CLI::Catalog::Compile do
     expect(log).to include('warning: compile: ruby ', 'notice: compile: 1 compiled, 0 failed', 'debug: ')
     expect(log).not_to include("\e[")
 
-    capture_log(level: :notice) { run(['--log-file', path, '--certname', 'web*', '--mocks', 'pupgrade/compiler-mocks.yaml']) }
+    capture_log(level: :notice) { run(['--log-file', path, '--certname', 'web*', '--mocks', 'pupgrade/compiler/mocks.yaml']) }
     expect(File.read(path).scan(/^--- pupgrade /).size).to eq(2)
 
     # a file that cannot be opened stops the command before it runs
@@ -349,7 +349,7 @@ RSpec.describe Pupgrade::CLI::Catalog::Compile do
     # Puppet 8 is strict about unknown variables unless told otherwise,
     # twice: strict_variables makes one an error, and strict=error raises
     # the warning it is otherwise
-    code = ['--mocks', 'pupgrade/compiler-mocks.yaml', '--certname', 'web*', '--code', 'notify { "x${nope}": }']
+    code = ['--mocks', 'pupgrade/compiler/mocks.yaml', '--certname', 'web*', '--code', 'notify { "x${nope}": }']
     status, text = run(code)
     expect(status).to eq(1)
     expect(text).to include('Unknown variable')
@@ -367,7 +367,7 @@ RSpec.describe Pupgrade::CLI::Catalog::Compile do
     status   = nil
     allow(Driftless).to receive(:logger).and_call_original
     log = capture_log(level: :notice) do
-      described_class.new.run(['-c', cfg, '-d', fixture.dir, '--mocks', 'pupgrade/compiler-mocks.yaml', '--certname', 'web*', '--code', 'notify { "x${nope}": }'])
+      described_class.new.run(['-c', cfg, '-d', fixture.dir, '--mocks', 'pupgrade/compiler/mocks.yaml', '--certname', 'web*', '--code', 'notify { "x${nope}": }'])
     rescue SystemExit => e
       status = e.status
     ensure
@@ -379,7 +379,7 @@ RSpec.describe Pupgrade::CLI::Catalog::Compile do
     # compile.on_mock holds standing rules for the site manifest's compile
     $stdout = captured
     log = capture_log(level: :notice) do
-      described_class.new.run(['-c', cfg, '-d', fixture.dir, '--mocks', 'pupgrade/compiler-mocks.yaml', '--certname', 'web*'])
+      described_class.new.run(['-c', cfg, '-d', fixture.dir, '--mocks', 'pupgrade/compiler/mocks.yaml', '--certname', 'web*'])
     rescue SystemExit
       nil
     ensure
@@ -392,7 +392,7 @@ RSpec.describe Pupgrade::CLI::Catalog::Compile do
     cfg = File.join(@tmp, 'ignorable.yaml')
     File.write(cfg, "compile:\n  factsets: [factsets]\n  cache_dir: #{out}\n  ignorable_puppet_compile_messages: ['\\Afrom the', 'nothing else']\n  suppress_ignorable_puppet_compile_messages: debug\n")
     allow(Driftless).to receive(:logger).and_call_original
-    code = ['-vv', '-c', cfg, '-d', fixture.dir, '--mocks', 'pupgrade/compiler-mocks.yaml', '--certname', 'web*', '--code', 'notify { "x": } warning("from the manifest") warning("kept")']
+    code = ['-vv', '-c', cfg, '-d', fixture.dir, '--mocks', 'pupgrade/compiler/mocks.yaml', '--certname', 'web*', '--code', 'notify { "x": } warning("from the manifest") warning("kept")']
     captured = StringIO.new
     original = $stdout
     $stdout  = captured
@@ -458,6 +458,26 @@ RSpec.describe Pupgrade::CLI::Catalog::Compile do
     expect(status).to eq(3)
   end
 
+  it 'reads the compiler files from their former places with a warning, and pupgrade/compiler/before.pp by default' do
+    dir = File.join(fixture.dir, 'pupgrade')
+    FileUtils.mv(File.join(dir, 'compiler/mocks.rb'), File.join(dir, 'compiler.rb'))
+    FileUtils.mv(File.join(dir, 'compiler/enc.yaml'), File.join(dir, 'enc.yaml'))
+    File.write(File.join(dir, 'compiler/before.pp'), "\$from_before = 'set before'\n")
+    allow(Driftless).to receive(:logger).and_call_original
+    status = nil
+    log = capture_log(level: :info) { status, = run(['-v', '--certname', 'web*', '--code', 'notify { $from_before: }']) }
+    expect(status).to eq(0)
+    expect(read('web01.example.com', 'catalog.json')['resources'].map { |r| r['title'] }).to include('set before')
+    expect(log).to include('warning: compile: pupgrade/compiler.rb is read from its old place; move it to pupgrade/compiler/mocks.rb',
+                           'warning: compile: pupgrade/enc.yaml is read from its old place; move it to pupgrade/compiler/enc.yaml',
+                           "info: enc: 2 rule(s) from #{dir}/enc.yaml")
+    expect(log).not_to include('compiler-mocks.yaml is read')
+  ensure
+    FileUtils.mv(File.join(dir, 'compiler.rb'), File.join(dir, 'compiler/mocks.rb'))
+    FileUtils.mv(File.join(dir, 'enc.yaml'), File.join(dir, 'compiler/enc.yaml'))
+    FileUtils.rm_f(File.join(dir, 'compiler/before.pp'))
+  end
+
   it 'merges the fact mocks into the node, an override noticed, and records the reads under mocks' do
     mocks = File.join(@tmp, 'fact-mocks.yaml')
     File.write(mocks, "facts:\n  operatingsystem: '${facts.os.name}'\n  kernel: Mocked\n  os:\n    extra: 'yes'\n    family: RedHat\n  unread: 1\n")
@@ -508,7 +528,7 @@ RSpec.describe Pupgrade::CLI::Catalog::Compile do
     File.write(File.join(functions, 'old_way.rb'),
                "Puppet::Parser::Functions.newfunction(:old_way, type: :rvalue) do |_args|\n  Puppet.deprecation_warning(\"old_way is deprecated,\\n   use new_way. at [\\\"x.pp\\\", 1]\", 'old_way')\n  'x'\nend\n")
     allow(Driftless).to receive(:logger).and_call_original
-    code = ['-vv', '--mocks', 'pupgrade/compiler-mocks.yaml', '--certname', 'web*', '--code', 'notify { old_way(): }']
+    code = ['-vv', '--mocks', 'pupgrade/compiler/mocks.yaml', '--certname', 'web*', '--code', 'notify { old_way(): }']
     log = capture_log(level: :debug) { run(code) }
     expect(log.lines.grep(/old_way is deprecated/)).to eq(["info: puppet: web01.example.com: deprecation: old_way is deprecated, use new_way. at [\"x.pp\", 1]\n"])
     expect(read('web01.example.com', 'compile.json')['deprecations']).to eq([{ 'message' => "old_way is deprecated,\n   use new_way. at [\"x.pp\", 1]" }])
@@ -520,7 +540,7 @@ RSpec.describe Pupgrade::CLI::Catalog::Compile do
     original = $stdout
     $stdout  = captured
     log = capture_log(level: :debug) do
-      described_class.new.run(['-vv', '-c', cfg, '-d', fixture.dir, '--mocks', 'pupgrade/compiler-mocks.yaml', '--certname', 'web*', '--code', 'notify { old_way(): }'])
+      described_class.new.run(['-vv', '-c', cfg, '-d', fixture.dir, '--mocks', 'pupgrade/compiler/mocks.yaml', '--certname', 'web*', '--code', 'notify { old_way(): }'])
     rescue SystemExit
       nil
     ensure
@@ -538,7 +558,7 @@ RSpec.describe Pupgrade::CLI::Catalog::Compile do
     FileUtils.cp(File.join(fixture.dir, 'factsets/web01.example.com.json'), File.join(dup, 'web01-again.json'))
     allow(Driftless).to receive(:logger).and_call_original
     status = text = nil
-    log = capture_log(level: :warning) { status, text = run(['--factsets', dup, '--mocks', 'pupgrade/compiler-mocks.yaml', '--certname', 'web*']) }
+    log = capture_log(level: :warning) { status, text = run(['--factsets', dup, '--mocks', 'pupgrade/compiler/mocks.yaml', '--certname', 'web*']) }
     expect(status).to eq(0)
     expect(cells(text).drop(1).map(&:first)).to eq(['web01.example.com'])
     expect(log).to include("warning: compile: web01.example.com: 2 factsets carry this certname; compiling #{File.join(fixture.dir, 'factsets/web01.example.com.json')}, not #{File.join(dup, 'web01-again.json')}")
@@ -558,7 +578,7 @@ RSpec.describe Pupgrade::CLI::Catalog::Compile do
     allow(Driftless).to receive(:logger).and_call_original
     status = text = nil
     log = capture_log(level: :warning) do
-      status, text = run(['--factsets', dir, '--mocks', 'pupgrade/compiler-mocks.yaml', '--certname', 'stg*,plain*,bad*', '--environment', '${facts.agent_specified_environment}'])
+      status, text = run(['--factsets', dir, '--mocks', 'pupgrade/compiler/mocks.yaml', '--certname', 'stg*,plain*,bad*', '--environment', '${facts.agent_specified_environment}'])
     end
     expect(status).to eq(1)
     rows = cells(text).drop(1).select { |r| r.size > 1 }.to_h { |r| [r[0], r.last] }
@@ -579,7 +599,7 @@ RSpec.describe Pupgrade::CLI::Catalog::Compile do
     # the provider reads the fact as its file loads, once per process, so a process of its own
     out, status = Open3.capture2(RbConfig.ruby, '-I', File.expand_path('../../../lib', __dir__), File.expand_path('../../../bin/pupgrade', __dir__),
                                  '--no-config', '--no-color', 'catalog', 'compile', '-d', fixture.dir, '--factsets', dir, '-o', File.join(@tmp, 'no-kernel-out'),
-                                 '--mocks', 'pupgrade/compiler-mocks.yaml', '--code', 'firewall { "x": action => "accept" }', err: File::NULL)
+                                 '--mocks', 'pupgrade/compiler/mocks.yaml', '--code', 'firewall { "x": action => "accept" }', err: File::NULL)
     expect(status.exitstatus).to eq(0)
     expect(cells(out)[1].values_at(0, 5, 6, 7)).to eq(%w[web01.example.com 0 1 ok])
   end

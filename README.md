@@ -137,14 +137,19 @@ compile:
 ```
 
 Everything else pupgrade reads or writes of its own sits under `pupgrade/`
-and is found when present:
+and is found when present (the files under `pupgrade/compiler/` were read
+from `pupgrade/compiler-mocks.yaml`, `pupgrade/enc.yaml`, and
+`pupgrade/compiler.rb` before; those places are still read, with a warning
+naming the new one):
 
 | Path | What |
 |---|---|
 | `pupgrade/factsets/` | the nodes to compile for |
-| `pupgrade/compiler-mocks.yaml` | answers for commands and facts module code asks for while compiling |
-| `pupgrade/enc.yaml` | rules deciding each node's top-scope variables and classes, as an ENC would |
-| `pupgrade/compiler.rb` | Ruby blocks for what the rules cannot say |
+| `pupgrade/compiler/mocks.yaml` | answers for commands and facts module code asks for while compiling |
+| `pupgrade/compiler/enc.yaml` | rules deciding each node's top-scope variables and classes, as an ENC would |
+| `pupgrade/compiler/mocks.rb` | Ruby blocks for what the rules cannot say |
+| `pupgrade/compiler/before.pp` | Puppet code evaluated before the manifest (`--prepend`) |
+| `pupgrade/logs/` | where `catalog compile` writes its log |
 | `pupgrade/cache/catalogs/` | what `compile` wrote; what `solve` and `impact` read |
 | `pupgrade/cache/api_surfaces/` | the module API documents `module diff` and `impact` compare |
 
@@ -182,7 +187,7 @@ helpers, and every `Facter.value` read. A command that is not mocked stops
 that node's compile (`--on-leak fail`, the default), so you find them one at
 a time, or all at once with `--on-leak allow`.
 
-`pupgrade/compiler-mocks.yaml` answers them:
+`pupgrade/compiler/mocks.yaml` answers them:
 
 ```yaml
 ---
@@ -221,7 +226,7 @@ may differ for it.
 ### ENC rules
 
 Hierarchies usually key on something an ENC sets: `$role`, `$site`, a
-tenant. `pupgrade/enc.yaml` stands in for the ENC, with rules applied in
+tenant. `pupgrade/compiler/enc.yaml` stands in for the ENC, with rules applied in
 order, later assignments winning:
 
 ```yaml
@@ -243,7 +248,7 @@ rules:
       family: '${facts.os.family}'
 ```
 
-For what YAML cannot say, `pupgrade/compiler.rb` is plain Ruby, loaded after
+For what YAML cannot say, `pupgrade/compiler/mocks.rb` is plain Ruby, loaded after
 the rules; each block gets the node as resolved so far:
 
 ```ruby
@@ -316,7 +321,8 @@ pupgrade catalog show -p mocks 'web*'      # what was mocked
 
 `--prepend CODE|@FILE` evaluates Puppet code before the manifest, for the
 resources only production has, and before `--code` when that stands in for
-the manifest (a configured `compile.prepend_file` too). Each is its own
+the manifest (a configured `compile.prepend_file` too, or
+`pupgrade/compiler/before.pp` when it exists). Each is its own
 source: a site, warning, or error in prepended code reads `--prepend:LINE`,
 or `FILE:LINE` for `@FILE`; in `--code`, `--code:LINE`; the manifest's name
 its files. `--hiera FILE` reads the environment's Hiera
@@ -563,7 +569,7 @@ pupgrade catalog compile
 pupgrade catalog compile --on-leak allow
 jq '.leaks[] | select(.action == "allowed")' pupgrade/cache/catalogs/*/compile.json
 
-# 3. answer each one in pupgrade/compiler-mocks.yaml (see Mocks), then
+# 3. answer each one in pupgrade/compiler/mocks.yaml (see Mocks), then
 pupgrade catalog compile -vv          # each mocked answer logged, with its call site
 pupgrade catalog compile -v --on-mock 'certname=web01*:info'   # one node's answers, in a full run
 ```

@@ -31,10 +31,10 @@ module Pupgrade
                  about: 'Overrides repo\'s hiera.yaml; its datadir will be relative to its own location'
       config_key 'compile.pson', type: :boolean, default: false,
                  about: 'Loads optional gem `puppet-pson`, to enable compiling some (pre-Puppet 8) code'
-      config_key 'compile.prepend_file', type: :string, default: nil, example: 'pupgrade/pre-manifest.pp',
+      config_key 'compile.prepend_file', type: :string, default: nil, example: 'pupgrade/compiler/before.pp',
                  about: "Puppet manifest, evaluated before compling control repo manifests,\n" \
                  "Analagous to rspec-puppet's :pre_condition + onceover's spec/pre_condition/"
-      config_key 'compile.mocks', type: :string, default: nil, example: 'pupgrade/compiler-mocks.yaml',
+      config_key 'compile.mocks', type: :string, default: nil, example: 'pupgrade/compiler/mocks.yaml',
                  about: 'File of command and Facter responses to mock while compiling'
       config_key 'compile.default_mocks', type: :boolean, default: true,
                  about: 'Whether pupgrade applies its built-in mocks for common issues'

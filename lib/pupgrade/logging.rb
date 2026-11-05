@@ -16,7 +16,7 @@ module Pupgrade
     config_key 'logging.level', type: :string, default: 'notice',
                about: 'trace (command output), debug (each decision and file), info (each item worked on), ' \
                       'notice (what the command did), warning, error, or fatal'
-    config_key 'logging.file', type: :string, default: nil, example: 'pupgrade/log/pupgrade.log',
+    config_key 'logging.file', type: :string, default: nil, example: 'pupgrade/logs/pupgrade.log',
                about: 'A file the log is appended to as well, uncolored, each run under a header line; ' \
                       'relative to the current directory. --log-file overrides'
     config_key 'logging.file_level', type: :string, default: 'debug',

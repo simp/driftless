@@ -142,7 +142,7 @@ module Pupgrade
     # @!attribute [r] factsets
     #   @return [String] the factsets directory
     # @!attribute [r] mocks
-    #   @return [String] pupgrade/compiler-mocks.yaml
+    #   @return [String] pupgrade/compiler/mocks.yaml
     Result = Data.define(:dir, :remotes_dir, :puppetfile, :proposed, :proposals, :config, :factsets, :mocks) do
       # @return [String] the full sha of a deployed module's clone at a ref
       def sha(short, ref = 'HEAD')
@@ -218,7 +218,7 @@ module Pupgrade
       Result.new(dir: @dir, remotes_dir: @remotes, puppetfile: File.join(@dir, 'Puppetfile'),
                  proposed: proposals['Puppetfile.proposed'], proposals: proposals,
                  config: File.join(@dir, 'pupgrade/pupgrade.yaml'), factsets: File.join(@dir, 'factsets'),
-                 mocks: File.join(@dir, 'pupgrade/compiler-mocks.yaml'))
+                 mocks: File.join(@dir, 'pupgrade/compiler/mocks.yaml'))
     end
 
     private

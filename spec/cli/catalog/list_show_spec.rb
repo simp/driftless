@@ -24,7 +24,7 @@ RSpec.describe Pupgrade::CLI::Catalog do
     @tmp      = Dir.mktmpdir
     @fixture  = Pupgrade::FixtureRepo.build(File.join(@tmp, 'repo'))
     @catalogs = File.join(@tmp, 'catalogs')
-    self.class.silently { Pupgrade::CLI::Catalog::Compile.new.run(['--no-config', '-d', @fixture.dir, '--factsets', 'factsets', '-o', @catalogs, '--mocks', 'pupgrade/compiler-mocks.yaml']) }
+    self.class.silently { Pupgrade::CLI::Catalog::Compile.new.run(['--no-config', '-d', @fixture.dir, '--factsets', 'factsets', '-o', @catalogs, '--mocks', 'pupgrade/compiler/mocks.yaml']) }
   end
 
   after(:all) { FileUtils.rm_rf(@tmp) } # rubocop:disable RSpec/BeforeAfterAll

@@ -392,7 +392,11 @@ It's a new gem to help upgrade the module base of large Puppet/OpenVox  control 
 - **`pupgrade config`**` new|print`
 
   * `new` writes a `pupgrade.yaml` with every key commented out, or set by
-    `key=value` arguments
+    `key=value` arguments; `new --dir[=DIR]` writes the whole tree,
+    `pupgrade.yaml`, `compiler/{enc.yaml,mocks.yaml,mocks.rb,before.pp}`,
+    and `branches.yaml` as skeletons of comments and examples, with
+    `cache/` and `logs/`, keeping any file already there; `--gitignore`
+    lists `DIR/cache/` and `DIR/logs/` in the `.gitignore` beside DIR, once
   * `print [KEY]` shows the config as this run resolves it; `-d` adds the
     unset defaults
   * the project config is `pupgrade/pupgrade.yaml` (or `./pupgrade.yaml`)

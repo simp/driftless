@@ -88,8 +88,9 @@ and pupgrade is [installed](#installation).
 1. Write a config and a directory of factsets:
 
     ```shell
-    pupgrade config new            # pupgrade/pupgrade.yaml, every key commented out
-    mkdir -p pupgrade/factsets     # one JSON file per node; see Factsets below
+    pupgrade config new --dir --gitignore   # the pupgrade/ tree, every key and file commented out;
+                                            # pupgrade/cache/ and pupgrade/logs/ ignored by git
+    mkdir -p pupgrade/factsets              # one JSON file per node; see Factsets below
     ```
 
 1. See what the deployed modules say about each other today:

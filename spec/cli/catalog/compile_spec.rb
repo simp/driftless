@@ -415,7 +415,8 @@ RSpec.describe Pupgrade::CLI::Catalog::Compile do
 
   it 'keeps the warnings the config calls ignorable off the terminal, in the record all the same' do
     cfg = File.join(@tmp, 'ignorable.yaml')
-    File.write(cfg, "compile:\n  factsets: [factsets]\n  cache_dir: #{out}\n  ignorable_puppet_compile_messages: ['\\Afrom the', 'nothing else']\n  suppress_ignorable_puppet_compile_messages: debug\n")
+    File.write(cfg, "compile:\n  factsets: [factsets]\n  cache_dir: #{out}\n  ignorable_puppet_compile_messages: ['\\Afrom the', 'nothing else']\n" \
+                    "  suppress_ignorable_puppet_compile_messages: debug\n")
     allow(Driftless).to receive(:logger).and_call_original
     code = ['-vv', '-c', cfg, '-d', fixture.dir, '--mocks', 'pupgrade/compiler/mocks.yaml', '--certname', 'web*', '--code', 'notify { "x": } warning("from the manifest") warning("kept")']
     captured = StringIO.new

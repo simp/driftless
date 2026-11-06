@@ -94,7 +94,7 @@ module Pupgrade
       class Error < StandardError; end
 
       def self.from_yaml(path)
-        data = YAML.safe_load(File.read(path), aliases: true, filename: path)
+        data = YAML.safe_load(File.read(path), aliases: true, filename: path) || {}
         return failed(path, "expected a mapping of module name to branch, got #{data.class}") unless data.is_a?(Hash)
 
         branches = data.to_h { |name, branch| [normalize(name), branch.to_s] }

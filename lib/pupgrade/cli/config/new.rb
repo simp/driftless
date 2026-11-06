@@ -14,9 +14,12 @@ module Pupgrade
       # A pupgrade.yaml listing every known key under its subsystem, each
       # commented out with its default or an example, or set live by a
       # `<subsystem.key>=<value>` argument. The file is inert as written.
+      # `--dir` writes the whole `pupgrade/` tree around it, each file a
+      # skeleton of comments, and `--gitignore` lists what the tree writes
+      # during runs in the control repo's .gitignore.
       class New < Base
         register_command name: 'new', subcommand_of: Config
-        desc 'Write a pupgrade.yaml listing every known key (commented out, or set by key=value arguments)'
+        desc 'Write a pupgrade.yaml listing every known key (commented out, or set by key=value arguments), or the whole pupgrade/ tree'
         skip_config_load # so a broken pupgrade.yaml can be replaced
         positional '[<subsystem.key>=<value> ...]'
 
@@ -24,9 +27,90 @@ module Pupgrade
         # follows alphabetically.
         SUBSYSTEM_ORDER = %w[compile lookup surface modules solve impact output logging].freeze
 
+        # The files `--dir` writes beside pupgrade.yaml, each inert: comments
+        # and the README's example of it.
+        SKELETONS = {
+          'compiler/enc.yaml' => <<~'YAML',
+            # What an ENC would tell the compiler about each node: top-scope
+            # variables and classes, from rules applied in order, later ones winning.
+            # A value interpolates ${certname}, ${facts.a.b}, ${trusted.a.b}, and
+            # ${vars.name}, each with an optional [/regexp/, n] taking a capture.
+            #
+            # rules:
+            #   - set:                              # every node
+            #       role: role::base
+            #   - when:
+            #       certname: 'pup*'                # a glob on the certname
+            #     set:
+            #       role: role::puppetserver
+            #     classes: [profile::puppetserver]
+            #   - when:
+            #       facts.os.family: [RedHat]       # a fact, any of the values
+            #     set:
+            #       pkg_manager: dnf
+            #   - set:
+            #       site: '${certname[/\A[^.]+\.([^.]+)\./, 1]}'   # a regexp capture
+            #       family: '${facts.os.family}'
+          YAML
+          'compiler/mocks.yaml' => <<~'YAML',
+            # Answers for what module code asks the system while compiling: commands
+            # (the first entry whose match fits and whose when holds), facts merged
+            # over the factset's per node, and Puppet functions answered without
+            # running. `pupgrade catalog compile --show-default-mocks` prints the
+            # mocks pupgrade applies after yours.
+            #
+            # commands:
+            #   - match: '^hostname'                  # a regexp against the command line
+            #     stdout: "${facts.networking.fqdn}\n" # may reference the node's facts
+            #   - match: '\Asystemctl is-active '
+            #     exit: 3                             # a mocked exit status
+            #     when:                               # only on nodes whose facts match
+            #       os.family: [RedHat, Debian]
+            #   - match: 'systemctl list-unit-files'
+            #     action: allow                       # run it for real, but record it
+            # facts:                                  # merged over the factset's facts, per node
+            #   fips_enabled: false
+            # functions:                              # Puppet functions answered without running
+            #   - name: puppetdb_query
+            #     returns: []
+            #     when:
+            #       os.family: RedHat
+          YAML
+          'compiler/mocks.rb' => <<~'RUBY',
+            # Plain Ruby for what the YAML cannot say, loaded after enc.yaml; each
+            # block gets the node as resolved so far. A block returning nil declines.
+            #
+            # variable(:tenant) { |node| node['site'] == 'b' ? 'blue' : 'green' }
+            # classes  { |node| ['profile::el'] if node.fact('os.family') == 'RedHat' }
+            # mock(/\Arpm -q (\S+)\z/) { |node, m| "#{m[1]}-1.0-1.el9\n" }
+            # function('puppetdb_query') { |node, query| [] if node.certname.start_with?('db') }
+            # fact('os.selinux.enabled') { |node| false if node.fact('os.family') == 'Debian' }
+          RUBY
+          'compiler/before.pp' => <<~'PP',
+            # Puppet code evaluated before the manifest (or --code), for the resources
+            # only production has; a site or error in it reads before.pp:LINE.
+            #
+            # $site_region = 'us-east'
+          PP
+          'branches.yaml' => <<~'YAML',
+            # The branch each tag-pinned module follows, for solve, module releases,
+            # and module info (config: modules.branchfile). `module releases MODULE
+            # --branch B` records a line here.
+            #
+            # puppetlabs-stdlib: main
+            # acme-maint: 1.x
+          YAML
+        }.freeze
+
+        # Directories `--dir` creates empty, and `--gitignore` lists.
+        WRITTEN_DIRS = %w[cache logs].freeze
+
         def execute(argv)
           @given = assignments(argv)
-          path   = @options[:path] || ::Pupgrade::Config.project_path
+          return scaffold(@options[:dir]) if @options[:dir]
+
+          fatal!('config new: --gitignore goes with --dir', help: true) if @options[:gitignore]
+          path = @options[:path] || ::Pupgrade::Config.project_path
 
           if path.match?(/\A-+\Z/)
             puts render
@@ -49,6 +133,10 @@ module Pupgrade
           o.on('-p', '--path=PATH',
                'Write to PATH instead of ./pupgrade/pupgrade.yaml (directories are created)',
                "('--' prints to STDOUT)") { |v| @options[:path] = v }
+          o.on('--dir [DIR]', 'Write the whole tree under DIR (default: pupgrade): pupgrade.yaml, compiler/{enc.yaml,mocks.yaml,',
+               'mocks.rb,before.pp}, branches.yaml as skeletons, cache/ and logs/; a file already there is kept',
+               '(give DIR with = when key=value arguments follow)') { |v| @options[:dir] = v || 'pupgrade' }
+          o.on('--[no-]gitignore', 'With --dir, list DIR/cache/ and DIR/logs/ in the .gitignore beside DIR, once') { |v| @options[:gitignore] = v }
           o.on('--force', 'Overwrite an existing file') { @options[:force] = true }
           o.separator ''
           o.separator 'Arguments:'
@@ -58,6 +146,53 @@ module Pupgrade
         end
 
         private
+
+        # Writes the tree under `dir`: pupgrade.yaml as rendered, the
+        # skeletons, and the empty directories; a file already there is kept
+        # unless --force. Lists DIR/cache/ and DIR/logs/ in the .gitignore of
+        # DIR's parent when asked, each line once.
+        def scaffold(dir)
+          fatal!('config new: --dir places pupgrade.yaml in DIR; --path cannot be given with it', help: true) if @options[:path]
+
+          files = { 'pupgrade.yaml' => render }.merge(SKELETONS)
+          files.each do |name, content|
+            path = File.join(dir, name)
+            if File.exist?(path) && !@options[:force]
+              puts "kept #{path} (exists; --force overwrites)"
+              next
+            end
+            FileUtils.mkdir_p(File.dirname(path))
+            File.write(path, content)
+            puts "wrote #{path}"
+          end
+          WRITTEN_DIRS.each do |name|
+            path = File.join(dir, name)
+            next if File.directory?(path)
+
+            FileUtils.mkdir_p(path)
+            puts "created #{path}/"
+          end
+          gitignore(dir) if @options[:gitignore]
+          exit 0
+        end
+
+        # Appends `DIR/cache/` and `DIR/logs/` to the .gitignore beside DIR,
+        # those not already on a line of their own.
+        def gitignore(dir)
+          path  = File.join(File.dirname(dir), '.gitignore').delete_prefix('./')
+          lines = WRITTEN_DIRS.map { |name| "#{File.basename(dir)}/#{name}/" }
+          text  = File.exist?(path) ? File.read(path) : ''
+          have  = text.lines.map(&:strip)
+          add   = lines.reject { |l| have.include?(l) || have.include?(l.chomp('/')) }
+          if add.empty?
+            puts "#{path} already lists #{lines.join(', ')}"
+            return
+          end
+
+          text += "\n" unless text.empty? || text.end_with?("\n")
+          File.write(path, text + add.map { |l| "#{l}\n" }.join)
+          puts "#{path}: added #{add.join(', ')}"
+        end
 
         # Parses the `<subsystem.key>=<value>` arguments, each value coerced
         # by its key's declared type.

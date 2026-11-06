@@ -25,6 +25,19 @@ RSpec.configure do |config|
     Pupgrade::Ansi.preference = nil
     Pupgrade::Ansi.configured = nil
   end
+
+  # A run attaches its log file as a Tee over whatever `Pupgrade.logger`
+  # answers, under `silence_logger` a double of this example's. Close any
+  # file still attached and drop the stored logger, so the next example
+  # starts from a fresh one and no double outlives its example.
+  config.after(:each) do
+    logger = Driftless.instance_variable_get(:@logger)
+    while logger.is_a?(Pupgrade::Logging::Tee)
+      logger.file.close
+      logger = logger.terminal
+    end
+    Driftless.instance_variable_set(:@logger, nil)
+  end
 end
 
 # Capture what pupgrade (and the driftless code it calls) logs while the

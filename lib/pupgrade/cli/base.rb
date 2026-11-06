@@ -157,9 +157,13 @@ module Pupgrade
         ::Pupgrade::Ansi.preference = ::Driftless::Ansi.preference = @options[:color]
         return dispatch(argv) unless leaf
 
-        after_own_parse
-        apply_log_level
-        execute(argv)
+        begin
+          after_own_parse
+          apply_log_level
+          execute(argv)
+        ensure
+          ::Pupgrade::Logging.detach_file
+        end
       end
 
       # Loads config file, then layers its values under whatever the command
@@ -170,19 +174,34 @@ module Pupgrade
         apply_config_defaults
       end
 
-      # The log file from the flag or `logging.file`, at `logging.file_level`,
-      # attached once the config is read so what the config decides is in
-      # it; the lines logged before it opens are the terminal's alone.
+      # The log file from the flag, `logging.file`, or the command's own
+      # default, at `logging.file_level`, attached once the config is read
+      # so what the config decides is in it; the lines logged before it
+      # opens are the terminal's alone.
       def attach_log_file
-        path = @options[:log_file] || (::Pupgrade.config.dig('logging', 'file') unless self.class.skip_config_load?)
+        path = @options[:log_file] || logging_setting('file') || default_log_file
         return unless path
 
-        level = (::Pupgrade.config.dig('logging', 'file_level') unless self.class.skip_config_load?) || 'debug'
-        ::Pupgrade::Logging.attach_file(path, level: level, command_line: @options.fetch(:command_line, []))
-      rescue ArgumentError
-        fatal!("config error: logging.file_level: #{level.inspect} is not a level")
+        level = logging_setting('file_level') || 'debug'
+        ::Pupgrade::Logging.attach_file(path, level: level, command_line: @options.fetch(:command_line, []),
+                                               mode: logging_setting('file_mode') || 'overwrite', keep: logging_setting('file_keep') || 3)
+      rescue ArgumentError => e
+        fatal!("config error: #{e.message.start_with?('logging.') ? e.message : "logging.file_level: #{level.inspect} is not a level"}")
       rescue SystemCallError => e
         fatal!("log file #{path}: #{e.message}")
+      end
+
+      # A `logging.*` key's value, nil when this command reads no config.
+      def logging_setting(name)
+        ::Pupgrade.config.dig('logging', name) unless self.class.skip_config_load?
+      end
+
+      # The log file a command writes when neither --log-file nor
+      # `logging.file` names one; none here.
+      #
+      # @return [String, nil]
+      def default_log_file
+        nil
       end
 
       def print_help(io = $stdout)
@@ -258,7 +277,8 @@ module Pupgrade
             apply_log_level
           end
           o.on('--[no-]color',    'Colorize terminal output (default: auto — on when stdout is a TTY)') { |v| @options[:color] = v }
-          o.on('--log-file=FILE', 'Append the log to FILE as well, uncolored, at logging.file_level (config: logging.file)') { |v| @options[:log_file] = v }
+          o.on('--log-file=FILE', 'Write the log to FILE as well, uncolored, at logging.file_level; the run before kept as FILE.1',
+               'unless logging.file_mode is append (config: logging.file)') { |v| @options[:log_file] = v }
           o.on('--width=N', Integer, %q[Wrap tables to N columns (default: the terminal's width; 0 for no limit)]) { |v| @options[:width] = v }
           o.on('-h', '--help',    'Show this help') do
             puts o

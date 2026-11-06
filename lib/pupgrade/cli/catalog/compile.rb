@@ -40,6 +40,9 @@ module Pupgrade
                    about: 'Factset files or directories (onceover layout or a plain facts hash), relative to the control repo'
         config_key 'compile.cache_dir', type: :string, default: 'pupgrade/cache/catalogs',
                    about: 'Cache location for <certname>/{catalog,compile}.json files'
+        config_key 'compile.log_file', type: :string, default: 'pupgrade/logs/pupgrade-compile.log',
+                   about: 'The compile\'s log file, when neither --log-file nor logging.file names one, under logging.file_mode ' \
+                          'and logging.file_level; \'\' for none'
 
         COLUMNS = %w[certname resources classes warnings mocks leaks missing status].freeze
 
@@ -96,6 +99,15 @@ module Pupgrade
         end
 
         protected
+
+        # `compile.log_file`, relative to the control repo, unless empty.
+        def default_log_file
+          path = ::Pupgrade.config.dig('compile', 'log_file')
+          path = ::Pupgrade::ConfigKeys['compile.log_file'].default if path.nil?
+          return nil if path.to_s.empty?
+
+          File.expand_path(path, @options[:repo_dir] || Dir.pwd)
+        end
 
         def configure_parser(o)
           declare_repo_and_factsets(o)

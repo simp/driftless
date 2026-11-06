@@ -403,10 +403,15 @@ It's a new gem to help upgrade the module base of large Puppet/OpenVox  control 
 - Logging levels follow Puppet's, `notice` the default; `-v` (info), `-vv`
   (debug), and `-vvv` (trace) show progressively more of what a command is
   doing, wherever they sit on the command line.
-- `--log-file FILE` (config `logging.file`) appends the log to a file as
-  well, on every command: uncolored, a header line per run naming the
-  command and the time, at its own level `logging.file_level` (default
-  debug) whatever `-v`/`-q` give the terminal
+- `--log-file FILE` (config `logging.file`) writes the log to a file as
+  well, on every command: uncolored, a header line naming the command and
+  the time, at its own level `logging.file_level` (default debug)
+  whatever `-v`/`-q` give the terminal. The file holds the latest run,
+  the runs before it kept as `FILE.1`, `FILE.2`, … up to
+  `logging.file_keep` (default 3); `logging.file_mode: append` keeps
+  every run in the file instead. `catalog compile` writes
+  `pupgrade/logs/pupgrade-compile.log` by default (`compile.log_file`;
+  `''` for none) when neither names a file
 - Tables wrap to the terminal width (`--width N` overrides; `0` for none);
   a colored cell keeps its colors across the wrap.
 - `Pupgrade::Ansi` is pupgrade's own (ported from driftless, plus

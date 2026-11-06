@@ -674,10 +674,15 @@ purpose. `-q` keeps errors only. `--[no-]color` overrides the terminal
 detection, `--width N` wraps tables to a width, and `logging.level` in the
 config takes the same names as Puppet's levels.
 
-`--log-file FILE` (config `logging.file`) appends the log to a file as well,
-uncolored, each run under a header line naming the command and the time.
-The file has its own level, `logging.file_level`, debug by default, so the
-terminal can stay quiet while the file keeps every decision.
+`--log-file FILE` (config `logging.file`) writes the log to a file as well,
+uncolored, under a header line naming the command and the time. The file
+has its own level, `logging.file_level`, debug by default, so the terminal
+can stay quiet while the file keeps every decision. Each run overwrites
+the file, the runs before it kept as `FILE.1`, `FILE.2`, and so on up to
+`logging.file_keep` (default 3); `logging.file_mode: append` keeps every
+run in one file instead. `catalog compile` writes
+`pupgrade/logs/pupgrade-compile.log` without being asked (config
+`compile.log_file`; `''` for none), so a long run's warnings are kept.
 
 ## Developing pupgrade
 

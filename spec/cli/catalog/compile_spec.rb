@@ -323,8 +323,13 @@ RSpec.describe Pupgrade::CLI::Catalog::Compile do
     expect(log).not_to include('info: ')
   end
 
-  it 'appends the log to --log-file, each run under a header, debug lines and no escape codes, whatever the terminal gets' do
+  it 'writes the log to --log-file under a header, debug lines and no escape codes, the runs before kept as .1, .2; the compile log by default' do
     allow(Driftless).to receive(:logger).and_call_original
+    # the compile's own log, with nothing asked for
+    default = File.join(fixture.dir, 'pupgrade/logs/pupgrade-compile.log')
+    FileUtils.rm_f(default)
+    capture_log(level: :notice) { expect(run(['--certname', 'web*']).first).to eq(0) }
+    expect(File.read(default)).to include('--- pupgrade --no-config ', 'notice: compile: 1 compiled, 0 failed', 'debug: ')
     path = File.join(@tmp, 'log', 'run.log')
     # a missing --ruby file is warned about, and a warning's label is colored
     args = ['--log-file', path, '--certname', 'web*', '--color', '--mocks', 'pupgrade/compiler/mocks.yaml', '--ruby', File.join(@tmp, 'nope.rb')]
@@ -336,8 +341,28 @@ RSpec.describe Pupgrade::CLI::Catalog::Compile do
     expect(log).to include('warning: compile: ruby ', 'notice: compile: 1 compiled, 0 failed', 'debug: ')
     expect(log).not_to include("\e[")
 
+    # the next run overwrites, the run before moving to .1, then .2
     capture_log(level: :notice) { run(['--log-file', path, '--certname', 'web*', '--mocks', 'pupgrade/compiler/mocks.yaml']) }
-    expect(File.read(path).scan(/^--- pupgrade /).size).to eq(2)
+    expect(File.read(path).scan(/^--- pupgrade /).size).to eq(1)
+    expect(File.read(path)).not_to include('--ruby')
+    expect(File.read("#{path}.1")).to include('--ruby')
+    capture_log(level: :notice) { run(['--log-file', path, '--certname', 'web*', '--mocks', 'pupgrade/compiler/mocks.yaml']) }
+    expect(File.read("#{path}.2")).to include('--ruby')
+    # logging.file_mode append keeps every run in the file; file_keep 0 keeps nothing beside it; a mode that is not one is a config error
+    cfg = File.join(@tmp, 'log-mode.yaml')
+    appended = File.join(@tmp, 'log', 'appended.log')
+    File.write(cfg, "compile:\n  factsets: [factsets]\n  cache_dir: #{out}\n  log_file: ''\nlogging:\n  file: #{appended}\n  file_mode: append\n")
+    FileUtils.rm_f(default)
+    2.times { capture_log(level: :notice) { expect { described_class.new.run(['-c', cfg, '-d', fixture.dir, '--certname', 'web*']) }.to raise_error(SystemExit) } }
+    expect(File.read(appended).scan(/^--- pupgrade /).size).to eq(2)
+    expect(File.exist?(default)).to be(false)
+    File.write(cfg, "compile:\n  factsets: [factsets]\n  cache_dir: #{out}\nlogging:\n  file: #{path}\n  file_keep: 0\n")
+    FileUtils.rm_f(["#{path}.1", "#{path}.2"])
+    capture_log(level: :notice) { expect { described_class.new.run(['-c', cfg, '-d', fixture.dir, '--certname', 'web*']) }.to raise_error(SystemExit) }
+    expect(File.exist?("#{path}.1")).to be(false)
+    File.write(cfg, "compile:\n  factsets: [factsets]\nlogging:\n  file: #{path}\n  file_mode: sideways\n")
+    log = capture_log(level: :fatal) { expect { described_class.new.run(['-c', cfg, '-d', fixture.dir]) }.to raise_error(SystemExit) { |e| expect(e.status).to eq(2) } }
+    expect(log).to include('FATAL: config error: logging.file_mode: "sideways" is not overwrite or append')
 
     # a file that cannot be opened stops the command before it runs
     File.write(File.join(@tmp, 'not-a-dir'), '')

@@ -10,6 +10,7 @@ require 'driftless/inputs/puppetfile'
 require 'driftless/logger'
 require 'driftless/lookup_calls'
 require 'driftless/phases'
+require 'driftless/repo_data'
 require 'driftless/reported'
 
 module Driftless
@@ -71,6 +72,7 @@ module Driftless
 
       puppetfile = phase('Puppetfile load') { Inputs::Puppetfile.load(@repo_dir) }
       warnings << "Puppetfile not evaluated: #{puppetfile.error}" if puppetfile.error
+      warnings.concat(phase('Puppetfile deployment check') { RepoData.deployment_warnings(@repo_dir, puppetfile) })
       Driftless.logger.debug("Read #{puppetfile.modules.size} module declarations from the Puppetfile") if puppetfile.exists?
 
       puppet_classes    = {}

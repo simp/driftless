@@ -298,6 +298,54 @@ RSpec.describe Driftless::ScanData do
       end
     end
 
+    it 'keeps a declared branch the clone sits on' do
+      Dir.mktmpdir do |dir|
+        clone(File.join(dir, 'modules/a'), branch: 'main', others: %w[alpha], detach: true)
+        pf = puppetfile([mod('a', path: 'modules/a', git: 'g', ref: 'main', ref_type: 'branch')])
+        corpus = build_corpus(repo_dir: dir, puppetfile: pf, reported: reported_with([]))
+        expect(assemble(corpus: corpus)['repo']['deployments']['modules/a']).to include('ref' => 'main', 'ref_type' => 'branch')
+        expect(Driftless::RepoData.deployment_warnings(dir, pf)).to eq([])
+      end
+    end
+
+    it 'follows the clone, with a warning, when it is not on the declared ref' do
+      Dir.mktmpdir do |dir|
+        clone(File.join(dir, 'modules/a'), branch: 'main', others: %w[production], detach: true)
+        pf = puppetfile([mod('a', path: 'modules/a', git: 'g', ref: 'gone', ref_type: 'tag', default_branch: 'production')])
+        corpus = build_corpus(repo_dir: dir, puppetfile: pf, reported: reported_with([]))
+        expect(assemble(corpus: corpus)['repo']['deployments']['modules/a']).to include('ref' => 'production', 'ref_type' => 'branch')
+        expect(Driftless::RepoData.deployment_warnings(dir, pf)).to eq(
+          ["Puppetfile declares tag 'gone' for modules/a, but the clone there is on branch 'production'; links follow the clone"],
+        )
+      end
+    end
+
+    it 'links by sha when the clone is on neither the declared ref nor a branch tip' do
+      Dir.mktmpdir do |dir|
+        a = File.join(dir, 'modules/a')
+        clone(a, branch: 'main')
+        system('git', '-C', a, '-c', 'user.name=t', '-c', 'user.email=t@example.com',
+               'commit', '-q', '--allow-empty', '-m', 'moved', exception: true)
+        system('git', '-C', a, 'checkout', '-q', 'HEAD~1', exception: true)
+        pf = puppetfile([mod('a', path: 'modules/a', git: 'g', ref: 'main', ref_type: 'branch')])
+        corpus = build_corpus(repo_dir: dir, puppetfile: pf, reported: reported_with([]))
+        d = assemble(corpus: corpus)['repo']['deployments']['modules/a']
+        expect(d['ref']).to be_nil
+        expect(Driftless::RepoData.deployment_warnings(dir, pf)).to eq(
+          ["Puppetfile declares branch 'main' for modules/a, but the clone there is on commit #{d['sha'][0, 12]}; links follow the clone"],
+        )
+      end
+    end
+
+    it 'does not warn about :control_branch or a module with no clone' do
+      Dir.mktmpdir do |dir|
+        clone(File.join(dir, 'modules/a'), branch: 'main')
+        pf = puppetfile([mod('a', path: 'modules/a', git: 'g', ref: :control_branch, ref_type: 'branch'),
+                         mod('b', path: 'modules/b', git: 'g', ref: 'main', ref_type: 'branch')])
+        expect(Driftless::RepoData.deployment_warnings(dir, pf)).to eq([])
+      end
+    end
+
     it 'leaves :control_branch unresolved when there is no clone at the path' do
       Dir.mktmpdir do |dir|
         pf = puppetfile([mod('a', path: 'modules/a', git: 'g', ref: :control_branch, ref_type: 'branch')])

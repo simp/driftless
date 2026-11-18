@@ -36,6 +36,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `site` links for a Puppetfile git module follow the clone when the clone
+  is not on the declared ref: a branch whose tip the clone sits on, else
+  the commit. A Puppetfile that computes its refs could evaluate to a
+  branch r10k did not deploy, and the link went there. `scan` warns per
+  module where the two differ
 - `GitClone#branch_at_head` no longer returns the remote's name (`origin`)
   for the remote's `HEAD`, and keeps every segment of a local branch name
   (`team/topic`, not `topic`). Either could put a branch that does not

@@ -23,23 +23,66 @@ module Driftless
     # left out.
     #
     # @return [Hash{String => Hash}] `{ remote, ref, ref_type, sha }`: ref and
-    #   ref_type as the Puppetfile declares them, sha read from the clone at
-    #   that path, nil when there is none
+    #   ref_type as the Puppetfile declares them while the clone at that path
+    #   sits on that ref, else a branch whose tip the clone sits on, else nil;
+    #   sha read from the clone, nil when there is none
     def deployments(corpus)
       puppetfile = corpus.puppetfile
       return {} unless puppetfile&.exists?
 
       puppetfile.modules.select(&:git).to_h do |m|
-        # Only a directory holding its own `.git` is asked, so a module that
-        # is not a clone does not answer with the enclosing control repo's sha.
-        clone = GitClone.new(File.join(corpus.repo_dir, m.path))
-        clone = nil unless clone.own?
-        # What r10k deployed for :control_branch depends on how it ran:
-        # the control repo's branch under `deploy environment`, the
-        # default_branch under `puppetfile install`. The clone knows which.
-        ref = (m.ref == :control_branch) ? clone&.branch_at_head(prefer: m.default_branch) : m.ref
-        [m.path, { 'remote' => m.git, 'ref' => ref, 'ref_type' => m.ref_type, 'sha' => clone&.sha }]
+        clone = clone_at(corpus.repo_dir, m)
+        ref   = deployed_ref(m, clone)
+        [m.path, { 'remote' => m.git, 'ref' => ref, 'ref_type' => (ref == m.ref) ? m.ref_type : 'branch', 'sha' => clone&.sha }]
       end
+    end
+
+    # One sentence per git module whose clone does not sit on the ref the
+    # Puppetfile declares. A Puppetfile that computes its refs (from the
+    # environment, from `git ls-remote`) can evaluate differently here than
+    # it did under r10k.
+    #
+    # @param puppetfile [Inputs::Puppetfile::Result, nil]
+    # @return [Array<String>]
+    def deployment_warnings(repo_dir, puppetfile)
+      return [] unless puppetfile&.exists?
+
+      puppetfile.modules.select(&:git).filter_map do |m|
+        clone = clone_at(repo_dir, m)
+        next if clone.nil? || !m.ref.is_a?(String) || on_declared_ref?(m, clone)
+
+        branch = clone.branch_at_head(prefer: m.default_branch)
+        at     = branch ? "branch '#{branch}'" : "commit #{clone.sha.to_s[0, 12]}"
+        "Puppetfile declares #{m.ref_type} '#{m.ref}' for #{m.path}, but the clone there is on #{at}; links follow the clone"
+      end
+    end
+
+    # Only a directory holding its own `.git` is asked, so a module that is
+    # not a clone does not answer with the enclosing control repo's sha.
+    #
+    # @return [GitClone, nil]
+    def clone_at(repo_dir, mod)
+      clone = GitClone.new(File.join(repo_dir, mod.path))
+      clone.own? ? clone : nil
+    end
+
+    # The ref a deployment is linked at.
+    #
+    # @return [String, nil]
+    def deployed_ref(mod, clone)
+      # What r10k deployed for :control_branch depends on how it ran:
+      # the control repo's branch under `deploy environment`, the
+      # default_branch under `puppetfile install`. The clone knows which.
+      return clone&.branch_at_head(prefer: mod.default_branch) if mod.ref == :control_branch
+      return mod.ref if clone.nil? || mod.ref.nil? || on_declared_ref?(mod, clone)
+
+      clone.branch_at_head(prefer: mod.default_branch)
+    end
+
+    # Whether the clone's HEAD is the commit the declared ref names in it.
+    def on_declared_ref?(mod, clone)
+      sha = clone.sha
+      !sha.nil? && clone.resolve(mod.ref) == sha
     end
 
     # The tiers as hiera.yaml declares them, so a reader can show every tier —

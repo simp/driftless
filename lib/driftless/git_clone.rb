@@ -11,6 +11,10 @@ module Driftless
     # removes `spec/` (`exclude_spec`, its default).
     R10K_REMOVED_SPEC = %r{\AD\s+spec/}.freeze
 
+    # What precedes the branch name in a full ref name: `refs/heads/` for a
+    # local branch, `refs/remotes/<remote>/` for a remote-tracking one.
+    BRANCH_REF_PREFIX = %r{\Arefs/(?:heads|remotes/[^/]+)/}.freeze
+
     attr_reader :dir
 
     # @param dir [String] the work tree
@@ -50,10 +54,10 @@ module Driftless
     # @return [String, nil] nil when no branch tip is at HEAD, as after the
     #   branch moved on
     def branch_at_head(prefer: nil)
-      out = output('for-each-ref', '--points-at', 'HEAD', '--format=%(refname:short)', 'refs/heads', 'refs/remotes', why: 'branches at HEAD')
+      out = output('for-each-ref', '--points-at', 'HEAD', '--format=%(refname)', 'refs/heads', 'refs/remotes', why: 'branches at HEAD')
       return nil unless out
 
-      branches = out.lines.map { |l| l.strip.sub(%r{\A[^/]+/}, '') }.reject { |b| b.empty? || b == 'HEAD' }.uniq.sort
+      branches = out.lines.map { |l| l.strip.sub(BRANCH_REF_PREFIX, '') }.reject { |b| b.empty? || b == 'HEAD' }.uniq.sort
       branches.include?(prefer) ? prefer : branches.first
     end
 

@@ -36,6 +36,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `GitClone#branch_at_head` no longer returns the remote's name (`origin`)
+  for the remote's `HEAD`, and keeps every segment of a local branch name
+  (`team/topic`, not `topic`). Either could put a branch that does not
+  exist into a `site` link for a `:control_branch` module
 - `--environment ENV` on `export factsets`, `list nodes`, `list factsets`,
   and `list facts` reaches nodes outside `puppet.environments`: the
   selection widens the loader's scope instead of being filtered by it.

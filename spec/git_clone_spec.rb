@@ -114,4 +114,22 @@ RSpec.describe Driftless::GitClone do
     git(tmp, 'checkout', '-q', '--detach', 'v1')
     expect(clone.branch_at_head).to be_nil
   end
+
+  it 'keeps every segment of a local branch name' do
+    repo(tmp)
+    git(tmp, 'checkout', '-q', '-b', 'team/topic')
+    git(tmp, 'branch', '-q', '-D', 'main')
+    expect(described_class.new(tmp).branch_at_head).to eq('team/topic')
+  end
+
+  it "does not name the remote for the remote's HEAD" do
+    upstream = File.join(tmp, 'upstream')
+    cloned   = File.join(tmp, 'cloned')
+    repo(upstream)
+    git(upstream, 'branch', '-q', '-m', 'main', 'trunk')
+    system('git', 'clone', '-q', upstream, cloned, exception: true)
+    git(cloned, 'checkout', '-q', '--detach')
+    git(cloned, 'branch', '-q', '-D', 'trunk')
+    expect(described_class.new(cloned).branch_at_head).to eq('trunk')
+  end
 end

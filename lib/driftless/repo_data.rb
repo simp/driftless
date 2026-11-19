@@ -51,7 +51,7 @@ module Driftless
         clone = clone_at(repo_dir, m)
         next if clone.nil? || !m.ref.is_a?(String) || on_declared_ref?(m, clone)
 
-        branch = clone.branch_at_head(prefer: m.default_branch)
+        branch = branch_of(clone, m)
         at     = branch ? "branch '#{branch}'" : "commit #{clone.sha.to_s[0, 12]}"
         "Puppetfile declares #{m.ref_type} '#{m.ref}' for #{m.path}, but the clone there is on #{at}; links follow the clone"
       end
@@ -73,16 +73,32 @@ module Driftless
       # What r10k deployed for :control_branch depends on how it ran:
       # the control repo's branch under `deploy environment`, the
       # default_branch under `puppetfile install`. The clone knows which.
-      return clone&.branch_at_head(prefer: mod.default_branch) if mod.ref == :control_branch
+      return clone && branch_of(clone, mod) if mod.ref == :control_branch
       return mod.ref if clone.nil? || mod.ref.nil? || on_declared_ref?(mod, clone)
 
-      clone.branch_at_head(prefer: mod.default_branch)
+      branch_of(clone, mod)
     end
 
-    # Whether the clone's HEAD is the commit the declared ref names in it.
+    # Whether the clone's HEAD is the commit the declared ref names.
     def on_declared_ref?(mod, clone)
       sha = clone.sha
-      !sha.nil? && clone.resolve(mod.ref) == sha
+      !sha.nil? && refs_of(clone).resolve(mod.ref) == sha
+    end
+
+    # A branch whose tip the clone's HEAD is, `default_branch` first.
+    #
+    # @return [String, nil]
+    def branch_of(clone, mod)
+      sha = clone.sha
+      sha && refs_of(clone).branch_at(sha, prefer: mod.default_branch)
+    end
+
+    # Where a deployed clone's refs are current: the r10k cache behind it
+    # when there is one, else the clone.
+    #
+    # @return [GitClone]
+    def refs_of(clone)
+      clone.r10k_cache || clone
     end
 
     # The tiers as hiera.yaml declares them, so a reader can show every tier —

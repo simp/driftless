@@ -2,6 +2,7 @@ require 'spec_helper'
 require 'json'
 require 'tmpdir'
 require 'fileutils'
+require 'open3'
 
 require 'driftless/scan_data'
 require 'driftless/scan'
@@ -343,6 +344,51 @@ RSpec.describe Driftless::ScanData do
         pf = puppetfile([mod('a', path: 'modules/a', git: 'g', ref: :control_branch, ref_type: 'branch'),
                          mod('b', path: 'modules/b', git: 'g', ref: 'main', ref_type: 'branch')])
         expect(Driftless::RepoData.deployment_warnings(dir, pf)).to eq([])
+      end
+    end
+
+    # A clone in the state an r10k redeploy leaves: first cloned from a bare
+    # mirror, then checked out at a later commit of `site01_blue` with only
+    # the mirror's refs updated.
+    def r10k_clone(root, dir)
+      up    = File.join(root, 'upstream')
+      cache = File.join(root, 'cache.git')
+      clone(up, branch: 'main', others: %w[site01_blue])
+      system('git', 'clone', '-q', '--mirror', up, cache, exception: true)
+      FileUtils.mkdir_p(File.dirname(dir))
+      system('git', 'clone', '-q', '--reference', cache, up, dir, exception: true)
+      system('git', '-C', dir, 'remote', 'add', 'cache', cache, exception: true)
+      %w[main site01_blue].each do |b|
+        system('git', '-C', up, 'checkout', '-q', b, exception: true)
+        system('git', '-C', up, '-c', 'user.name=t', '-c', 'user.email=t@example.com',
+               'commit', '-q', '--allow-empty', '-m', 'moved', exception: true)
+      end
+      system('git', '-C', cache, 'fetch', '-q', '--prune', exception: true)
+      sha, = Open3.capture2('git', '-C', cache, 'rev-parse', 'site01_blue')
+      system('git', '-C', dir, 'checkout', '-q', '--detach', sha.strip, exception: true)
+    end
+
+    it "reads a clone's refs from the r10k cache behind it" do
+      Dir.mktmpdir do |root|
+        dir = File.join(root, 'control')
+        r10k_clone(root, File.join(dir, 'data/sites/site01'))
+        on_branch = puppetfile([mod('s', path: 'data/sites/site01', git: 'g', ref: 'site01_blue', ref_type: 'branch')])
+        corpus = build_corpus(repo_dir: dir, puppetfile: on_branch, reported: reported_with([]))
+        expect(assemble(corpus: corpus)['repo']['deployments']['data/sites/site01']).to include('ref' => 'site01_blue')
+        expect(Driftless::RepoData.deployment_warnings(dir, on_branch)).to eq([])
+
+        elsewhere = puppetfile([mod('s', path: 'data/sites/site01', git: 'g', ref: 'control_repo', ref_type: 'branch',
+                                    default_branch: 'site01_blue')])
+        corpus = build_corpus(repo_dir: dir, puppetfile: elsewhere, reported: reported_with([]))
+        expect(assemble(corpus: corpus)['repo']['deployments']['data/sites/site01']).to include('ref' => 'site01_blue', 'ref_type' => 'branch')
+        expect(Driftless::RepoData.deployment_warnings(dir, elsewhere)).to eq(
+          ["Puppetfile declares branch 'control_repo' for data/sites/site01, but the clone there is on branch 'site01_blue'; links follow the clone"],
+        )
+
+        tracking = puppetfile([mod('s', path: 'data/sites/site01', git: 'g', ref: :control_branch, ref_type: 'branch',
+                                   default_branch: 'site01_blue')])
+        corpus = build_corpus(repo_dir: dir, puppetfile: tracking, reported: reported_with([]))
+        expect(assemble(corpus: corpus)['repo']['deployments']['data/sites/site01']).to include('ref' => 'site01_blue')
       end
     end
 

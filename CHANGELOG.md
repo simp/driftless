@@ -36,6 +36,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- A clone r10k deployed has its refs read from the r10k cache behind it
+  (its `cache` remote), where r10k resolved them; the clone's own refs
+  stay as they were at first clone. `site` links for such a module named
+  no branch, and `scan` warned about a declared branch that had since
+  moved
 - `site` links for a Puppetfile git module follow the clone when the clone
   is not on the declared ref: a branch whose tip the clone sits on, else
   the commit. A Puppetfile that computes its refs could evaluate to a

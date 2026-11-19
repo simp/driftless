@@ -48,17 +48,40 @@ module Driftless
       output('describe', '--tags', '--exact-match', 'HEAD', why: 'tag at HEAD')
     end
 
-    # A branch whose tip is HEAD, from the local and remote-tracking refs:
-    # `prefer` when it is one of them, else the first by name.
+    # A branch whose tip is HEAD.
     #
-    # @return [String, nil] nil when no branch tip is at HEAD, as after the
-    #   branch moved on
+    # @param prefer [String, nil] see {#branch_at}
+    # @return [String, nil] nil when no branch tip is at HEAD; a branch that
+    #   has moved on since the checkout leaves none
     def branch_at_head(prefer: nil)
-      out = output('for-each-ref', '--points-at', 'HEAD', '--format=%(refname)', 'refs/heads', 'refs/remotes', why: 'branches at HEAD')
+      branch_at('HEAD', prefer: prefer)
+    end
+
+    # A branch whose tip is the commit, from the local and remote-tracking
+    # refs.
+    #
+    # @param commit [String] a sha or ref
+    # @param prefer [String, nil] the branch to return when several have
+    #   their tip there; without it, or when it is not one of them, the
+    #   first by name
+    # @return [String, nil] nil when no branch tip is there
+    def branch_at(commit, prefer: nil)
+      out = output('for-each-ref', '--points-at', commit, '--format=%(refname)', 'refs/heads', 'refs/remotes', why: "branches at #{commit[0, 12]}")
       return nil unless out
 
       branches = out.lines.map { |l| l.strip.sub(BRANCH_REF_PREFIX, '') }.reject { |b| b.empty? || b == 'HEAD' }.uniq.sort
       branches.include?(prefer) ? prefer : branches.first
+    end
+
+    # The bare mirror behind a clone r10k deployed: its `cache` remote. r10k
+    # resolves a declared ref there and checks the commit out here, so this
+    # clone's own refs stay as they were when it was first cloned.
+    #
+    # @return [GitClone, nil] nil when there is no `cache` remote or its
+    #   directory is gone
+    def r10k_cache
+      url = output('config', '--get', 'remote.cache.url', why: 'r10k cache')
+      (url && File.directory?(url)) ? GitClone.new(url) : nil
     end
 
     # The commit a declared ref names in this clone: a sha, tag, or local
